@@ -84,12 +84,79 @@ namespace FollowBot
 
         public static void PhaseRun()
         {
-            if (LokiPoe.Me.Auras.All(x => x.Name != "Phase Run"))
+            var phaseRun = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "NewPhaseRun");
+            if(phaseRun != null)
             {
-                var phaseRun = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "NewPhaseRun");
-                if (phaseRun != null && phaseRun.IsOnSkillBar && phaseRun.Slot != -1 && phaseRun.CanUse())
-                    LokiPoe.InGameState.SkillBarHud.Use(phaseRun.Slot, false, false);
+                if (LokiPoe.Me.Auras.All(x => x.Name != "Phase Run"))
+                {                    
+                    if (phaseRun != null && phaseRun.IsOnSkillBar && phaseRun.Slot != -1 && phaseRun.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(phaseRun.Slot, false, false);
+                }
+            }            
+        }
+
+        public static void MoltenShell()
+        {
+            var moltenShell = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "FireShield");
+            if(moltenShell != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => x.Name != "Molten Shell"))
+                {                    
+                    if (moltenShell != null && moltenShell.IsOnSkillBar && moltenShell.Slot != -1 && moltenShell.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(moltenShell.Slot, false, false);
+                }
+            }            
+        }
+
+        
+        /*public static void BladeVortex()
+        {
+            if (LokiPoe.Me.Auras.All(x => x.Name != "Blade Vortex"))
+            {
+                var bladeVortex = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "NewBladeVortex");
+                if (bladeVortex != null && bladeVortex.IsOnSkillBar && bladeVortex.Slot != -1 && bladeVortex.CanUse())
+                    LokiPoe.InGameState.SkillBarHud.Use(bladeVortex.Slot, false, false);
             }
+        }*/
+
+        public static void DestructiveLink()
+        {
+            var link = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "CriticalLink");
+            if (link != null)
+            {
+                var linkLeader = FollowBot.Leader;
+                if (linkLeader != null && linkLeader.Distance < 50)
+                {
+
+                    if (LokiPoe.Me.Auras.All(x => (x.Name == "Destructive Link" && x.TimeLeft.Seconds <= 3) || x.Name != "Destructive Link"))
+                    {
+                        if (link != null && link.IsOnSkillBar && link.Slot != -1 && link.CanUse())
+                            LokiPoe.InGameState.SkillBarHud.UseOn(link.Slot, false, FollowBot.Leader, false);
+                    }
+
+                }
+            }
+
+        }
+
+        public static void SoulLink()
+        {
+            var link = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SoulLink");
+            if (link!= null)
+            {
+                var linkLeader = FollowBot.Leader;
+                if (linkLeader != null && linkLeader.Distance < 50)
+                {
+
+                    if (LokiPoe.Me.Auras.All(x => (x.Name == "Soul Link" && x.TimeLeft.Seconds <= 3) || x.Name != "Soul Link"))
+                    {
+                        if (link != null && link.IsOnSkillBar && link.Slot != -1 && link.CanUse())
+                            LokiPoe.InGameState.SkillBarHud.UseOn(link.Slot, false, FollowBot.Leader, false);
+                    }
+
+                }
+            }
+            
         }
 
         public void Start()
@@ -248,7 +315,7 @@ namespace FollowBot
                             Log.Debug("Waiting for game pause");
                         }
                         // Resurrect character if it is dead
-                        else if (LokiPoe.Me.IsDead)
+                        else if (LokiPoe.Me.IsDead && World.CurrentArea.Id != "HallsOfTheDead_League")
                         {
                             await ResurrectionLogic.Execute();
                         }

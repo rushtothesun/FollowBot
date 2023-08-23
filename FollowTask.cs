@@ -41,7 +41,7 @@ namespace FollowBot
         public async Task<bool> Run()
         {
             if (!FollowBotSettings.Instance.ShouldFollow) return false;
-            if (!LokiPoe.IsInGame || LokiPoe.Me.IsDead || LokiPoe.Me.IsInTown || LokiPoe.Me.IsInHideout)
+            if (!LokiPoe.IsInGame || LokiPoe.Me.IsDead || LokiPoe.Me.IsInTown || World.CurrentArea.Id == "HeistHub")
             {
                 return false;
             }
@@ -75,7 +75,7 @@ namespace FollowBot
                             var walkablePosition = ExilePather.FastWalkablePositionFor(delveportal, 20);
 
                             // Cast Phase run if we have it.
-                            FollowBot.PhaseRun();
+                            FollowBot.PhaseRun();                         
 
                             Move.Towards(walkablePosition, "moving to delve portal");
                             return true;
@@ -105,7 +105,7 @@ namespace FollowBot
                             var walkablePosition = ExilePather.FastWalkablePositionFor(teleport, 20);
 
                             // Cast Phase run if we have it.
-                            FollowBot.PhaseRun();
+                            FollowBot.PhaseRun();                            
 
                             Move.Towards(walkablePosition, "moving to Teleport");
                             return true;
@@ -128,7 +128,7 @@ namespace FollowBot
                         var walkablePosition = ExilePather.FastWalkablePositionFor(areatransition, 20);
 
                         // Cast Phase run if we have it.
-                        FollowBot.PhaseRun();
+                        FollowBot.PhaseRun();                        
 
                         Move.Towards(walkablePosition, "moving to area transition");
                         return true;
@@ -147,6 +147,7 @@ namespace FollowBot
 
                 // Cast Phase run if we have it.
                 FollowBot.PhaseRun();
+                
 
                 if (LokiPoe.Me.Position.Distance(pos) < 50)
                 {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
@@ -12,7 +13,8 @@ namespace FollowBot
 {
     public class CastAuraTask : ITask
     {
-        private const int MinGolemHpPercent = 80;
+        private const int MinGolemHpPercent = 40;
+        private const int MinRelicHpPercent = 40;
         private static List<int> _temporaryBlacklistedAuras = new List<int>();
         public async Task<bool> Run()
         {
@@ -30,7 +32,7 @@ namespace FollowBot
             }
 
             var golemSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.SkillTags.Contains("golem"));
-            if (golemSkill != null)
+            if (golemSkill != null && golemSkill.CanUse())
             {
                 var golemObj = golemSkill.DeployedObjects.FirstOrDefault() as Monster;
                 if (golemObj == null || golemObj.HealthPercent < MinGolemHpPercent)
@@ -42,6 +44,21 @@ namespace FollowBot
                     await Wait.SleepSafe(100);
                 }
             }
+
+            var relicSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.InternalName == "SummonRelic");
+            if (relicSkill != null && relicSkill.CanUse())
+            {
+                var relicObj = relicSkill.DeployedObjects.FirstOrDefault() as Monster;
+                if (relicObj == null || relicObj.HealthPercent < MinRelicHpPercent)
+                {
+                    GlobalLog.Debug($"[CastAuraTask] Now summoning \"{relicSkill.Name}\".");
+                    SkillBar.Use(relicSkill.Slot, false);
+                    await Wait.SleepSafe(100);
+                    await Coroutines.FinishCurrentAction();
+                    await Wait.SleepSafe(100);
+                }
+            }
+
             // Auras
             var auras = GetAurasForCast();
             if (auras.Count > 0)

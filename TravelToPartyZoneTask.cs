@@ -72,6 +72,8 @@ namespace FollowBot
             //First check the DontPortOutofMap
             var curZone = World.CurrentArea;
             if (!curZone.IsTown && !curZone.IsHideoutArea && FollowBotSettings.Instance.DontPortOutofMap) return false;
+
+            #region Delve Portals
             //Then check for Delve portals:
             var delveportal = LokiPoe.ObjectManager.GetObjectsByType<AreaTransition>().FirstOrDefault(x => x.Name == "Azurite Mine" && (x.Metadata == "Metadata/MiscellaneousObject/PortalTransition" || x.Metadata == "Metadata/MiscellaneousObjects/PortalTransition"));
             if (delveportal != null)
@@ -98,8 +100,18 @@ namespace FollowBot
                 FollowBot.Leader = null;
                 return true;
             }
+            #endregion
+
+            #region Heist Portals
             //Next check for Heist portals:
             var heistportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Leagues/Heist/Objects/MissionEntryPortal");
+            
+            //Check for exit port if already in a heist
+            if (heistportal == null)
+            {
+                heistportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Leagues/Heist/Objects/MissionExitPortal");
+            }
+
             if (heistportal != null && heistportal.Components.TargetableComponent.CanTarget)
             {
                 Log.DebugFormat("[{0}] Found walkable heist portal.", Name);
@@ -124,6 +136,148 @@ namespace FollowBot
                 FollowBot.Leader = null;
                 return true;
             }
+            #endregion
+
+            #region Lab Trial Portals
+            //Next check for Lab portals:
+            var labportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/QuestObjects/Labyrinth/LabyrinthTrialPortal");
+            if (labportal != null && labportal.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable lab portal.", Name);
+                if (LokiPoe.Me.Position.Distance(labportal.Position) > 20 && LokiPoe.Me.Position.Distance(labportal.Position) < 175)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(labportal, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to lab portal");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(labportal);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] lab portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+
+            //Next check for Lab return portals:
+            var labreturnportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Labyrinth/Objects/MapLabyrinthTrialReturnPortal");
+            if (labreturnportal != null && labreturnportal.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable lab return portal.", Name);
+                if (LokiPoe.Me.Position.Distance(labreturnportal.Position) > 20)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(labreturnportal, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to lab return portal");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(labreturnportal);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] lab return portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+            #endregion
+
+            #region Abyss Portals
+            //Next check for Abyss portals:
+            var abyssportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Abyss/AbyssSubAreaTransition");
+            if (abyssportal != null && abyssportal.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable abyss portal.", Name);
+                if (LokiPoe.Me.Position.Distance(abyssportal.Position) > 20)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(abyssportal, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to abyss portal");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(abyssportal);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] abyss portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+            #endregion
+
+            #region Vaal Side Areas - Not Tested
+            //Next check for Corrupted portals: 
+            var corruptportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalTransition");
+            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable corrupt portal.", Name);
+                if (LokiPoe.Me.Position.Distance(corruptportal.Position) > 20 && LokiPoe.Me.Position.Distance(corruptportal.Position) < 170)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(corruptportal, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to corrupt portal");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(corruptportal);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] corrupt portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+
+            //Next check for Corrupted return portals:
+            var corruptreturnportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/VaalSideAreaReturnPortal");
+            if (corruptreturnportal != null && corruptreturnportal.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable corrupt return portal.", Name);
+                if (LokiPoe.Me.Position.Distance(corruptreturnportal.Position) > 20)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(corruptreturnportal, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to corrupt return portal");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(corruptreturnportal);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] corrupt return portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+            #endregion
 
             if (leader.PlayerEntry.Area.IsMap || leader.PlayerEntry.Area.IsTempleOfAtzoatl || leader.PlayerEntry.Area.Id.Contains("Expedition"))
             {
