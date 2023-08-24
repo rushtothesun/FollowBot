@@ -306,6 +306,35 @@ namespace FollowBot
             }
             #endregion
 
+            #region Sanctum Transition
+            //Next check for the Sanctum transition by the waypoint
+            var sanctumtransition = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Leagues/Sanctum/Objects/SanctumAirlockTransition");
+            if (sanctumtransition != null && sanctumtransition.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable sanctum transition.", Name);
+                if (LokiPoe.Me.Position.Distance(sanctumtransition.Position) > 20)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(sanctumtransition, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to sanctum transition");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(sanctumtransition);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] sanctum transition error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+            #endregion
+
             if (leader.PlayerEntry.Area.IsMap || leader.PlayerEntry.Area.IsTempleOfAtzoatl || leader.PlayerEntry.Area.Id.Contains("Expedition"))
             {
                 if (!await TakePortal())
