@@ -223,10 +223,10 @@ namespace FollowBot
             }
             #endregion
 
-            #region Vaal Side Areas - Not Tested
+            #region Vaal Side Areas
             //Next check for Corrupted portals: 
             var corruptportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalTransition");
-            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget)
+            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget && corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted")
             {
                 Log.DebugFormat("[{0}] Found walkable corrupt portal.", Name);
                 if (LokiPoe.Me.Position.Distance(corruptportal.Position) > 20 && LokiPoe.Me.Position.Distance(corruptportal.Position) < 170)
@@ -245,6 +245,33 @@ namespace FollowBot
                 if (!tele)
                 {
                     Log.DebugFormat("[{0}] corrupt portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+
+            //Next check for Corrupted areas: 
+            var corruptarea = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/AreaTransition");
+            if (corruptarea != null && corruptarea.Components.TargetableComponent.CanTarget && (corruptarea.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted" || corruptarea.Components.AreaTransitionComponent.TransitionType.ToString() == "CorruptedToNormal"))
+            {
+                Log.DebugFormat("[{0}] Found walkable corrupt area.", Name);
+                if (LokiPoe.Me.Position.Distance(corruptarea.Position) > 20 && LokiPoe.Me.Position.Distance(corruptarea.Position) < 170)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(corruptarea, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to corrupt area");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(corruptarea);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] corrupt area error.", Name);
                 }
 
                 FollowBot.Leader = null;
