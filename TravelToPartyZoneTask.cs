@@ -226,7 +226,7 @@ namespace FollowBot
             #region Vaal Side Areas
             //Next check for Corrupted portals: 
             var corruptportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalTransition");
-            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget && corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted")
+            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget && (corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted" || corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "CorruptedToNormal"))
             {
                 Log.DebugFormat("[{0}] Found walkable corrupt portal.", Name);
                 if (LokiPoe.Me.Position.Distance(corruptportal.Position) > 20 && LokiPoe.Me.Position.Distance(corruptportal.Position) < 170)
@@ -272,6 +272,33 @@ namespace FollowBot
                 if (!tele)
                 {
                     Log.DebugFormat("[{0}] corrupt area error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+
+            //Next check for Corrupted toggleable areas: 
+            var corruptareatoggle = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/AreaTransitionToggleable");
+            if (corruptareatoggle != null && corruptareatoggle.Components.TargetableComponent.CanTarget && (corruptareatoggle.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted" || corruptareatoggle.Components.AreaTransitionComponent.TransitionType.ToString() == "CorruptedToNormal"))
+            {
+                Log.DebugFormat("[{0}] Found walkable corrupt toggle area.", Name);
+                if (LokiPoe.Me.Position.Distance(corruptareatoggle.Position) > 20 && LokiPoe.Me.Position.Distance(corruptareatoggle.Position) < 170)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(corruptareatoggle, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to corrupt toggle area");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(corruptareatoggle);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] corrupt toggle area error.", Name);
                 }
 
                 FollowBot.Leader = null;
