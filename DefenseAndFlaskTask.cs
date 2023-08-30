@@ -140,7 +140,7 @@ namespace FollowBot
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return false;
             if (!LokiPoe.CurrentWorldArea.IsCombatArea) return false;
 
-            FollowBot.SoulLink();
+            //FollowBot.SoulLink();
             FollowBot.MoltenShell();
 
             var hpPct = LokiPoe.Me.HealthPercent;
