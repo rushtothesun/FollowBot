@@ -21,7 +21,6 @@ namespace FollowBot
         private bool _enabled = true;
         private Stopwatch _portalRequestStopwatch = Stopwatch.StartNew();
         private static int _zoneCheckRetry = 0;
-        private Stopwatch _portOutStopwatch = new Stopwatch();
 
         public string Name { get { return "TravelToPartyZone"; } }
         public string Description { get { return "This task will travel to party grind zone."; } }
@@ -30,7 +29,6 @@ namespace FollowBot
         
         public void Start()
         {
-            _portOutStopwatch.Reset();
         }
         public void Stop()
         {
@@ -54,7 +52,6 @@ namespace FollowBot
             if (LokiPoe.InGameState.PartyHud.IsInSameZone(leadername))
             {
                 _zoneCheckRetry = 0;
-                _portOutStopwatch.Reset();
                 return false;
             }
             else
@@ -72,7 +69,35 @@ namespace FollowBot
                     return true;
                 }
             }
-            //First check the DontPortOutofMap
+            
+			// portal
+				var hoportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/MultiplexPortal");
+				if (hoportal != null)
+				{
+					Log.DebugFormat("[{0}] Found ho portal.", Name);
+					if (LokiPoe.Me.Position.Distance(hoportal.Position) > 20 && LokiPoe.Me.Position.Distance(hoportal.Position) < 40)
+					{
+						var walkablePosition = ExilePather.FastWalkablePositionFor(hoportal, 13);
+
+						// Cast Phase run if we have it.
+						FollowBot.PhaseRun();
+
+						Move.Towards(walkablePosition, "moving to ho portal");
+						return true;
+					}
+
+					var tele = await Coroutines.InteractWith(hoportal);
+
+					if (!tele)
+					{
+						Log.DebugFormat("[{0}] ho portal error.", Name);
+					}
+
+					FollowBot.Leader = null;
+					return true;
+				}
+			
+			//First check the DontPortOutofMap
             var curZone = World.CurrentArea;
             if (!curZone.IsTown && !curZone.IsHideoutArea && FollowBotSettings.Instance.DontPortOutofMap) return false;
 
@@ -104,6 +129,61 @@ namespace FollowBot
                 return true;
             }
             #endregion
+			
+				#region Affliction
+				//King of the mist portal
+				var kingportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalToggleable");
+				if (kingportal != null)
+				{
+					Log.DebugFormat("[{0}] Found king of the mist portal.", Name);
+					if (LokiPoe.Me.Position.Distance(kingportal.Position) > 15)
+					{
+						var walkablePosition = ExilePather.FastWalkablePositionFor(kingportal, 13);
+
+						// Cast Phase run if we have it.
+						FollowBot.PhaseRun();
+
+						Move.Towards(walkablePosition, "moving to king of the mist portal");
+						return true;
+					}
+
+					var tele = await Coroutines.InteractWith(kingportal);
+
+					if (!tele)
+					{
+						Log.DebugFormat("[{0}] king of the mist portal error.", Name);
+					}
+
+					FollowBot.Leader = null;
+					return true;
+				}
+				
+				var kingreturnportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalToggleableReverse");
+				if (kingreturnportal != null)
+				{
+					Log.DebugFormat("[{0}] Found king of the mist return portal.", Name);
+					if (LokiPoe.Me.Position.Distance(kingreturnportal.Position) > 15)
+					{
+						var walkablePosition = ExilePather.FastWalkablePositionFor(kingreturnportal, 13);
+
+						// Cast Phase run if we have it.
+						FollowBot.PhaseRun();
+
+						Move.Towards(walkablePosition, "moving to king of the mist return portal");
+						return true;
+					}
+
+					var tele = await Coroutines.InteractWith(kingreturnportal);
+
+					if (!tele)
+					{
+						Log.DebugFormat("[{0}] king of the mist return portal error.", Name);
+					}
+
+					FollowBot.Leader = null;
+					return true;
+				}
+				#endregion
 
             #region Heist Portals
             //Next check for Heist portals:
@@ -147,7 +227,7 @@ namespace FollowBot
             if (labportal != null && labportal.Components.TargetableComponent.CanTarget)
             {
                 Log.DebugFormat("[{0}] Found walkable lab portal.", Name);
-                if (LokiPoe.Me.Position.Distance(labportal.Position) > 20 && LokiPoe.Me.Position.Distance(labportal.Position) < 175)
+                if (LokiPoe.Me.Position.Distance(labportal.Position) > 20 && LokiPoe.Me.Position.Distance(labportal.Position) < 60)
                 {
                     var walkablePosition = ExilePather.FastWalkablePositionFor(labportal, 20);
 
@@ -229,10 +309,10 @@ namespace FollowBot
             #region Vaal Side Areas
             //Next check for Corrupted portals: 
             var corruptportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalTransition");
-            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget && (corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted" || corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "CorruptedToNormal"))
+            if (corruptportal != null && corruptportal.Components.TargetableComponent.CanTarget && corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted")
             {
                 Log.DebugFormat("[{0}] Found walkable corrupt portal.", Name);
-                if (LokiPoe.Me.Position.Distance(corruptportal.Position) > 20 && LokiPoe.Me.Position.Distance(corruptportal.Position) < 170)
+                if (LokiPoe.Me.Position.Distance(corruptportal.Position) > 20 && LokiPoe.Me.Position.Distance(corruptportal.Position) < 40)
                 {
                     var walkablePosition = ExilePather.FastWalkablePositionFor(corruptportal, 20);
 
@@ -259,7 +339,7 @@ namespace FollowBot
             if (corruptarea != null && corruptarea.Components.TargetableComponent.CanTarget && (corruptarea.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted" || corruptarea.Components.AreaTransitionComponent.TransitionType.ToString() == "CorruptedToNormal"))
             {
                 Log.DebugFormat("[{0}] Found walkable corrupt area.", Name);
-                if (LokiPoe.Me.Position.Distance(corruptarea.Position) > 20 && LokiPoe.Me.Position.Distance(corruptarea.Position) < 170)
+                if (LokiPoe.Me.Position.Distance(corruptarea.Position) > 20 && LokiPoe.Me.Position.Distance(corruptarea.Position) < 40)
                 {
                     var walkablePosition = ExilePather.FastWalkablePositionFor(corruptarea, 20);
 
@@ -280,13 +360,13 @@ namespace FollowBot
                 FollowBot.Leader = null;
                 return true;
             }
-
-            //Next check for Corrupted toggleable areas: 
+			
+			//Next check for Corrupted toggleable areas: 
             var corruptareatoggle = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/AreaTransitionToggleable");
             if (corruptareatoggle != null && corruptareatoggle.Components.TargetableComponent.CanTarget && (corruptareatoggle.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted" || corruptareatoggle.Components.AreaTransitionComponent.TransitionType.ToString() == "CorruptedToNormal"))
             {
                 Log.DebugFormat("[{0}] Found walkable corrupt toggle area.", Name);
-                if (LokiPoe.Me.Position.Distance(corruptareatoggle.Position) > 20 && LokiPoe.Me.Position.Distance(corruptareatoggle.Position) < 170)
+                if (LokiPoe.Me.Position.Distance(corruptareatoggle.Position) > 20 && LokiPoe.Me.Position.Distance(corruptareatoggle.Position) < 40)
                 {
                     var walkablePosition = ExilePather.FastWalkablePositionFor(corruptareatoggle, 20);
 
@@ -364,6 +444,36 @@ namespace FollowBot
                 return true;
             }
             #endregion
+			
+			#region Affliction Transition
+            //Next check for the Sanctum transition by the waypoint
+            var afflictiontransition = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Leagues/Azmeri/WoodsEntranceTransition");
+            if (afflictiontransition != null && afflictiontransition.Components.TargetableComponent.CanTarget)
+            {
+                Log.DebugFormat("[{0}] Found walkable sanctum transition.", Name);
+                if (LokiPoe.Me.Position.Distance(afflictiontransition.Position) > 20)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(afflictiontransition, 20);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to affliction transition");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(afflictiontransition);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] affliction transition error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+            #endregion
+			
 
             if (leader.PlayerEntry.Area.IsMap || leader.PlayerEntry.Area.IsTempleOfAtzoatl || leader.PlayerEntry.Area.Id.Contains("Expedition"))
             {
@@ -440,30 +550,7 @@ namespace FollowBot
                 return false;
             }
 
-            if (curZone.IsCombatArea && FollowBotSettings.Instance.PortOutThreshold > 0)
-            {
-                if (_portOutStopwatch.IsRunning && _portalRequestStopwatch.ElapsedMilliseconds >= (FollowBotSettings.Instance.PortOutThreshold * 1000))
-                {
-                    _portOutStopwatch.Reset();
-                    GlobalLog.Warn($"[TravelToPartyZoneTask] {FollowBotSettings.Instance.PortOutThreshold} seconds elapsed and Party leader is in still a diffrerent zone porting!.");
-                    await PartyHelper.FastGotoPartyZone(leadername);                    
-                    return true;
-                }
-                else if (!_portOutStopwatch.IsRunning)
-                {
-                    GlobalLog.Warn($"[TravelToPartyZoneTask] Party leader is in a diffrerent zone waiting {FollowBotSettings.Instance.PortOutThreshold} seconds to see if it come back.");
-                    _portOutStopwatch.Start();
-                    return true;
-                }
-                else
-                {
-                    await Coroutines.LatencyWait();
-                    return true;
-                }
-            }
-            else
-                await PartyHelper.FastGotoPartyZone(leadername);
-
+            await PartyHelper.FastGotoPartyZone(leadername);
             return true;
         }
 
@@ -496,7 +583,6 @@ namespace FollowBot
             if (message.Id == Events.Messages.AreaChanged)
             {
                 _zoneCheckRetry = 0;
-                _portOutStopwatch.Reset();
                 return MessageResult.Processed;
             }
             if (message.Id == "Enable")

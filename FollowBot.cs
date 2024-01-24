@@ -107,6 +107,23 @@ namespace FollowBot
                 }
             }            
         }
+		
+		//Guardian's Blessing usage
+		public static void GuardiansBlessing()
+        {
+            var guardiansBlessing = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "CastAuraSpeed");
+            //var relicSkill2 = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRelic");
+			if (guardiansBlessing != null && LokiPoe.Me.Auras.All(x => (x.Name == "Haste Aura" && x.TimeLeft.Seconds <= 2) || x.Name != "Haste Aura") && guardiansBlessing.CanUse())
+            {
+                //var relicObj2 = relicSkill2.DeployedObjects.FirstOrDefault() as Monster;
+                //if (relicObj2 != null)
+                //{
+                    GlobalLog.Debug($"Casting \"{guardiansBlessing.Name}\" - Guardian's Blessing");
+					LokiPoe.InGameState.SkillBarHud.Use(guardiansBlessing.Slot, false, false);
+                //}
+            }           
+        }	
+	
 
         
         /*public static void BladeVortex()
@@ -486,7 +503,7 @@ namespace FollowBot
         public string Name => "FollowBot";
         public string Author => "NotYourFriend, origial code from Unknown";
         public string Description => "Bot that follow leader.";
-        public string Version => "0.0.6.0";
+        public string Version => "0.0.5.8";
         public UserControl Control => _gui ?? (_gui = new FollowBotGui());
         public JsonSettings Settings => FollowBotSettings.Instance;
         public override string ToString() => $"{Name}: {Description}";

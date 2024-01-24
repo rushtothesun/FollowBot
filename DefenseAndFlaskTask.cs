@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
-using DreamPoeBot.Loki.Game.NativeWrappers;
 using DreamPoeBot.Loki.Game.Objects;
 using DreamPoeBot.Loki.RemoteMemoryObjects;
 using FollowBot.Class;
@@ -66,7 +65,6 @@ namespace FollowBot
             [FlaskNames.DoedreElixir] = string.Empty,
             [FlaskNames.WrithingJar] = string.Empty,
         };
-        private static readonly Dictionary<string, int> LinkRotationDictionary = new Dictionary<string, int>();
 
         public static class FlaskNames
         {
@@ -140,8 +138,90 @@ namespace FollowBot
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return false;
             if (!LokiPoe.CurrentWorldArea.IsCombatArea) return false;
 
-            //FollowBot.SoulLink();
+            FollowBot.SoulLink();
             FollowBot.MoltenShell();
+			FollowBot.GuardiansBlessing();
+			
+			//var ult = LokiPoe.ObjectManager.Objects.FirstOrDefault<UltimatumChallengeInteractable>();
+			//if (ult != null)
+				
+			//Ultimatum 
+			if (LokiPoe.InGameState.UltimatumTrialRewardUi.IsOpened)
+			{
+				if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForReward() >= 1)
+				{
+						LokiPoe.InGameState.UltimatumTrialRewardUi.TakeReward();
+				}
+				foreach (var opt in LokiPoe.InGameState.UltimatumTrialRewardUi.Options)
+				{
+					if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(opt) >= 1)
+					{
+						LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(opt);
+						LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+					}
+					
+				}			
+			}
+				/*
+			if (ult != null){
+			//var tmod = ult.Options.FirstOrDefault();
+			var umod1 = ult.Options.ElementAt(0);
+			var umod2 = ult.Options.ElementAt(1);
+			var umod3 = ult.Options.ElementAt(2);
+			GlobalLog.Info("mod1 "+ult.GetVoteForOption(umod1));
+			GlobalLog.Info("mod2 "+ult.GetVoteForOption(umod2));
+			GlobalLog.Info("mod3 "+ult.GetVoteForOption(umod3));
+			//GlobalLog.Info(ult.GetVoteForOption(umod1));
+			//GlobalLog.Info(tmod.ToString());
+			} */
+			
+			
+			
+			
+			
+			
+			/*
+			if (LokiPoe.InGameState.UltimatumTrialRewardUi.IsOpened)
+			{
+				//LokiPoe.InGameState.UltimatumTrialRewardUi.TakeReward();
+				//var x = LokiPoe.ObjectManager.Objects.FirstOrDefault<UltimatumChallengeInteractable>();
+				var mod1 = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(0);
+				var mod2 = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(1);
+				var mod3 = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(2);
+				//GlobalLog.Info(LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod1));
+				//GlobalLog.Info(LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod2));
+				//GlobalLog.Info(LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod3));
+				GlobalLog.Info("Reward ui vote: "+LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForReward());
+ 
+				if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod1) >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(mod1);
+					LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+				}
+				else if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod2) >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(mod2);
+					LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+				}
+				else if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod3) >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(mod3);
+					LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+				}
+				else if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForReward() >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.TakeReward();
+				}
+				
+ 
+			} */
+			
+			/*if (LokiPoe.InGameState.UltimatumTrialRewardUi.IsOpened)
+			{
+				var selectFirst = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(1);
+				LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(selectFirst);
+				LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+			}*/
 
             var hpPct = LokiPoe.Me.HealthPercent;
             var esPct = LokiPoe.Me.EnergyShieldPercent;
@@ -205,10 +285,10 @@ namespace FollowBot
             {
                 if (skillClass.CastOnLeader)
                 {
-                    var leader = GetNextOnRotation(skillClass.LinkWhitelist);// FollowBot.Leader;
+                    var leader = FollowBot.Leader;
                     if (leader != null && leader.Distance < 50)
                     {
-                        LokiPoe.InGameState.SkillBarHud.UseAt(skill.Slot, false, leader.Position, false);
+                        LokiPoe.InGameState.SkillBarHud.UseOn(skill.Slot, false, FollowBot.Leader, false);
                         skillClass.Casted();
                     }
                 }
@@ -238,71 +318,10 @@ namespace FollowBot
             return true;
         }
 
-        private static Player GetNextOnRotation(string linkWhitelist)
-        {
-            List<PartyMember> party;
-            if (string.IsNullOrEmpty(linkWhitelist))
-            {
-                return FollowBot.Leader;
-            }
-            else
-            {
-                var listSplit = linkWhitelist.Split(',');
-                if (listSplit.Length < 1) 
-                {
-                    GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
-                    GlobalLog.Error(" ");
-                    GlobalLog.Error("[DefenseAndFlaskTask] CastOnParty is selected, but the LinkWhitelist have some problems, pls check the Defensive skill setting.!");
-                    GlobalLog.Error(" ");
-                    GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
-                }
-                var partyMembers = LokiPoe.InstanceInfo.PartyMembers;
-                party = partyMembers.Where(x => x != null && x.PlayerEntry != null && listSplit.Contains(x.PlayerEntry.Name) && x.PlayerEntry.Name != LokiPoe.Me.Name && LokiPoe.InGameState.PartyHud.IsInSameZone(x.PlayerEntry.Name)).ToList();
-                if (party.Count < 1)
-                {
-                    GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
-                    GlobalLog.Error(" ");
-                    GlobalLog.Error($"[DefenseAndFlaskTask] CastOnParty is selected, but the LinkWhitelist have some problems (the name in the LinkWithelist do not match the party names [partyMembers = {partyMembers.Count}]), pls check the Defensive skill setting.!");
-                    GlobalLog.Error(" ");
-                    GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
-                }
-                foreach (var partyMember in partyMembers)
-                {
-                    var name = partyMember?.PlayerEntry?.Name;
-                    if (string.IsNullOrEmpty(name)) continue;
-                    if (!LokiPoe.InGameState.PartyHud.IsInSameZone(name)) continue;                   
-                    if (!LinkRotationDictionary.ContainsKey(name))
-                    {
-                        LinkRotationDictionary.Add(name, 0);
-                    }                  
-                }
-                var nam = "";
-                int weight = int.MaxValue;
-                var keys = LinkRotationDictionary.Keys;
-                foreach (var key in keys)
-                {
-                    if (LinkRotationDictionary[key] < weight) 
-                    { 
-                        weight = LinkRotationDictionary[key]; 
-                        nam = key;
-                    }
-                }
-                //var selected = LinkRotationDictionary.OrderBy(x => x.Value).First();
-                LinkRotationDictionary[nam]++;
-                var p = LokiPoe.ObjectManager.GetObjectsByType<Player>().FirstOrDefault(x => x.Name == nam);
-                return p;
-            }
-
-        }
-
         #region Unused interface methods
 
         public MessageResult Message(Message message)
         {
-            if (message.Id == Events.Messages.AreaChanged)
-            {
-                LinkRotationDictionary.Clear();
-            }
             return MessageResult.Unprocessed;
         }
 

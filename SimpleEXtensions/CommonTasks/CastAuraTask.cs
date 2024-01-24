@@ -14,7 +14,7 @@ namespace FollowBot
     public class CastAuraTask : ITask
     {
         private const int MinGolemHpPercent = 40;
-        private const int MinRelicHpPercent = 40;
+        private const int MinRelicHpPercent = 20;
         private static List<int> _temporaryBlacklistedAuras = new List<int>();
         public async Task<bool> Run()
         {
@@ -57,7 +57,7 @@ namespace FollowBot
                     await Coroutines.FinishCurrentAction();
                     await Wait.SleepSafe(100);
                 }
-            }
+            } 
 
             // Auras
             var auras = GetAurasForCast();
