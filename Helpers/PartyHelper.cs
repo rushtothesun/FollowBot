@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FollowBot.Helpers
 {
@@ -48,7 +48,7 @@ namespace FollowBot.Helpers
             }
             return false;
         }
-        
+
         public static async Task<bool> LeaveParty()
         {
 

@@ -1,11 +1,10 @@
-﻿using System;
+﻿using DreamPoeBot.Loki.Game;
+using FollowBot.SimpleEXtensions;
+using FollowBot.Tasks;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
-using DreamPoeBot.Loki.Game;
-using FollowBot.Helpers;
-using FollowBot.SimpleEXtensions;
 using chatPanel = DreamPoeBot.Loki.Game.LokiPoe.InGameState.ChatPanel;
 
 namespace FollowBot.Class
@@ -80,7 +79,7 @@ namespace FollowBot.Class
                     _treatedMd5List.Add(chatEntry.MD5, true);
                 }
             }
-            
+
         }
         public void Update()
         {
@@ -161,13 +160,15 @@ namespace FollowBot.Class
             }
         }
 
-        private static async Task ProcessPartyMessage(LokiPoe.InGameState.ChatPanel.ChatEntry newmessage)
+        private static Task ProcessPartyMessage(LokiPoe.InGameState.ChatPanel.ChatEntry newmessage)
         {
-            if (FollowBot._leaderPartyEntry == null || FollowBot._leaderPartyEntry.PlayerEntry == null) return;
+            if (FollowBot._leaderPartyEntry == null || FollowBot._leaderPartyEntry.PlayerEntry == null)
+                return Task.CompletedTask;
             var leadername = FollowBot._leaderPartyEntry.PlayerEntry.Name;
-            if (string.IsNullOrEmpty(leadername)) return;
-            
-            if (newmessage.RemoteName != leadername) return;
+            if (string.IsNullOrEmpty(leadername))
+                return Task.CompletedTask;
+            if (newmessage.RemoteName != leadername)
+                return Task.CompletedTask;
             var start = newmessage.Message.IndexOf($"{leadername}:", StringComparison.InvariantCulture) + $"{leadername}:".Length + 1;
             var end = newmessage.Message.Length - start;
             var command = newmessage.Message.Substring(start, end);
@@ -204,6 +205,7 @@ namespace FollowBot.Class
                 FollowBotSettings.Instance.UseStalkerSentinel = true;
             if (command == FollowBotSettings.Instance.StopSentinelChatCommand)
                 FollowBotSettings.Instance.UseStalkerSentinel = false;
+            return Task.CompletedTask;
         }
     }
 }

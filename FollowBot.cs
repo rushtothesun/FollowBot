@@ -1,8 +1,4 @@
-﻿using System.Linq;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Coroutine;
@@ -14,11 +10,16 @@ using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.CommonTasks;
 using FollowBot.SimpleEXtensions.Global;
+using FollowBot.Tasks;
 using log4net;
-
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.LinkLabel;
 using Message = DreamPoeBot.Loki.Bot.Message;
 using UserControl = System.Windows.Controls.UserControl;
-using System.Windows.Forms;
 
 namespace FollowBot
 {
@@ -115,6 +116,216 @@ namespace FollowBot
                 var phaseRun = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "NewPhaseRun");
                 if (phaseRun != null && phaseRun.IsOnSkillBar && phaseRun.Slot != -1 && phaseRun.CanUse())
                     LokiPoe.InGameState.SkillBarHud.Use(phaseRun.Slot, false, false);
+            }
+        }
+
+        public static void MoltenShell()
+        {
+            var moltenShell = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "FireShield");
+            if (moltenShell != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => x.Name != "Molten Shell"))
+                {
+                    if (moltenShell != null && moltenShell.IsOnSkillBar && moltenShell.Slot != -1 && moltenShell.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(moltenShell.Slot, false, false);
+                }
+            }
+        }
+
+        #region Crys
+        //Onslaught cluster tied to Enduring Cry
+        public static void EnduringCry()
+        {
+            var enduringCry = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "EnduringCry");
+            if (enduringCry != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name == "Onslaught" && x.TimeLeft.Seconds <= 1) || x.Name != "Enduring Cry" || x.Name != "Onslaught" || (x.Name == "Enduring Cry" && x.TimeLeft.Seconds <= 4)))
+                {
+                    if (enduringCry != null && enduringCry.IsOnSkillBar && enduringCry.Slot != -1 && enduringCry.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(enduringCry.Slot, false, false);
+                }
+            }
+        }
+
+        public static void EnduringCryBeforeCluster()
+        {
+            var enduringCryBefore = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "EnduringCry");
+            if (enduringCryBefore != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name != "Enduring Cry" || (x.Name == "Enduring Cry" && x.TimeLeft.Seconds <= 4))))
+                {
+                    if (enduringCryBefore != null && enduringCryBefore.IsOnSkillBar && enduringCryBefore.Slot != -1 && enduringCryBefore.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(enduringCryBefore.Slot, false, false);
+                }
+            }
+        }
+
+        public static void SeismicCry()
+        {
+            var seismicCry = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SeismicCry");
+            if (seismicCry != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name == "Seismic Cry" && x.TimeLeft.Seconds <= 4) || x.Name != "Seismic Cry"))
+                {
+                    if (seismicCry != null && seismicCry.IsOnSkillBar && seismicCry.Slot != -1 && seismicCry.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(seismicCry.Slot, false, false);
+                }
+            }
+        }
+
+        public static void BattlemageCry()
+        {
+            var battlemageCry = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "DivineCry");
+            if (battlemageCry != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name == "Battlemage's Cry" && x.TimeLeft.Seconds <= 2) || x.Name != "Battlemage's Cry"))
+                {
+                    if (battlemageCry != null && battlemageCry.IsOnSkillBar && battlemageCry.Slot != -1 && battlemageCry.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(battlemageCry.Slot, false, false);
+                }
+            }
+        }
+
+        public static void AncestralCry()
+        {
+            var ancestralCry = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "AncestralCry");
+            if (ancestralCry != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name == "Ancestral Cry" && x.TimeLeft.Seconds <= 3) || x.Name != "Ancestral Cry"))
+                {
+                    if (ancestralCry != null && ancestralCry.IsOnSkillBar && ancestralCry.Slot != -1 && ancestralCry.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(ancestralCry.Slot, false, false);
+                }
+            }
+        }
+
+        public static void IntimidatingCry()
+        {
+            var intimidatingCry = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "IntimidatingCry");
+            if (intimidatingCry != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name == "Intimidating Cry" && x.TimeLeft.Seconds <= 2) || x.Name != "Intimidating Cry"))
+                {
+                    if (intimidatingCry != null && intimidatingCry.IsOnSkillBar && intimidatingCry.Slot != -1 && intimidatingCry.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(intimidatingCry.Slot, false, false);
+                }
+            }
+        }
+
+        public static void InfernalCry()
+        {
+            var infernalCry = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "InfernalCry");
+            if (infernalCry != null)
+            {
+                if (LokiPoe.Me.Auras.All(x => (x.Name == "Infernal Cry" && x.TimeLeft.Seconds <= 2) || x.Name != "Infernal Cry"))
+                {
+                    if (infernalCry != null && infernalCry.IsOnSkillBar && infernalCry.Slot != -1 && infernalCry.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.Use(infernalCry.Slot, false, false);
+                }
+            }
+        }
+        #endregion
+        #region Guardians Blessing
+        public static void GuardiansBlessingMalevolence()
+        {
+            var guardiansBlessing = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "CastAuraDamageOverTime");
+            var relicSkill2 = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRelic");
+			if (guardiansBlessing != null && LokiPoe.Me.Auras.All(x => (x.Name != "Malevolence Aura")) && guardiansBlessing.CanUse())
+            {
+                var relicObj2 = relicSkill2.DeployedObjects.FirstOrDefault() as Monster;
+                if (relicObj2 != null)
+                {
+                    GlobalLog.Debug($"Casting \"{guardiansBlessing.Name}\" - Guardian's Blessing");
+					LokiPoe.InGameState.SkillBarHud.Use(guardiansBlessing.Slot, false, false);
+                }
+            }           
+        }	
+
+        public static void GuardiansBlessingDetermination()
+        {
+            var guardiansBlessing = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "CastAuraArmour");
+            var relicSkill2 = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRelic");
+            if (guardiansBlessing != null && LokiPoe.Me.Auras.All(x => (x.Name != "Determination Aura")) && guardiansBlessing.CanUse())
+            {
+                var relicObj2 = relicSkill2.DeployedObjects.FirstOrDefault() as Monster;
+                if (relicObj2 != null)
+                {
+                    GlobalLog.Debug($"Casting \"{guardiansBlessing.Name}\" - Guardian's Blessing");
+                    LokiPoe.InGameState.SkillBarHud.Use(guardiansBlessing.Slot, false, false);
+                }
+            }
+        }
+
+        public static void GuardiansBlessingHaste()
+        {
+            var guardiansBlessing = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "CastAuraSpeed");
+            var relicSkill2 = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRelic");
+            if (guardiansBlessing != null && LokiPoe.Me.Auras.All(x => x.Name != "Haste Aura" && guardiansBlessing.CanUse()))
+            {
+                var relicObj2 = relicSkill2.DeployedObjects.FirstOrDefault() as Monster;
+                if (relicObj2 != null)
+                {
+                    GlobalLog.Debug($"Casting \"{guardiansBlessing.Name}\" - Guardian's Blessing");
+                    LokiPoe.InGameState.SkillBarHud.Use(guardiansBlessing.Slot, false, false);
+                }
+            }
+        }
+    
+        public static void GuardiansBlessingHatred()
+        {
+            var guardiansBlessing = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "CastAuraColdDamage");
+            var relicSkill2 = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRelic");
+            if (guardiansBlessing != null && LokiPoe.Me.Auras.All(x => x.Name != "Hatred Aura" && guardiansBlessing.CanUse()))
+            {
+                var relicObj2 = relicSkill2.DeployedObjects.FirstOrDefault() as Monster;
+                if (relicObj2 != null)
+                {
+                    GlobalLog.Debug($"Casting \"{guardiansBlessing.Name}\" - Guardian's Blessing");
+                    LokiPoe.InGameState.SkillBarHud.Use(guardiansBlessing.Slot, false, false);
+                }
+            }
+        }
+        #endregion
+
+        //Guardian's Sentinel of Radiance
+        public static void SentinelUsage()
+        {
+            var sentinelSkill = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRadiantSentinel");
+            if (sentinelSkill != null)
+            {
+                var sentinelObj = sentinelSkill.DeployedObjects.FirstOrDefault() as Monster;
+                if (sentinelObj == null && sentinelSkill.CanUse())
+                {
+                    GlobalLog.Debug($"Casting \"{sentinelSkill.Name}\" - Sentinel");
+                    LokiPoe.InGameState.SkillBarHud.Use(sentinelSkill.Slot, false, false);
+                }
+            }
+        }
+
+        //Coruscating Elixir in flask slot 1
+        public static void ChaosElixir()
+        {
+            if (LokiPoe.Me.Auras.All(x => (x.Name != "Coruscating Elixir") || (x.Name == "Coruscating Elixir" && x.TimeLeft.Seconds <= 1.3)))
+            {
+                LokiPoe.InGameState.QuickFlaskHud.UseFlaskInSlot(1);
+            }
+        }
+
+        public static void SoulLink()
+        {
+            var link = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SoulLink");
+            if (link != null && link.CanUse())
+            {
+                var linkLeader = FollowBot.Leader;
+                if (linkLeader != null && linkLeader.Distance <= 60)
+                {
+                    if (linkLeader.Auras.All(x => (x.Name != "Soul Link")) || LokiPoe.Me.Auras.Any(x => x.InternalName == "soul_link_source" && x.TimeLeft.Seconds <= 6))
+                    {
+                        //if (link.IsOnSkillBar && link.Slot != -1 && link.CanUse())
+                        LokiPoe.InGameState.SkillBarHud.UseOn(link.Slot, false, FollowBot.Leader, false);
+                    }       //await Coroutines.FinishCurrentAction();
+
+                }
             }
         }
 
@@ -349,7 +560,7 @@ namespace FollowBot
             return _taskManager;
         }
 
-        public async void Initialize()
+        public void Initialize()
         {
             BotManager.OnBotChanged += BotManagerOnOnBotChanged;
             GameOverlay.TimerService.EnableHighPrecisionTimers();
@@ -373,6 +584,8 @@ namespace FollowBot
         {
 
             _taskManager.Add(new ClearCursorTask());
+            _taskManager.Add(new TradeTask());
+            _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
             _taskManager.Add(new LootItemTask());
             _taskManager.Add(new PreCombatFollowTask());
@@ -383,11 +596,11 @@ namespace FollowBot
             _taskManager.Add(new CastAuraTask());
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
-            _taskManager.Add(new OpenWaypointTask());
+            // _taskManager.Add(new OpenWaypointTask());
             _taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new FallbackTask());
-        }        
-        
+        }
+
         private static ExplorationSettings MapBotExploration()
         {
             if (!World.CurrentArea.IsMap)
@@ -448,7 +661,7 @@ namespace FollowBot
         public string Name => "FollowBot";
         public string Author => "NotYourFriend, origial code from Unknown";
         public string Description => "Bot that follow leader.";
-        public string Version => "0.0.6.5";
+        public string Version => "0.0.7.1";
         public UserControl Control => _gui ?? (_gui = new FollowBotGui());
         public JsonSettings Settings => FollowBotSettings.Instance;
         public override string ToString() => $"{Name}: {Description}";

@@ -1,18 +1,18 @@
-﻿using System.Windows;
-using System.Windows.Controls;
+﻿using DreamPoeBot.Loki.Common;
 using FollowBot.Class;
 using log4net;
-using DreamPoeBot.Loki.Common;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace FollowBot
 {
     /// <summary>
-    /// Logica di interazione per LabRunnerBotGui.xaml
+    /// Logica di interazione per FollowBotGui.xaml
     /// </summary>
     public partial class FollowBotGui : UserControl
     {
-		private static readonly ILog Log = Logger.GetLoggerInstanceForType();
-		public FollowBotGui()
+        private static readonly ILog Log = Logger.GetLoggerInstanceForType();
+        public FollowBotGui()
         {
             InitializeComponent();
         }
@@ -23,60 +23,70 @@ namespace FollowBot
             FollowBotSettings.Instance.DefensiveSkills.Remove(rule);
         }
 
-		private void AddGlobalNameIgnoreButton_OnClick(object sender, RoutedEventArgs e)
-		{
-			string text = GlobalNameIgnoreTextBox.Text;
-			if (string.IsNullOrEmpty(text))
-			{
-				return;
-			}
+        private void AddGlobalNameIgnoreButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            string text = GlobalNameIgnoreTextBox.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
 
-			if (!FollowBotSettings.Instance.GlobalNameIgnoreList.Contains(text))
-			{
-				FollowBotSettings.Instance.GlobalNameIgnoreList.Add(text);
-				FollowBotSettings.Instance.UpdateGlobalNameIgnoreList();
-				GlobalNameIgnoreTextBox.Text = "";
-			}
-			else
-			{
-				Log.ErrorFormat(
-					"[AddGlobalNameIgnoreButtonOnClick] The skillgem {0} is already in the GlobalNameIgnoreList.", text);
-			}
-		}
+            if (!FollowBotSettings.Instance.GlobalNameIgnoreList.Contains(text))
+            {
+                FollowBotSettings.Instance.GlobalNameIgnoreList.Add(text);
+                FollowBotSettings.Instance.UpdateGlobalNameIgnoreList();
+                GlobalNameIgnoreTextBox.Text = "";
+            }
+            else
+            {
+                Log.ErrorFormat(
+                    "[AddGlobalNameIgnoreButtonOnClick] The skillgem {0} is already in the GlobalNameIgnoreList.", text);
+            }
+        }
 
-		private void RemoveGlobalNameIgnoreButton_OnClick(object sender, RoutedEventArgs e)
-		{
-			string text = GlobalNameIgnoreTextBox.Text;
-			if (string.IsNullOrEmpty(text))
-			{
-				return;
-			}
+        private void RemoveGlobalNameIgnoreButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            string text = GlobalNameIgnoreTextBox.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
 
-			if (FollowBotSettings.Instance.GlobalNameIgnoreList.Contains(text))
-			{
-				FollowBotSettings.Instance.GlobalNameIgnoreList.Remove(text);
-				FollowBotSettings.Instance.UpdateGlobalNameIgnoreList();
-				GlobalNameIgnoreTextBox.Text = "";
-			}
-			else
-			{
-				Log.ErrorFormat("[RemoveGlobalNameIgnoreButtonOnClick] The skillgem {0} is not in the GlobalNameIgnoreList.", text);
-			}
-		}
-		private void GlobalNameIgnoreListListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			if (e != null && e.AddedItems.Count > 0)
-			{
-				GlobalNameIgnoreTextBox.Text = e.AddedItems[0].ToString();
-			}
-		}
+            if (FollowBotSettings.Instance.GlobalNameIgnoreList.Contains(text))
+            {
+                FollowBotSettings.Instance.GlobalNameIgnoreList.Remove(text);
+                FollowBotSettings.Instance.UpdateGlobalNameIgnoreList();
+                GlobalNameIgnoreTextBox.Text = "";
+            }
+            else
+            {
+                Log.ErrorFormat("[RemoveGlobalNameIgnoreButtonOnClick] The skillgem {0} is not in the GlobalNameIgnoreList.", text);
+            }
+        }
+        private void GlobalNameIgnoreListListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e != null && e.AddedItems.Count > 0)
+            {
+                GlobalNameIgnoreTextBox.Text = e.AddedItems[0].ToString();
+            }
+        }
 
         private void ChangeStance_OnClick(object sender, RoutedEventArgs e)
         {
             if (FollowBotSettings.Instance.BloorOrSand == FollowBotSettings.BloodAndSand.Blood)
                 FollowBotSettings.Instance.BloorOrSand = FollowBotSettings.BloodAndSand.Sand;
-			else
+            else
                 FollowBotSettings.Instance.BloorOrSand = FollowBotSettings.BloodAndSand.Blood;
-		}
+        }
+
+        private void CheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void CheckBox_Checked_1(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }

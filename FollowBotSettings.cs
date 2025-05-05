@@ -1,14 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using DreamPoeBot.Loki;
+﻿using DreamPoeBot.Loki;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Class;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 
 namespace FollowBot
 {
@@ -35,7 +35,7 @@ namespace FollowBot
             set
             { _ignoreHiddenAuras = value; NotifyPropertyChanged(() => IgnoreHiddenAuras); }
         }
-        
+
         private string _acceptedManualInviteNames;
         private int _followDistance;
         private int _maxfollowDistance;
@@ -46,6 +46,7 @@ namespace FollowBot
         #region Party Role
         private bool _shouldKill;
         private bool _shouldLoot;
+        private bool _shouldLootOnlyQuestItem;
         private bool _useStalkerSentinel;
         private bool _dontPortOutofMap;
         private bool _shouldFollow = true;
@@ -179,7 +180,7 @@ namespace FollowBot
             { _maxLootDistance = value; NotifyPropertyChanged(() => MaxLootDistance); }
         }
 
-        
+
         [DefaultValue(0)]
         public int PortOutThreshold
         {
@@ -208,6 +209,26 @@ namespace FollowBot
             { _shouldLoot = value; NotifyPropertyChanged(() => ShouldLoot); }
         }
         [DefaultValue(false)]
+        public bool ShouldLootOnlyQuestItem
+        {
+            get { return _shouldLootOnlyQuestItem; }
+            set
+            {
+                _shouldLootOnlyQuestItem = value; NotifyPropertyChanged(() => ShouldLootOnlyQuestItem);
+            }
+        }
+        private bool _interactQuest;
+        [DefaultValue(false)]
+        public bool InteractQuest
+        {
+            get { return _interactQuest; }
+            set
+            {
+                _interactQuest = value; NotifyPropertyChanged(() => InteractQuest);
+            }
+        }
+
+        [DefaultValue(false)]
         public bool UseStalkerSentinel
         {
             get { return _useStalkerSentinel; }
@@ -233,7 +254,7 @@ namespace FollowBot
         #region Defence Skills
         public ObservableCollection<DefensiveSkillsClass> DefensiveSkills
         {
-            get => _defensiveSkills ;//?? (_defensiveSkills = new ObservableCollection<DefensiveSkillsClass>());
+            get => _defensiveSkills;//?? (_defensiveSkills = new ObservableCollection<DefensiveSkillsClass>());
             set
             {
                 _defensiveSkills = value;
@@ -246,7 +267,7 @@ namespace FollowBot
         #region Flasks
         public ObservableCollection<FlasksClass> Flasks
         {
-            get => _flasks ;//?? (_flasks = new ObservableCollection<FlasksClass>());
+            get => _flasks;//?? (_flasks = new ObservableCollection<FlasksClass>());
             set
             {
                 _flasks = value;
@@ -257,7 +278,7 @@ namespace FollowBot
         {
             ObservableCollection<DefensiveSkillsClass> skills = new ObservableCollection<DefensiveSkillsClass>();
 
-            skills.Add(new DefensiveSkillsClass(false, "Vaal Molten Shell", false, 0, 0,false, ""));
+            skills.Add(new DefensiveSkillsClass(false, "Vaal Molten Shell", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Vaal Discipline", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Molten Shell", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Steelskin", false, 0, 0, false, ""));
@@ -704,9 +725,9 @@ namespace FollowBot
 
         #endregion
 
-#region Overlay
+        #region Overlay
 
-private bool _enableOverlay;
+        private bool _enableOverlay;
         private bool _drawInBackground;
         private bool _drawMobs;
         private bool _drawCorpses;
@@ -822,4 +843,3 @@ private bool _enableOverlay;
     }
 }
 
-    

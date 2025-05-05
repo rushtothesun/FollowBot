@@ -1,13 +1,13 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using FollowBot.Helpers;
 using log4net;
+using System.Linq;
+using System.Threading.Tasks;
 
 
-namespace FollowBot
+namespace FollowBot.Tasks
 {
     class JoinPartyTask : ITask
     {
@@ -45,7 +45,7 @@ namespace FollowBot
             }
 
             var invite = LokiPoe.InstanceInfo.PendingPartyInvites;
-            if(invite.Any())
+            if (invite.Any())
             {
                 await PartyHelper.HandlePartyInvite();
             }
@@ -56,9 +56,9 @@ namespace FollowBot
 
             return true;
         }
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public MessageResult Message(Message message)

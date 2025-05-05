@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using log4net;
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 
-namespace FollowBot
+namespace FollowBot.Tasks
 {
     public class LevelGemsTask : ITask
     {
@@ -121,7 +121,7 @@ namespace FollowBot
                     }
                 }
             }
-            
+
             // Just wait 5-10s between checks.
             _levelWait.Reset(TimeSpan.FromMilliseconds(LokiPoe.Random.Next(5000, 10000)));
 
@@ -136,9 +136,9 @@ namespace FollowBot
         }
 
 
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public MessageResult Message(Message message)
