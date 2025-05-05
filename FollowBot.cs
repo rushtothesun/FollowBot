@@ -596,7 +596,7 @@ namespace FollowBot
             _taskManager.Add(new CastAuraTask());
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
-			_taskManager.Add(new TrialPickerTask());
+	    _taskManager.Add(new TrialPickerTask());
             // _taskManager.Add(new OpenWaypointTask());
             _taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new FallbackTask());
