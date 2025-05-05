@@ -211,11 +211,11 @@ namespace FollowBot.Tasks
                     return res;
                 };
 
-                var anyVis = NotificationHud.NotificationList.Any(x => x.IsVisible);
+                /*var anyVis = NotificationHud.NotificationList.Any(x => x.IsVisible);
                 if (anyVis)
                 {
                     await Wait.Sleep(500);
-                }
+                } */
                 var ret = NotificationHud.HandleNotificationEx(isTradeRequestToBeAccepted);
                 FollowBot.Log.WarnFormat($"[HandleTradeRequest] Result: {ret}");
                 await Coroutines.LatencyWait();

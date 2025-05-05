@@ -36,11 +36,11 @@ namespace FollowBot.Helpers
                     return res;
                 };
 
-                var anyVis = LokiPoe.InGameState.NotificationHud.NotificationList.Any(x => x.IsVisible);
+                /*var anyVis = LokiPoe.InGameState.NotificationHud.NotificationList.Any(x => x.IsVisible);
                 if (anyVis)
                 {
                     await Wait.Sleep(500);
-                }
+                }*/
                 var ret = LokiPoe.InGameState.NotificationHud.HandleNotificationEx(isPartyRequestToBeAccepted);
                 FollowBot.Log.WarnFormat($"[HandlePartyInvite] Result: {ret}");
                 await Coroutines.LatencyWait();
