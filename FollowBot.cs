@@ -586,6 +586,7 @@ namespace FollowBot
             _taskManager.Add(new ClearCursorTask());
             _taskManager.Add(new TradeTask());
             _taskManager.Add(new QuestInteractionTask());
+			_taskManager.Add(new TrialPickerTask());
             _taskManager.Add(new DefenseAndFlaskTask());
             _taskManager.Add(new LootItemTask());
             _taskManager.Add(new PreCombatFollowTask());
