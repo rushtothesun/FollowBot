@@ -71,6 +71,32 @@ namespace FollowBot.Tasks
                 return false;
             }
 
+            var labportaltest = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
+            if (labportaltest != null)
+            {
+                Log.DebugFormat("[{0}] Found walkable lab portal.", Name);
+                if (LokiPoe.Me.Position.Distance(labportaltest.Position) > 15 && LokiPoe.Me.Position.Distance(labportaltest.Position) > 20)
+                {
+                    var walkablePosition = ExilePather.FastWalkablePositionFor(labportaltest, 13);
+
+                    // Cast Phase run if we have it.
+                    FollowBot.PhaseRun();
+
+                    Move.Towards(walkablePosition, "moving to lab portal");
+                    return true;
+                }
+
+                var tele = await Coroutines.InteractWith(labportaltest);
+
+                if (!tele)
+                {
+                    Log.DebugFormat("[{0}] lab portal error.", Name);
+                }
+
+                FollowBot.Leader = null;
+                return true;
+            }
+
             var distance = leaderPos.Distance(mypos);
 
             if (ExilePather.PathExistsBetween(mypos, ExilePather.FastWalkablePositionFor(leaderPos)))
@@ -102,7 +128,7 @@ namespace FollowBot.Tasks
                     var labportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
                     if (labportal != null)
                     {
-                        Log.DebugFormat("[{0}] Found walkable delve portal.", Name);
+                        Log.DebugFormat("[{0}] Found walkable lab portal.", Name);
                         if (LokiPoe.Me.Position.Distance(labportal.Position) > 15)
                         {
                             var walkablePosition = ExilePather.FastWalkablePositionFor(labportal, 13);
@@ -110,7 +136,7 @@ namespace FollowBot.Tasks
                             // Cast Phase run if we have it.
                             FollowBot.PhaseRun();
 
-                            Move.Towards(walkablePosition, "moving to delve portal");
+                            Move.Towards(walkablePosition, "moving to lab portal");
                             return true;
                         }
 
@@ -118,7 +144,7 @@ namespace FollowBot.Tasks
 
                         if (!tele)
                         {
-                            Log.DebugFormat("[{0}] delve portal error.", Name);
+                            Log.DebugFormat("[{0}] lab portal error.", Name);
                         }
 
                         FollowBot.Leader = null;
