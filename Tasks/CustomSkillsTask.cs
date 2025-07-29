@@ -21,6 +21,7 @@ namespace FollowBot.Tasks
         {
 
             if (!LokiPoe.IsInGame) return Task.FromResult(false);
+            if (FollowBot.Leader == null) return Task.FromResult(false);
             if (LokiPoe.Me.IsDead) return Task.FromResult(false);
             if (LokiPoe.CurrentWorldArea.IsTown) return Task.FromResult(false);
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return Task.FromResult(false);
