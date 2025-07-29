@@ -12,7 +12,8 @@ namespace FollowBot
 {
     public class CastAuraTask : ITask
     {
-        private const int MinGolemHpPercent = 80;
+        private const int MinGolemHpPercent = 40;
+        private const int MinRelicHpPercent = 20;
         private static List<int> _temporaryBlacklistedAuras = new List<int>();
         public async Task<bool> Run()
         {
@@ -30,13 +31,27 @@ namespace FollowBot
             }
 
             var golemSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.SkillTags.Contains("golem"));
-            if (golemSkill != null)
+            if (golemSkill != null && golemSkill.CanUse())
             {
                 var golemObj = golemSkill.DeployedObjects.FirstOrDefault() as Monster;
                 if (golemObj == null || golemObj.HealthPercent < MinGolemHpPercent)
                 {
                     GlobalLog.Debug($"[CastAuraTask] Now summoning \"{golemSkill.Name}\".");
                     SkillBar.Use(golemSkill.Slot, false);
+                    await Wait.SleepSafe(100);
+                    await Coroutines.FinishCurrentAction();
+                    await Wait.SleepSafe(100);
+                }
+            }
+
+            var relicSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.InternalName == "SummonRelic");
+            if (relicSkill != null && relicSkill.CanUse())
+            {
+                var relicObj = relicSkill.DeployedObjects.FirstOrDefault() as Monster;
+                if (relicObj == null || relicObj.HealthPercent < MinRelicHpPercent)
+                {
+                    GlobalLog.Debug($"[CastAuraTask] Now summoning \"{relicSkill.Name}\".");
+                    SkillBar.Use(relicSkill.Slot, false);
                     await Wait.SleepSafe(100);
                     await Coroutines.FinishCurrentAction();
                     await Wait.SleepSafe(100);
@@ -104,7 +119,7 @@ namespace FollowBot
                     _temporaryBlacklistedAuras.Add(id);
                 }
             }
-            
+
             await Wait.SleepSafe(100);
         }
 
@@ -158,7 +173,7 @@ namespace FollowBot
                 return SkillBar.Skills.Where(skill => !skill.IsVaalSkill &&
                     _temporaryBlacklistedAuras.All(x => x != skill.Id) &&
                 !SkillBlacklist.IsBlacklisted(skill) &&
-                (AuraNames.Contains(skill.Name) || AuraInternalId.Contains(skill.InternalId) || skill.IsAurifiedCurse || 
+                (AuraNames.Contains(skill.Name) || AuraInternalId.Contains(skill.InternalId) || skill.IsAurifiedCurse ||
                  (FollowBotSettings.Instance.EnableAspectsOfTheAvian && skill.Name == "Aspect of the Avian") ||
                  (FollowBotSettings.Instance.EnableAspectsOfTheCat && skill.Name == "Aspect of the Cat") ||
                  (FollowBotSettings.Instance.EnableAspectsOfTheCrab && skill.Name == "Aspect of the Crab") ||
@@ -185,7 +200,7 @@ namespace FollowBot
         }
         private static bool PlayerHasAura(string auraName)
         {
-            return LokiPoe.Me.Auras.Any(a => (a.Name.EqualsIgnorecase(auraName) || a.Name.EqualsIgnorecase(auraName + " aura")) && a.CasterId == LokiPoe.Me.Id);            
+            return LokiPoe.Me.Auras.Any(a => (a.Name.EqualsIgnorecase(auraName) || a.Name.EqualsIgnorecase(auraName + " aura")) && a.CasterId == LokiPoe.Me.Id);
         }
         private static bool PlayerHasAura(int skillId)
         {
@@ -196,7 +211,7 @@ namespace FollowBot
 
         private static readonly HashSet<string> AuraNames = new HashSet<string>
         {
-            // auras
+            /* auras
             "Anger",
             "Clarity",
             "Determination",
@@ -213,8 +228,7 @@ namespace FollowBot
             "Purity of Lightning",
             "Vitality",
             "Wrath",
-		    "Defiance Banner",
-            "Zealotry",
+            "Zealotry",         */
 
             // heralds
             "Herald of Agony",
@@ -224,6 +238,7 @@ namespace FollowBot
             "Herald of Purity",
 
             // the rest
+            "Spellslinger",
             "Arctic Armour",
             "Flesh and Stone",
             "Envy",
@@ -238,7 +253,7 @@ namespace FollowBot
         };
         private static readonly HashSet<string> AuraInternalId = new HashSet<string>
         {
-            // auras
+            /* auras
             "anger",
             "clarity",
             "determination",
@@ -255,10 +270,7 @@ namespace FollowBot
             "lightning_resist_aura",//Purity of Lightning
             "vitality",
             "wrath",
-            "banner_armour_evasion",//Defiance Banner
-            "banner_dread",
-            "banner_war",
-            "spell_damage_aura",//Zealotry
+            "spell_damage_aura",//Zealotry */
 
             // heralds
             "herald_of_agony",
@@ -268,6 +280,7 @@ namespace FollowBot
             "herald_of_light",//Herald of Purity
 
             // the rest
+            "spellslinger",
             "new_arctic_armour",
             "tempest_shield",
             "skitterbots",
@@ -285,9 +298,9 @@ namespace FollowBot
             return MessageResult.Unprocessed;
         }
 
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public void Tick()

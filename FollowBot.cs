@@ -1,8 +1,4 @@
-﻿using System.Linq;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Coroutine;
@@ -14,11 +10,16 @@ using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.CommonTasks;
 using FollowBot.SimpleEXtensions.Global;
+using FollowBot.Tasks;
 using log4net;
-
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.LinkLabel;
 using Message = DreamPoeBot.Loki.Bot.Message;
 using UserControl = System.Windows.Controls.UserControl;
-using System.Windows.Forms;
 
 namespace FollowBot
 {
@@ -108,15 +109,7 @@ namespace FollowBot
                             "Metadata/Characters/DexInt/DexInt",
                             "Metadata/Characters/StrDexInt/StrDexInt"
         };
-        public static void PhaseRun()
-        {
-            if (LokiPoe.Me.Auras.All(x => x.Name != "Phase Run"))
-            {
-                var phaseRun = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "NewPhaseRun");
-                if (phaseRun != null && phaseRun.IsOnSkillBar && phaseRun.Slot != -1 && phaseRun.CanUse())
-                    LokiPoe.InGameState.SkillBarHud.Use(phaseRun.Slot, false, false);
-            }
-        }
+
 
         public void Start()
         {
@@ -349,7 +342,7 @@ namespace FollowBot
             return _taskManager;
         }
 
-        public async void Initialize()
+        public void Initialize()
         {
             BotManager.OnBotChanged += BotManagerOnOnBotChanged;
             GameOverlay.TimerService.EnableHighPrecisionTimers();
@@ -373,7 +366,11 @@ namespace FollowBot
         {
 
             _taskManager.Add(new ClearCursorTask());
+			_taskManager.Add(new JoinPartyTask());
+            _taskManager.Add(new TradeTask());
+            _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
+            _taskManager.Add(new CustomSkillsTask());
             _taskManager.Add(new LootItemTask());
             _taskManager.Add(new PreCombatFollowTask());
             _taskManager.Add(new CombatTask(50));
@@ -383,11 +380,12 @@ namespace FollowBot
             _taskManager.Add(new CastAuraTask());
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
-            _taskManager.Add(new OpenWaypointTask());
-            _taskManager.Add(new JoinPartyTask());
+			_taskManager.Add(new TrialPickerTask());
+            // _taskManager.Add(new OpenWaypointTask());
+            //_taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new FallbackTask());
-        }        
-        
+        }
+
         private static ExplorationSettings MapBotExploration()
         {
             if (!World.CurrentArea.IsMap)
@@ -448,7 +446,7 @@ namespace FollowBot
         public string Name => "FollowBot";
         public string Author => "NotYourFriend, origial code from Unknown";
         public string Description => "Bot that follow leader.";
-        public string Version => "0.0.6.5";
+        public string Version => "0.0.7.1";
         public UserControl Control => _gui ?? (_gui = new FollowBotGui());
         public JsonSettings Settings => FollowBotSettings.Instance;
         public override string ToString() => $"{Name}: {Description}";

@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using static DreamPoeBot.Loki.Game.LokiPoe.InGameState;
 
 namespace FollowBot.Helpers
 {
@@ -26,7 +27,9 @@ namespace FollowBot.Helpers
 
         public static async Task<bool> HandlePartyInvite()
         {
-            if (LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count > 0)
+			bool hasVisiblePartyNotification = NotificationHud.NotificationList
+				.Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Party);
+            if (hasVisiblePartyNotification && LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count > 0)
             {
                 FollowBot.Log.WarnFormat($"[FollowBot] Visible Notifications: {LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count}");
                 LokiPoe.InGameState.ProcessNotificationEx isPartyRequestToBeAccepted = (x, y) =>
@@ -48,7 +51,7 @@ namespace FollowBot.Helpers
             }
             return false;
         }
-        
+
         public static async Task<bool> LeaveParty()
         {
 

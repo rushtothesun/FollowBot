@@ -197,10 +197,11 @@ namespace FollowBot.SimpleEXtensions.Global
 
         #region Act 1
 
-        private static async Task UnknownState()
+        private static Task UnknownState()
         {
             GlobalLog.Error($"[Travel] Lioneye's Watch waypoint is not opened and we are not inside Twilight Strand. Current area: {World.CurrentArea}");
             ErrorManager.ReportCriticalError();
+            return Task.CompletedTask;
         }
 
         private static async Task LioneyeWatch()

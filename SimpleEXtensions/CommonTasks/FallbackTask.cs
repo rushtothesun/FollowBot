@@ -23,9 +23,9 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             return MessageResult.Unprocessed;
         }
 
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public void Start()

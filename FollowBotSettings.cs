@@ -1,14 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using DreamPoeBot.Loki;
+﻿using DreamPoeBot.Loki;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Class;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 
 namespace FollowBot
 {
@@ -35,7 +35,7 @@ namespace FollowBot
             set
             { _ignoreHiddenAuras = value; NotifyPropertyChanged(() => IgnoreHiddenAuras); }
         }
-        
+
         private string _acceptedManualInviteNames;
         private int _followDistance;
         private int _maxfollowDistance;
@@ -46,6 +46,7 @@ namespace FollowBot
         #region Party Role
         private bool _shouldKill;
         private bool _shouldLoot;
+        private bool _shouldLootOnlyQuestItem;
         private bool _useStalkerSentinel;
         private bool _dontPortOutofMap;
         private bool _shouldFollow = true;
@@ -179,7 +180,7 @@ namespace FollowBot
             { _maxLootDistance = value; NotifyPropertyChanged(() => MaxLootDistance); }
         }
 
-        
+
         [DefaultValue(0)]
         public int PortOutThreshold
         {
@@ -208,6 +209,26 @@ namespace FollowBot
             { _shouldLoot = value; NotifyPropertyChanged(() => ShouldLoot); }
         }
         [DefaultValue(false)]
+        public bool ShouldLootOnlyQuestItem
+        {
+            get { return _shouldLootOnlyQuestItem; }
+            set
+            {
+                _shouldLootOnlyQuestItem = value; NotifyPropertyChanged(() => ShouldLootOnlyQuestItem);
+            }
+        }
+        private bool _interactQuest;
+        [DefaultValue(false)]
+        public bool InteractQuest
+        {
+            get { return _interactQuest; }
+            set
+            {
+                _interactQuest = value; NotifyPropertyChanged(() => InteractQuest);
+            }
+        }
+
+        [DefaultValue(false)]
         public bool UseStalkerSentinel
         {
             get { return _useStalkerSentinel; }
@@ -233,7 +254,7 @@ namespace FollowBot
         #region Defence Skills
         public ObservableCollection<DefensiveSkillsClass> DefensiveSkills
         {
-            get => _defensiveSkills ;//?? (_defensiveSkills = new ObservableCollection<DefensiveSkillsClass>());
+            get => _defensiveSkills;//?? (_defensiveSkills = new ObservableCollection<DefensiveSkillsClass>());
             set
             {
                 _defensiveSkills = value;
@@ -246,7 +267,7 @@ namespace FollowBot
         #region Flasks
         public ObservableCollection<FlasksClass> Flasks
         {
-            get => _flasks ;//?? (_flasks = new ObservableCollection<FlasksClass>());
+            get => _flasks;//?? (_flasks = new ObservableCollection<FlasksClass>());
             set
             {
                 _flasks = value;
@@ -257,7 +278,7 @@ namespace FollowBot
         {
             ObservableCollection<DefensiveSkillsClass> skills = new ObservableCollection<DefensiveSkillsClass>();
 
-            skills.Add(new DefensiveSkillsClass(false, "Vaal Molten Shell", false, 0, 0,false, ""));
+            skills.Add(new DefensiveSkillsClass(false, "Vaal Molten Shell", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Vaal Discipline", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Molten Shell", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Steelskin", false, 0, 0, false, ""));
@@ -704,9 +725,9 @@ namespace FollowBot
 
         #endregion
 
-#region Overlay
+        #region Overlay
 
-private bool _enableOverlay;
+        private bool _enableOverlay;
         private bool _drawInBackground;
         private bool _drawMobs;
         private bool _drawCorpses;
@@ -814,6 +835,160 @@ private bool _enableOverlay;
 
         #endregion
 
+        // Custom Skills
+        public string SoulLink2TargetName { get; set; } = "";
+        private bool _enablePhaseRun;
+        [DefaultValue(false)]
+        public bool EnablePhaseRun
+        {
+            get => _enablePhaseRun;
+            set { _enablePhaseRun = value; NotifyPropertyChanged(() => EnablePhaseRun); }
+        }
+
+        private bool _enableMoltenShell;
+        [DefaultValue(false)]
+        public bool EnableMoltenShell
+        {
+            get => _enableMoltenShell;
+            set { _enableMoltenShell = value; NotifyPropertyChanged(() => EnableMoltenShell); }
+        }
+
+        private bool _enableEnduringCry;
+        [DefaultValue(false)]
+        public bool EnableEnduringCry
+        {
+            get => _enableEnduringCry;
+            set { _enableEnduringCry = value; NotifyPropertyChanged(() => EnableEnduringCry); }
+        }
+
+        private bool _enableSeismicCry;
+        [DefaultValue(false)]
+        public bool EnableSeismicCry
+        {
+            get => _enableSeismicCry;
+            set { _enableSeismicCry = value; NotifyPropertyChanged(() => EnableSeismicCry); }
+        }
+
+        private bool _enableBattlemageCry;
+        [DefaultValue(false)]
+        public bool EnableBattlemageCry
+        {
+            get => _enableBattlemageCry;
+            set { _enableBattlemageCry = value; NotifyPropertyChanged(() => EnableBattlemageCry); }
+        }
+
+        private bool _enableAncestralCry;
+        [DefaultValue(false)]
+        public bool EnableAncestralCry
+        {
+            get => _enableAncestralCry;
+            set { _enableAncestralCry = value; NotifyPropertyChanged(() => EnableAncestralCry); }
+        }
+
+        private bool _enableIntimidatingCry;
+        [DefaultValue(false)]
+        public bool EnableIntimidatingCry
+        {
+            get => _enableIntimidatingCry;
+            set { _enableIntimidatingCry = value; NotifyPropertyChanged(() => EnableIntimidatingCry); }
+        }
+
+        private bool _enableInfernalCry;
+        [DefaultValue(false)]
+        public bool EnableInfernalCry
+        {
+            get => _enableInfernalCry;
+            set { _enableInfernalCry = value; NotifyPropertyChanged(() => EnableInfernalCry); }
+        }
+
+        private bool _enableRallyingCry;
+        [DefaultValue(false)]
+        public bool EnableRallyingCry
+        {
+            get => _enableRallyingCry;
+            set { _enableRallyingCry = value; NotifyPropertyChanged(() => EnableRallyingCry); }
+        }
+
+        private bool _enableGuardiansBlessingHandler;
+        [DefaultValue(false)]
+        public bool EnableGuardiansBlessingHandler
+        {
+            get => _enableGuardiansBlessingHandler;
+            set { _enableGuardiansBlessingHandler = value; NotifyPropertyChanged(() => EnableGuardiansBlessingHandler); }
+        }
+
+        private bool _enableSentinelUsage;
+        [DefaultValue(false)]
+        public bool EnableSentinelUsage
+        {
+            get => _enableSentinelUsage;
+            set { _enableSentinelUsage = value; NotifyPropertyChanged(() => EnableSentinelUsage); }
+        }
+
+        private bool _enableChaosElixir;
+        [DefaultValue(false)]
+        public bool EnableChaosElixir
+        {
+            get => _enableChaosElixir;
+            set { _enableChaosElixir = value; NotifyPropertyChanged(() => EnableChaosElixir); }
+        }
+
+        private bool _enableCallMercenary;
+        [DefaultValue(false)]
+        public bool EnableCallMercenary
+        {
+            get => _enableCallMercenary;
+            set { _enableCallMercenary = value; NotifyPropertyChanged(() => EnableCallMercenary); }
+        }
+
+        private bool _enableConvocation;
+        [DefaultValue(false)]
+        public bool EnableConvocation
+        {
+            get => _enableConvocation;
+            set { _enableConvocation = value; NotifyPropertyChanged(() => EnableConvocation); }
+        }
+
+        private bool _enableSoulLink;
+        [DefaultValue(false)]
+        public bool EnableSoulLink
+        {
+            get => _enableSoulLink;
+            set { _enableSoulLink = value; NotifyPropertyChanged(() => EnableSoulLink); }
+        }
+
+        private bool _enableSoulLink2;
+        [DefaultValue(false)]
+        public bool EnableSoulLink2
+        {
+            get => _enableSoulLink2;
+            set { _enableSoulLink2 = value; NotifyPropertyChanged(() => EnableSoulLink2); }
+        }
+
+        private bool _enableUseRejuvenationTotemDuringUltimatum;
+        [DefaultValue(false)]
+        public bool EnableUseRejuvenationTotemDuringUltimatum
+        {
+            get => _enableUseRejuvenationTotemDuringUltimatum;
+            set { _enableUseRejuvenationTotemDuringUltimatum = value; NotifyPropertyChanged(() => EnableUseRejuvenationTotemDuringUltimatum); }
+        }
+
+        private bool _enableUseWarBannerDuringUltimatumOrNearUnique;
+        [DefaultValue(false)]
+        public bool EnableUseWarBannerDuringUltimatumOrNearUnique
+        {
+            get => _enableUseWarBannerDuringUltimatumOrNearUnique;
+            set { _enableUseWarBannerDuringUltimatumOrNearUnique = value; NotifyPropertyChanged(() => EnableUseWarBannerDuringUltimatumOrNearUnique); }
+        }
+
+        private bool _enableUseWarDefianceBannerDuringUltimatumOrNearUnique;
+        [DefaultValue(false)]
+        public bool EnableUseWarDefianceBannerDuringUltimatumOrNearUnique
+        {
+            get => _enableUseWarDefianceBannerDuringUltimatumOrNearUnique;
+            set { _enableUseWarDefianceBannerDuringUltimatumOrNearUnique = value; NotifyPropertyChanged(() => EnableUseWarDefianceBannerDuringUltimatumOrNearUnique); }
+        }
+
         public enum BloodAndSand
         {
             Blood,
@@ -822,4 +997,3 @@ private bool _enableOverlay;
     }
 }
 
-    

@@ -558,7 +558,7 @@ namespace FollowBot.SimpleEXtensions
             return true;
         }
 
-        public static async Task<bool> MoveAway(int min, int max)
+        public static Task<bool> MoveAway(int min, int max)
         {
             WorldPosition pos = WorldPosition.FindPathablePositionAtDistance(min, max, 5);
             if (pos == null)
@@ -571,10 +571,10 @@ namespace FollowBot.SimpleEXtensions
             if (!Move.Towards(newPosition, "away"))
             {
                 ErrorManager.ReportError();
-                return false;
+                return Task.FromResult(false);
             }
 
-            return true;
+            return Task.FromResult(true);
         }
     }
 }

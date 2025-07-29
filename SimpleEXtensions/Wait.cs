@@ -15,20 +15,20 @@ namespace FollowBot.SimpleEXtensions
         {
             return await For(condition, desc, () => step, timeout);
         }
-        public static async Task<bool> For(Func<bool> condition, string desc, Func<int> step, int timeout = 3000)
+        public static Task<bool> For(Func<bool> condition, string desc, Func<int> step, int timeout = 3000)
         {
             if (condition())
-                return true;
+                return Task.FromResult(true);
 
             var timer = Stopwatch.StartNew();
             while (timer.ElapsedMilliseconds < timeout)
             {
                 GlobalLog.Debug($"[WaitFor] Waiting for {desc} ({Math.Round(timer.ElapsedMilliseconds / 1000f, 2)}/{timeout / 1000f})");
                 if (condition())
-                    return true;
+                    return Task.FromResult(true);
             }
             GlobalLog.Error($"[WaitFor] Wait for {desc} timeout.");
-            return false;
+            return Task.FromResult(false);
         }
         public static async Task Sleep(int ms)
         {
