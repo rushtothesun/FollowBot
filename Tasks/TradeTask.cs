@@ -118,7 +118,7 @@ namespace FollowBot.Tasks
                         await Coroutines.LatencyWait();
                     }
                 }
-                if (currentArea.IsHideoutArea || currentArea.IsTown)
+                if (currentArea.IsHideoutArea || currentArea.IsTown || currentArea.Name == "Monastery of the Keepers")
                 {
                     Log.InfoFormat("[TradeTask] Start Trade in Hideout");
 
