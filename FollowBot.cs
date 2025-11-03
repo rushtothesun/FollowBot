@@ -1,8 +1,4 @@
-﻿using System.Linq;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Coroutine;
@@ -14,11 +10,17 @@ using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.CommonTasks;
 using FollowBot.SimpleEXtensions.Global;
+using FollowBot.Tasks;
 using log4net;
-
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.LinkLabel;
 using Message = DreamPoeBot.Loki.Bot.Message;
 using UserControl = System.Windows.Controls.UserControl;
-using System.Windows.Forms;
 
 namespace FollowBot
 {
@@ -108,20 +110,16 @@ namespace FollowBot
                             "Metadata/Characters/DexInt/DexInt",
                             "Metadata/Characters/StrDexInt/StrDexInt"
         };
-        public static void PhaseRun()
-        {
-            if (LokiPoe.Me.Auras.All(x => x.Name != "Phase Run"))
-            {
-                var phaseRun = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "NewPhaseRun");
-                if (phaseRun != null && phaseRun.IsOnSkillBar && phaseRun.Slot != -1 && phaseRun.CanUse())
-                    LokiPoe.InGameState.SkillBarHud.Use(phaseRun.Slot, false, false);
-            }
-        }
+
 
         public void Start()
         {
             _lastBoundMoveSkillSlot = -1;
             _lastBoundMoveSkillKey = Keys.Clear;
+
+            FollowBotSettings.Instance.PropertyChanged += OnSettingsPropertyChanged;
+
+            UpdatePathfinderSettings();
 
             ItemEvaluator.Instance = DefaultItemEvaluator.Instance;
             Explorer.CurrentDelegate = user => CombatAreaCache.Current.Explorer.BasicExplorer;
@@ -213,6 +211,7 @@ namespace FollowBot
 
         public void Stop()
         {
+            FollowBotSettings.Instance.PropertyChanged -= OnSettingsPropertyChanged;
             _taskManager.Stop();
             PluginManager.Stop();
             RoutineManager.Stop();
@@ -327,6 +326,7 @@ namespace FollowBot
             else if (message.Id == Events.Messages.AreaChanged)
             {
                 Leader = null;
+                UpdatePathfinderSettings();
                 handled = true;
             }
 
@@ -349,7 +349,7 @@ namespace FollowBot
             return _taskManager;
         }
 
-        public async void Initialize()
+        public void Initialize()
         {
             BotManager.OnBotChanged += BotManagerOnOnBotChanged;
             GameOverlay.TimerService.EnableHighPrecisionTimers();
@@ -373,7 +373,13 @@ namespace FollowBot
         {
 
             _taskManager.Add(new ClearCursorTask());
+			_taskManager.Add(new JoinPartyTask());
+            _taskManager.Add(new TradeTask());
+            _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
+            _taskManager.Add(new UltimatumTask());
+            _taskManager.Add(new CustomSkillsTask());
+            _taskManager.Add(new AsyncCustomSkillsTask());
             _taskManager.Add(new LootItemTask());
             _taskManager.Add(new PreCombatFollowTask());
             _taskManager.Add(new CombatTask(50));
@@ -383,11 +389,12 @@ namespace FollowBot
             _taskManager.Add(new CastAuraTask());
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
-            _taskManager.Add(new OpenWaypointTask());
-            _taskManager.Add(new JoinPartyTask());
+			_taskManager.Add(new TrialPickerTask());
+            // _taskManager.Add(new OpenWaypointTask());
+            //_taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new FallbackTask());
-        }        
-        
+        }
+
         private static ExplorationSettings MapBotExploration()
         {
             if (!World.CurrentArea.IsMap)
@@ -448,9 +455,42 @@ namespace FollowBot
         public string Name => "FollowBot";
         public string Author => "NotYourFriend, origial code from Unknown";
         public string Description => "Bot that follow leader.";
-        public string Version => "0.0.6.5";
+        public string Version => "0.0.7.1";
         public UserControl Control => _gui ?? (_gui = new FollowBotGui());
         public JsonSettings Settings => FollowBotSettings.Instance;
         public override string ToString() => $"{Name}: {Description}";
+
+        private void OnSettingsPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "AutoReloadPathfinder")
+            {
+                UpdatePathfinderSettings();
+            }
+        }
+
+        private void UpdatePathfinderSettings()
+        {
+            // This is the placeholder for your area-specific logic.
+            // You can get the current area name or id like this:
+            // var currentArea = World.CurrentArea;
+            // var areaName = currentArea.Name;
+            // var areaId = currentArea.Id;
+
+            // Example of how you might disable it for Heist areas:
+            // if (areaId.StartsWith("Heist"))
+            // {
+            //     Log.Debug("[UpdatePathfinderSettings] Heist area detected. Forcing AutoReloadPathfinder to false.");
+            //     BotManager.AutoReloadPathfinder = false;
+            //     return;
+            // }
+
+            // For now, it just applies the setting from the GUI.
+            var desiredState = FollowBotSettings.Instance.AutoReloadPathfinder;
+            if (BotManager.AutoReloadPathfinde != desiredState)
+            {
+                Log.Debug($"[UpdatePathfinderSettings] Setting BotManager.AutoReloadPathfinde to {desiredState}.");
+                BotManager.AutoReloadPathfinde = desiredState;
+            }
+        }
     }
 }

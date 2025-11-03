@@ -1,13 +1,13 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using FollowBot.Helpers;
 using log4net;
+using System.Linq;
+using System.Threading.Tasks;
 
 
-namespace FollowBot
+namespace FollowBot.Tasks
 {
     class JoinPartyTask : ITask
     {
@@ -34,10 +34,24 @@ namespace FollowBot
 
         public async Task<bool> Run()
         {
+			
             if (LokiPoe.InstanceInfo.PartyStatus == DreamPoeBot.Loki.Game.GameData.PartyStatus.PartyMember)
-            {
-                return false;
-            }
+			{
+				if (FollowBot._leaderPartyEntry?.PlayerEntry != null)
+				{
+					var leadername = FollowBot._leaderPartyEntry.PlayerEntry.Name;
+					if (!string.IsNullOrEmpty(FollowBotSettings.Instance.InviteWhiteList))
+					{
+						var whiteList = FollowBotSettings.Instance.InviteWhiteList.Split(',').Select(x => x.Trim()).ToList();
+						if (!whiteList.Contains(leadername))
+						{
+							await PartyHelper.LeaveParty();
+						}
+					}
+				}					        
+				return false;
+			}
+			
             if (LokiPoe.InstanceInfo.PartyStatus == DreamPoeBot.Loki.Game.GameData.PartyStatus.PartyLeader)
             {
                 await PartyHelper.LeaveParty();
@@ -45,7 +59,7 @@ namespace FollowBot
             }
 
             var invite = LokiPoe.InstanceInfo.PendingPartyInvites;
-            if(invite.Any())
+            if (invite.Any())
             {
                 await PartyHelper.HandlePartyInvite();
             }
@@ -56,9 +70,9 @@ namespace FollowBot
 
             return true;
         }
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public MessageResult Message(Message message)

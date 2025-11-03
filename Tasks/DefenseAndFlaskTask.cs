@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
+﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.NativeWrappers;
 using DreamPoeBot.Loki.Game.Objects;
@@ -9,9 +6,12 @@ using DreamPoeBot.Loki.RemoteMemoryObjects;
 using FollowBot.Class;
 using FollowBot.Helpers;
 using FollowBot.SimpleEXtensions;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using FlaskHud = DreamPoeBot.Loki.Game.LokiPoe.InGameState.QuickFlaskHud;
 
-namespace FollowBot
+namespace FollowBot.Tasks
 {
     public class DefenseAndFlaskTask : ITask
     {
@@ -139,11 +139,125 @@ namespace FollowBot
             if (LokiPoe.CurrentWorldArea.IsTown) return false;
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return false;
             if (!LokiPoe.CurrentWorldArea.IsCombatArea) return false;
-            
-            if(LokiPoe.Me.HasAura("Grace Period"))
+
+            if (LokiPoe.Me.HasAura("Grace Period"))
             {
+                GlobalLog.Debug("[DefenseAndFlaskTask] Find grace period, wait player moves.");
+                return false;
                 //await PlayerAction.MoveAway(15, 20);
             }
+
+
+            #region Ultimatum Handler
+            /*
+            //var ult = LokiPoe.ObjectManager.Objects.FirstOrDefault<UltimatumChallengeInteractable>();
+            //if (ult != null)
+            if (LokiPoe.InGameState.UltimatumTrialRewardUi.IsOpened)
+            {
+                if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForReward() >= 1)
+                {
+                    LokiPoe.InGameState.UltimatumTrialRewardUi.TakeReward();
+                }
+                foreach (var opt in LokiPoe.InGameState.UltimatumTrialRewardUi.Options)
+                {
+                    if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(opt) >= 1)
+                    {
+                        LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(opt);
+                        LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+                    }
+
+                }
+            }
+   
+   /*var myMercenary = DreamPoeBot.Loki.Game.LokiPoe.ObjectManager.Objects
+       .OfType<Mercenary>()
+    .FirstOrDefault();	* /
+   var myMercenary = DreamPoeBot.Loki.Game.LokiPoe.ObjectManager.Objects.OfType<Mercenary>().Where(m => !m.IsFriendly).FirstOrDefault();
+   //myMercenary.Opt_In();
+   
+   //if (myMercenary.CanOpt_In)
+   //	{
+   //	  myMercenary.Opt_In();
+   //	}
+   
+   //if (myMercenary != null && LokiPoe.Me.Position.Distance(myMercenary.Position) < 25)
+   //{
+     //GlobalLog.Warn($"Trying to opt in");
+        //myMercenary.Opt_In();
+   //}
+   //if (myMercenary != null)
+   //{
+   //GlobalLog.Info($"Mercenary distance: {LokiPoe.Me.Position.Distance(myMercenary.Position)}");
+   //}
+   //if (myMercenary == null)
+   //{
+    //GlobalLog.Warn($"Merc Null");
+   //}
+   if (myMercenary != null && myMercenary.CanOpt_In && LokiPoe.Me.Position.Distance(myMercenary.Position) < 25)
+   {
+        GlobalLog.Warn($"Trying to opt in");
+     myMercenary.Opt_In();
+   }
+   */
+            #endregion
+            #region UltimatumTesting
+            /*
+			if (ult != null){
+			//var tmod = ult.Options.FirstOrDefault();
+			var umod1 = ult.Options.ElementAt(0);
+			var umod2 = ult.Options.ElementAt(1);
+			var umod3 = ult.Options.ElementAt(2);
+			GlobalLog.Info("mod1 "+ult.GetVoteForOption(umod1));
+			GlobalLog.Info("mod2 "+ult.GetVoteForOption(umod2));
+			GlobalLog.Info("mod3 "+ult.GetVoteForOption(umod3));
+			//GlobalLog.Info(ult.GetVoteForOption(umod1));
+			//GlobalLog.Info(tmod.ToString());
+			} */
+
+            /*
+			if (LokiPoe.InGameState.UltimatumTrialRewardUi.IsOpened)
+			{
+				//LokiPoe.InGameState.UltimatumTrialRewardUi.TakeReward();
+				//var x = LokiPoe.ObjectManager.Objects.FirstOrDefault<UltimatumChallengeInteractable>();
+				var mod1 = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(0);
+				var mod2 = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(1);
+				var mod3 = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(2);
+				//GlobalLog.Info(LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod1));
+				//GlobalLog.Info(LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod2));
+				//GlobalLog.Info(LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod3));
+				GlobalLog.Info("Reward ui vote: "+LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForReward());
+ 
+				if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod1) >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(mod1);
+					LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+				}
+				else if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod2) >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(mod2);
+					LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+				}
+				else if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForOption(mod3) >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(mod3);
+					LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+				}
+				else if (LokiPoe.InGameState.UltimatumTrialRewardUi.GetVotedForReward() >= 1)
+				{
+					LokiPoe.InGameState.UltimatumTrialRewardUi.TakeReward();
+				}
+				
+ 
+			} */
+
+            /*if (LokiPoe.InGameState.UltimatumTrialRewardUi.IsOpened)
+			{
+				var selectFirst = LokiPoe.InGameState.UltimatumTrialRewardUi.Options.ElementAt(1);
+				LokiPoe.InGameState.UltimatumTrialRewardUi.SelectOption(selectFirst);
+				LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrial();
+			}*/
+            #endregion
+
 
             var hpPct = LokiPoe.Me.HealthPercent;
             var esPct = LokiPoe.Me.EnergyShieldPercent;
@@ -167,7 +281,7 @@ namespace FollowBot
                     if (UseFlask(thisflask, flask.Slot))
                     {
                         flask.PostUseDelay.Restart();
-                        return true;                        
+                        return true;
                     }
                 }
             }
@@ -199,6 +313,8 @@ namespace FollowBot
 
         private static void CastDefensiveSkill(DefensiveSkillsClass skillClass)
         {
+
+
             if (skillClass == null) return;
             var skills = LokiPoe.InGameState.SkillBarHud.Skills;
             if (skills == null) return;
@@ -250,7 +366,7 @@ namespace FollowBot
             else
             {
                 var listSplit = linkWhitelist.Split(',');
-                if (listSplit.Length < 1) 
+                if (listSplit.Length < 1)
                 {
                     GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
                     GlobalLog.Error(" ");
@@ -272,20 +388,20 @@ namespace FollowBot
                 {
                     var name = partyMember?.PlayerEntry?.Name;
                     if (string.IsNullOrEmpty(name)) continue;
-                    if (!LokiPoe.InGameState.PartyHud.IsInSameZone(name)) continue;                   
+                    if (!LokiPoe.InGameState.PartyHud.IsInSameZone(name)) continue;
                     if (!LinkRotationDictionary.ContainsKey(name))
                     {
                         LinkRotationDictionary.Add(name, 0);
-                    }                  
+                    }
                 }
                 var nam = "";
                 int weight = int.MaxValue;
                 var keys = LinkRotationDictionary.Keys;
                 foreach (var key in keys)
                 {
-                    if (LinkRotationDictionary[key] < weight) 
-                    { 
-                        weight = LinkRotationDictionary[key]; 
+                    if (LinkRotationDictionary[key] < weight)
+                    {
+                        weight = LinkRotationDictionary[key];
                         nam = key;
                     }
                 }
@@ -308,9 +424,9 @@ namespace FollowBot
             return MessageResult.Unprocessed;
         }
 
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public void Start()

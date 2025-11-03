@@ -1,14 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using DreamPoeBot.Loki;
+﻿using DreamPoeBot.Loki;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Class;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 
 namespace FollowBot
 {
@@ -35,7 +35,21 @@ namespace FollowBot
             set
             { _ignoreHiddenAuras = value; NotifyPropertyChanged(() => IgnoreHiddenAuras); }
         }
-        
+
+        private bool _autoReloadPathfinder = true;
+
+        [DefaultValue(true)]
+        public bool AutoReloadPathfinder
+        {
+            get => _autoReloadPathfinder;
+            set
+            {
+                if (value.Equals(_autoReloadPathfinder)) return;
+                _autoReloadPathfinder = value;
+                NotifyPropertyChanged(() => AutoReloadPathfinder);
+            }
+        }
+
         private string _acceptedManualInviteNames;
         private int _followDistance;
         private int _maxfollowDistance;
@@ -46,13 +60,16 @@ namespace FollowBot
         #region Party Role
         private bool _shouldKill;
         private bool _shouldLoot;
+        private bool _shouldLootOnlyQuestItem;
         private bool _useStalkerSentinel;
         private bool _dontPortOutofMap;
         private bool _shouldFollow = true;
+        private bool _shouldLootUltimatum;
+        private int _ultimatumLootTimer;
 
         #endregion
 
-        #region Aureas
+        #region Auras
         private bool _enableAspectsOfTheAvian;
         private bool _enableAspectsOfTheCat;
         private bool _enableAspectsOfTheCrab;
@@ -128,6 +145,12 @@ namespace FollowBot
             }
         }
 
+        public enum BloodAndSand
+        {
+            Blood,
+            Sand
+        }
+
         #endregion
 
         #region Defence
@@ -139,10 +162,12 @@ namespace FollowBot
         private bool _gemDebugStatements;
         private bool _levelAllGems;
         private bool _levelOffhandOnly;
+        private bool _useLevelAllButton;
         private ObservableCollection<string> _globalNameIgnoreList;
-
+ 
         #endregion
-
+        
+        #region Follow Settings
         [DefaultValue("")]
         public string InviteWhiteList
         {
@@ -179,7 +204,7 @@ namespace FollowBot
             { _maxLootDistance = value; NotifyPropertyChanged(() => MaxLootDistance); }
         }
 
-        
+
         [DefaultValue(0)]
         public int PortOutThreshold
         {
@@ -190,6 +215,7 @@ namespace FollowBot
                 NotifyPropertyChanged(() => PortOutThreshold);
             }
         }
+        #endregion
 
         #region Party Role
 
@@ -207,6 +233,26 @@ namespace FollowBot
             set
             { _shouldLoot = value; NotifyPropertyChanged(() => ShouldLoot); }
         }
+        [DefaultValue(false)]
+        public bool ShouldLootOnlyQuestItem
+        {
+            get { return _shouldLootOnlyQuestItem; }
+            set
+            {
+                _shouldLootOnlyQuestItem = value; NotifyPropertyChanged(() => ShouldLootOnlyQuestItem);
+            }
+        }
+        private bool _interactQuest;
+        [DefaultValue(false)]
+        public bool InteractQuest
+        {
+            get { return _interactQuest; }
+            set
+            {
+                _interactQuest = value; NotifyPropertyChanged(() => InteractQuest);
+            }
+        }
+
         [DefaultValue(false)]
         public bool UseStalkerSentinel
         {
@@ -228,12 +274,26 @@ namespace FollowBot
             set
             { _shouldFollow = value; NotifyPropertyChanged(() => ShouldFollow); }
         }
+
+        [DefaultValue(false)]
+        public bool ShouldLootUltimatum
+        {
+            get { return _shouldLootUltimatum; }
+            set { _shouldLootUltimatum = value; NotifyPropertyChanged(() => ShouldLootUltimatum); }
+        }
+
+        [DefaultValue(5)]
+        public int UltimatumLootTimer
+        {
+            get { return _ultimatumLootTimer; }
+            set { _ultimatumLootTimer = value; NotifyPropertyChanged(() => UltimatumLootTimer); }
+        }
         #endregion
 
         #region Defence Skills
         public ObservableCollection<DefensiveSkillsClass> DefensiveSkills
         {
-            get => _defensiveSkills ;//?? (_defensiveSkills = new ObservableCollection<DefensiveSkillsClass>());
+            get => _defensiveSkills;//?? (_defensiveSkills = new ObservableCollection<DefensiveSkillsClass>());
             set
             {
                 _defensiveSkills = value;
@@ -246,7 +306,7 @@ namespace FollowBot
         #region Flasks
         public ObservableCollection<FlasksClass> Flasks
         {
-            get => _flasks ;//?? (_flasks = new ObservableCollection<FlasksClass>());
+            get => _flasks;//?? (_flasks = new ObservableCollection<FlasksClass>());
             set
             {
                 _flasks = value;
@@ -257,7 +317,7 @@ namespace FollowBot
         {
             ObservableCollection<DefensiveSkillsClass> skills = new ObservableCollection<DefensiveSkillsClass>();
 
-            skills.Add(new DefensiveSkillsClass(false, "Vaal Molten Shell", false, 0, 0,false, ""));
+            skills.Add(new DefensiveSkillsClass(false, "Vaal Molten Shell", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Vaal Discipline", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Molten Shell", false, 0, 0, false, ""));
             skills.Add(new DefensiveSkillsClass(false, "Steelskin", false, 0, 0, false, ""));
@@ -330,6 +390,23 @@ namespace FollowBot
                 }
                 _levelAllGems = value;
                 NotifyPropertyChanged(() => LevelAllGems);
+            }
+        }
+        [DefaultValue(false)]
+        public bool UseLevelAllButton
+        {
+            get
+            {
+                return _useLevelAllButton;
+            }
+            set
+            {
+                if (value.Equals(_useLevelAllButton))
+                {
+                    return;
+                }
+                _useLevelAllButton = value;
+                NotifyPropertyChanged(() => UseLevelAllButton);
             }
         }
         /// <summary>
@@ -536,6 +613,21 @@ namespace FollowBot
         private string _stopAutoTeleportChatCommand;
         private string _startAutoTeleportChatCommand;
         private string _openTownPortalChatCommand;
+        private string _enterPortalChatCommand;
+
+        [DefaultValue("EnterP")]
+        public string EnterPortalChatCommand
+        {
+            get
+            {
+                return _enterPortalChatCommand;
+            }
+            set
+            {
+                _enterPortalChatCommand = value;
+                NotifyPropertyChanged(() => EnterPortalChatCommand);
+            }
+        }
 
         [DefaultValue("Tele")]
         public string TeleportToLeaderChatCommand
@@ -704,9 +796,9 @@ namespace FollowBot
 
         #endregion
 
-#region Overlay
+        #region Overlay
 
-private bool _enableOverlay;
+        private bool _enableOverlay;
         private bool _drawInBackground;
         private bool _drawMobs;
         private bool _drawCorpses;
@@ -814,12 +906,264 @@ private bool _enableOverlay;
 
         #endregion
 
-        public enum BloodAndSand
+        #region CustomSkills
+        // Custom Skills
+        public string LinkSkillAdditionalTargets { get; set; } = "";
+        private bool _enablePhaseRun;
+        [DefaultValue(false)]
+        public bool EnablePhaseRun
         {
-            Blood,
-            Sand
+            get => _enablePhaseRun;
+            set { _enablePhaseRun = value; NotifyPropertyChanged(() => EnablePhaseRun); }
         }
+
+        private bool _enableGuardSkill;
+        [DefaultValue(false)]
+        public bool EnableGuardSkill
+        {
+            get => _enableGuardSkill;
+            set { _enableGuardSkill = value; NotifyPropertyChanged(() => EnableGuardSkill); }
+        }
+
+        private string _guardSkillName;
+        [DefaultValue("Molten Shell")]
+        public string GuardSkillName
+        {
+            get => _guardSkillName;
+            set { _guardSkillName = value; NotifyPropertyChanged(() => GuardSkillName); }
+        }
+ 
+        #region Warcries
+        private bool _enableEnduringCry;
+        [DefaultValue(false)]
+        public bool EnableEnduringCry
+        {
+            get => _enableEnduringCry;
+            set { _enableEnduringCry = value; NotifyPropertyChanged(() => EnableEnduringCry); }
+        }
+
+        private bool _enduringCryHasOnslaughtCluster;
+        [DefaultValue(false)]
+        public bool EnduringCryHasOnslaughtCluster
+        {
+            get => _enduringCryHasOnslaughtCluster;
+            set { _enduringCryHasOnslaughtCluster = value; NotifyPropertyChanged(() => EnduringCryHasOnslaughtCluster); }
+        }
+ 
+        private bool _enableSeismicCry;
+        [DefaultValue(false)]
+        public bool EnableSeismicCry
+        {
+            get => _enableSeismicCry;
+            set { _enableSeismicCry = value; NotifyPropertyChanged(() => EnableSeismicCry); }
+        }
+
+        private bool _enableBattlemageCry;
+        [DefaultValue(false)]
+        public bool EnableBattlemageCry
+        {
+            get => _enableBattlemageCry;
+            set { _enableBattlemageCry = value; NotifyPropertyChanged(() => EnableBattlemageCry); }
+        }
+
+        private bool _enableAncestralCry;
+        [DefaultValue(false)]
+        public bool EnableAncestralCry
+        {
+            get => _enableAncestralCry;
+            set { _enableAncestralCry = value; NotifyPropertyChanged(() => EnableAncestralCry); }
+        }
+
+        private bool _enableIntimidatingCry;
+        [DefaultValue(false)]
+        public bool EnableIntimidatingCry
+        {
+            get => _enableIntimidatingCry;
+            set { _enableIntimidatingCry = value; NotifyPropertyChanged(() => EnableIntimidatingCry); }
+        }
+
+        private bool _enableInfernalCry;
+        [DefaultValue(false)]
+        public bool EnableInfernalCry
+        {
+            get => _enableInfernalCry;
+            set { _enableInfernalCry = value; NotifyPropertyChanged(() => EnableInfernalCry); }
+        }
+
+        private bool _enableRallyingCry;
+        [DefaultValue(false)]
+        public bool EnableRallyingCry
+        {
+            get => _enableRallyingCry;
+            set { _enableRallyingCry = value; NotifyPropertyChanged(() => EnableRallyingCry); }
+        }
+        #endregion
+
+        private bool _enableGuardiansBlessingHandler;
+        [DefaultValue(false)]
+        public bool EnableGuardiansBlessingHandler
+        {
+            get => _enableGuardiansBlessingHandler;
+            set { _enableGuardiansBlessingHandler = value; NotifyPropertyChanged(() => EnableGuardiansBlessingHandler); }
+        }
+
+        private bool _enableSentinelUsage;
+        [DefaultValue(false)]
+        public bool EnableSentinelUsage
+        {
+            get => _enableSentinelUsage;
+            set { _enableSentinelUsage = value; NotifyPropertyChanged(() => EnableSentinelUsage); }
+        }
+
+        private bool _enableChaosElixir;
+        [DefaultValue(false)]
+        public bool EnableChaosElixir
+        {
+            get => _enableChaosElixir;
+            set { _enableChaosElixir = value; NotifyPropertyChanged(() => EnableChaosElixir); }
+        }
+
+        private bool _enableConvocation;
+        [DefaultValue(false)]
+        public bool EnableConvocation
+        {
+            get => _enableConvocation;
+            set { _enableConvocation = value; NotifyPropertyChanged(() => EnableConvocation); }
+        }
+
+        private bool _enableLinkSkill;
+        [DefaultValue(false)]
+        public bool EnableLinkSkill
+        {
+            get => _enableLinkSkill;
+            set { _enableLinkSkill = value; NotifyPropertyChanged(() => EnableLinkSkill); }
+        }
+
+        private bool _enableUseRejuvenationTotemDuringUltimatum;
+        [DefaultValue(false)]
+        public bool EnableUseRejuvenationTotemDuringUltimatum
+        {
+            get => _enableUseRejuvenationTotemDuringUltimatum;
+            set { _enableUseRejuvenationTotemDuringUltimatum = value; NotifyPropertyChanged(() => EnableUseRejuvenationTotemDuringUltimatum); }
+        }
+
+        private bool _enableUseWarBannerDuringUltimatumOrNearUnique;
+        [DefaultValue(false)]
+        public bool EnableUseWarBannerDuringUltimatumOrNearUnique
+        {
+            get => _enableUseWarBannerDuringUltimatumOrNearUnique;
+            set { _enableUseWarBannerDuringUltimatumOrNearUnique = value; NotifyPropertyChanged(() => EnableUseWarBannerDuringUltimatumOrNearUnique); }
+        }
+
+        private bool _enableUseWarDefianceBannerDuringUltimatumOrNearUnique;
+        [DefaultValue(false)]
+        public bool EnableUseWarDefianceBannerDuringUltimatumOrNearUnique
+        {
+            get => _enableUseWarDefianceBannerDuringUltimatumOrNearUnique;
+            set { _enableUseWarDefianceBannerDuringUltimatumOrNearUnique = value; NotifyPropertyChanged(() => EnableUseWarDefianceBannerDuringUltimatumOrNearUnique); }
+        }
+
+        private bool _enableRejuvenationTotem;
+        [DefaultValue(false)]
+        public bool EnableRejuvenationTotem
+        {
+            get => _enableRejuvenationTotem;
+            set { _enableRejuvenationTotem = value; NotifyPropertyChanged(() => EnableRejuvenationTotem); }
+        }
+
+        private string _guardiansBlessingMinion;
+        [DefaultValue("")]
+        public string GuardiansBlessingMinion
+        {
+            get => _guardiansBlessingMinion;
+            set { _guardiansBlessingMinion = value; NotifyPropertyChanged(() => GuardiansBlessingMinion); }
+        }
+
+        #region Summon Raging Spirits
+        private bool _enableSummonRagingSpirits;
+        [DefaultValue(false)]
+        public bool EnableSummonRagingSpirits
+        {
+            get => _enableSummonRagingSpirits;
+            set { _enableSummonRagingSpirits = value; NotifyPropertyChanged(() => EnableSummonRagingSpirits); }
+        }
+
+        private int _minRagingSpirits;
+        [DefaultValue(10)]
+        public int MinRagingSpirits
+        {
+            get => _minRagingSpirits;
+            set { _minRagingSpirits = value; NotifyPropertyChanged(() => MinRagingSpirits); }
+        }
+
+        private bool _srsOnNormalMagic;
+        [DefaultValue(false)]
+        public bool SrsOnNormalMagic
+        {
+            get => _srsOnNormalMagic;
+            set { _srsOnNormalMagic = value; NotifyPropertyChanged(() => SrsOnNormalMagic); }
+        }
+
+        private int _srsMonsterDistance;
+        [DefaultValue(100)]
+        public int SrsMonsterDistance
+        {
+            get => _srsMonsterDistance;
+            set { _srsMonsterDistance = value; NotifyPropertyChanged(() => SrsMonsterDistance); }
+        }
+        
+        private int _srsCustomDistance;
+        [DefaultValue(40)]
+        public int SrsCustomDistance
+        {
+            get => _srsCustomDistance;
+            set { _srsCustomDistance = value; NotifyPropertyChanged(() => SrsCustomDistance); }
+        }
+        #endregion
+
+        #region Summon Skeletons
+        private bool _enableSummonSkeletons;
+        [DefaultValue(false)]
+        public bool EnableSummonSkeletons
+        {
+            get => _enableSummonSkeletons;
+            set { _enableSummonSkeletons = value; NotifyPropertyChanged(() => EnableSummonSkeletons); }
+        }
+
+        private int _minSkeletons;
+        [DefaultValue(5)]
+        public int MinSkeletons
+        {
+            get => _minSkeletons;
+            set { _minSkeletons = value; NotifyPropertyChanged(() => MinSkeletons); }
+        }
+
+        private bool _skeletonsOnNormalMagic;
+        [DefaultValue(false)]
+        public bool SkeletonsOnNormalMagic
+        {
+            get => _skeletonsOnNormalMagic;
+            set { _skeletonsOnNormalMagic = value; NotifyPropertyChanged(() => SkeletonsOnNormalMagic); }
+        }
+
+        private int _skeletonsMonsterDistance;
+        [DefaultValue(100)]
+        public int SkeletonsMonsterDistance
+        {
+            get => _skeletonsMonsterDistance;
+            set { _skeletonsMonsterDistance = value; NotifyPropertyChanged(() => SkeletonsMonsterDistance); }
+        }
+        
+        private int _skeletonsCustomDistance;
+        [DefaultValue(40)]
+        public int SkeletonsCustomDistance
+        {
+            get => _skeletonsCustomDistance;
+            set { _skeletonsCustomDistance = value; NotifyPropertyChanged(() => SkeletonsCustomDistance); }
+        }
+        #endregion
+        #endregion
+
     }
 }
 
-    

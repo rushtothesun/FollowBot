@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using log4net;
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 
-namespace FollowBot
+namespace FollowBot.Tasks
 {
     public class LevelGemsTask : ITask
     {
@@ -82,14 +82,34 @@ namespace FollowBot
                     await Coroutines.FinishCurrentAction();
                     await Coroutines.LatencyWait();
 
-                    LokiPoe.InGameState.HandlePendingLevelUpResult res = LokiPoe.InGameState.SkillGemHud.HandlePendingLevelUps(eval);
+                    // First, we need to dismiss any gems that are waiting to be leveled but are on the ignore list.
+                    // We need to loop this until we are sure all gems are dismissed.
+                    while (true)
+                    {
+                        var res = LokiPoe.InGameState.SkillGemHud.HandlePendingLevelUps(dismiss_eval);
+                        Log.InfoFormat("[LevelGemsTask] SkillGemHud.HandlePendingLevelUps (dismiss) returned {0}.", res);
+                        if (res != LokiPoe.InGameState.HandlePendingLevelUpResult.GemDismissed)
+                            break;
+                        await Coroutines.LatencyWait();
+                    }
 
-                    Log.InfoFormat("[LevelGemsTask] SkillGemHud.HandlePendingLevelUps returned {0}.", res);
-
+                    // Now, if the user wants to level all gems, do so.
+                    if (FollowBotSettings.Instance.UseLevelAllButton && FollowBotSettings.Instance.LevelAllGems)
+                    {
+                        LokiPoe.InGameState.SkillGemHud.LevelAll();
+                        Log.InfoFormat("[LevelGemsTask] LevelAll() called.");
+                    }
+                    else
+                    {
+                        // Fallback to old logic if not using LevelAll button
+                        LokiPoe.InGameState.HandlePendingLevelUpResult res = LokiPoe.InGameState.SkillGemHud.HandlePendingLevelUps(eval);
+                        Log.InfoFormat("[LevelGemsTask] SkillGemHud.HandlePendingLevelUps returned {0}.", res);
+                    }
+ 
                     return false;
                 }
             }
-
+ 
             if (LokiPoe.InGameState.InventoryUi.IsOpened)
             {
                 _needsToCloseInventory = false;
@@ -106,22 +126,43 @@ namespace FollowBot
                     Log.ErrorFormat("[LevelGemsTask] OpenInventoryPanel failed.");
                     return false;
                 }
-            retry:
+
+                // First, we need to dismiss any gems that are waiting to be leveled but are on the ignore list.
+                // We need to loop this until we are sure all gems are dismissed.
+                while (true)
+                {
+                    var res = LokiPoe.InGameState.InventoryUi.HandlePendingLevelUps(dismiss_eval);
+                    Log.InfoFormat("[LevelGemsTask] InventoryUi.HandlePendingLevelUps (dismiss) returned {0}.", res);
+                    if (res != LokiPoe.InGameState.HandlePendingLevelUpResult.GemDismissed)
+                        break;
+                    await Coroutines.LatencyWait();
+                }
+
+                // Now, if the user wants to level all gems, do so.
+                if (FollowBotSettings.Instance.UseLevelAllButton && FollowBotSettings.Instance.LevelAllGems)
+                {
+                    LokiPoe.InGameState.SkillGemHud.LevelAll();
+                    Log.InfoFormat("[LevelGemsTask] LevelAll() called.");
+                }
+                else
+                {
                 // If we have icons on the inventory ui to process.
                 // This is only valid when the inventory panel is opened.
-                if (LokiPoe.InGameState.InventoryUi.AreIconsDisplayed)
-                {
-                    LokiPoe.InGameState.HandlePendingLevelUpResult res = LokiPoe.InGameState.InventoryUi.HandlePendingLevelUps(eval);
-
-                    Log.InfoFormat("[LevelGemsTask] InventoryUi.HandlePendingLevelUps returned {0}.", res);
-                    if (res == LokiPoe.InGameState.HandlePendingLevelUpResult.GemDismissed ||
-                        res == LokiPoe.InGameState.HandlePendingLevelUpResult.GemLeveled)
+                retry:
+                    if (LokiPoe.InGameState.InventoryUi.AreIconsDisplayed)
                     {
-                        goto retry;
+                        LokiPoe.InGameState.HandlePendingLevelUpResult res = LokiPoe.InGameState.InventoryUi.HandlePendingLevelUps(eval);
+
+                        Log.InfoFormat("[LevelGemsTask] InventoryUi.HandlePendingLevelUps returned {0}.", res);
+                        if (res == LokiPoe.InGameState.HandlePendingLevelUpResult.GemDismissed ||
+                            res == LokiPoe.InGameState.HandlePendingLevelUpResult.GemLeveled)
+                        {
+                            goto retry;
+                        }
                     }
                 }
             }
-            
+
             // Just wait 5-10s between checks.
             _levelWait.Reset(TimeSpan.FromMilliseconds(LokiPoe.Random.Next(5000, 10000)));
 
@@ -136,9 +177,9 @@ namespace FollowBot
         }
 
 
-        public async Task<LogicResult> Logic(Logic logic)
+        public Task<LogicResult> Logic(Logic logic)
         {
-            return LogicResult.Unprovided;
+            return Task.FromResult(LogicResult.Unprovided);
         }
 
         public MessageResult Message(Message message)
@@ -152,17 +193,32 @@ namespace FollowBot
             return handled ? MessageResult.Processed : MessageResult.Unprocessed;
         }
 
+        Func<Inventory, Item, Item, bool> dismiss_eval = (inv, holder, gem) =>
+        {
+            // This evaluation function is for dismissing gems.
+            // It should return true if the gem is on the ignore list.
+            if (ContainsHelper(gem.Name, gem.SkillGemLevel))
+            {
+                if (FollowBotSettings.Instance.GemDebugStatements)
+                {
+                    Log.DebugFormat("[LevelGemsTask] {0}[Lev: {1}] => {2}.", gem.Name, gem.SkillGemLevel, "Is contained in GlobalNameIgnoreList, dismissing.");
+                }
+                return true; // Dismiss this gem
+            }
+            return false; // Do not dismiss
+        };
+
         Func<Inventory, Item, Item, bool> eval = (inv, holder, gem) =>
         {
-            // Ignore any "globally ignored" gems. This just lets the user move gems around
-            // equipment, without having to worry about where or what it is.
+            // This evaluation function is for leveling gems.
+            // It should return false if the gem is on the ignore list.
             if (ContainsHelper(gem.Name, gem.SkillGemLevel))
             {
                 if (FollowBotSettings.Instance.GemDebugStatements)
                 {
                     Log.DebugFormat("[LevelGemsTask] {0}[Lev: {1}] => {2}.", gem.Name, gem.SkillGemLevel, "Is contained in GlobalNameIgnoreList");
                 }
-
+ 
                 return false;
             }
 

@@ -1,11 +1,10 @@
-﻿using System;
+﻿using DreamPoeBot.Loki.Game;
+using FollowBot.SimpleEXtensions;
+using FollowBot.Tasks;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DreamPoeBot.Loki.Bot;
-using DreamPoeBot.Loki.Game;
-using FollowBot.Helpers;
-using FollowBot.SimpleEXtensions;
 using chatPanel = DreamPoeBot.Loki.Game.LokiPoe.InGameState.ChatPanel;
 
 namespace FollowBot.Class
@@ -80,7 +79,7 @@ namespace FollowBot.Class
                     _treatedMd5List.Add(chatEntry.MD5, true);
                 }
             }
-            
+
         }
         public void Update()
         {
@@ -161,49 +160,95 @@ namespace FollowBot.Class
             }
         }
 
-        private static async Task ProcessPartyMessage(LokiPoe.InGameState.ChatPanel.ChatEntry newmessage)
+        private static Task ProcessPartyMessage(LokiPoe.InGameState.ChatPanel.ChatEntry newmessage)
         {
-            if (FollowBot._leaderPartyEntry == null || FollowBot._leaderPartyEntry.PlayerEntry == null) return;
+            if (FollowBot._leaderPartyEntry == null || FollowBot._leaderPartyEntry.PlayerEntry == null)
+                return Task.CompletedTask;
             var leadername = FollowBot._leaderPartyEntry.PlayerEntry.Name;
-            if (string.IsNullOrEmpty(leadername)) return;
-            
-            if (newmessage.RemoteName != leadername) return;
+            if (string.IsNullOrEmpty(leadername))
+                return Task.CompletedTask;
+            if (newmessage.RemoteName != leadername)
+                return Task.CompletedTask;
             var start = newmessage.Message.IndexOf($"{leadername}:", StringComparison.InvariantCulture) + $"{leadername}:".Length + 1;
             var end = newmessage.Message.Length - start;
             var command = newmessage.Message.Substring(start, end);
 
             GlobalLog.Warn($"Recieved Message: {newmessage.Message}, Command: {command}");
 
+            bool commandProcessed = false;
+
             if (command == FollowBotSettings.Instance.OpenTownPortalChatCommand)
+            {
                 DefenseAndFlaskTask.ShouldOpenPortal = true;
-
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.TeleportToLeaderChatCommand)
+            {
                 DefenseAndFlaskTask.ShouldTeleport = true;
-
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StartFollowChatCommand)
+            {
                 FollowBotSettings.Instance.ShouldFollow = true;
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StopFollowChatCommand)
+            {
                 FollowBotSettings.Instance.ShouldFollow = false;
-
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StartAttackChatCommand)
+            {
                 FollowBotSettings.Instance.ShouldKill = true;
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StopAttackChatCommand)
+            {
                 FollowBotSettings.Instance.ShouldKill = false;
-
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StartLootChatCommand)
+            {
                 FollowBotSettings.Instance.ShouldLoot = true;
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StopLootChatCommand)
+            {
                 FollowBotSettings.Instance.ShouldLoot = false;
-
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StartAutoTeleportChatCommand)
+            {
                 FollowBotSettings.Instance.DontPortOutofMap = false;
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StopAutoTeleportChatCommand)
+            {
                 FollowBotSettings.Instance.DontPortOutofMap = true;
-
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StartSentinelChatCommand)
+            {
                 FollowBotSettings.Instance.UseStalkerSentinel = true;
+                commandProcessed = true;
+            }
             if (command == FollowBotSettings.Instance.StopSentinelChatCommand)
+            {
                 FollowBotSettings.Instance.UseStalkerSentinel = false;
+                commandProcessed = true;
+            }
+            if (command == FollowBotSettings.Instance.EnterPortalChatCommand)
+            {
+                UltimatumTask.ShouldEnterPortal = true;
+                commandProcessed = true;
+            }
+
+            if (commandProcessed)
+            {
+                SendChatMsg("/cls");
+            }
+
+            return Task.CompletedTask;
         }
     }
 }
