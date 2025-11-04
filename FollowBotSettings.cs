@@ -36,9 +36,9 @@ namespace FollowBot
             { _ignoreHiddenAuras = value; NotifyPropertyChanged(() => IgnoreHiddenAuras); }
         }
 
-        private bool _autoReloadPathfinder = true;
+        private bool _autoReloadPathfinder = false;
 
-        [DefaultValue(true)]
+        [DefaultValue(false)]
         public bool AutoReloadPathfinder
         {
             get => _autoReloadPathfinder;

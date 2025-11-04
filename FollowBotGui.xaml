@@ -27,7 +27,7 @@
                        <CheckBox Margin="5"
                                  IsChecked="{Binding AutoReloadPathfinder, Mode=TwoWay}"
                                  Content="Auto-Reload Pathfinder on Terrain Change"
-                                 ToolTip="Enable for content with destructible walls (like the new league). Disable for content where it might cause issues (like Heist)."/>
+                                 ToolTip="It is recommended to keep this setting off. Only enable it if you encounter blockades that the bot should be able to move through."/>
                        <WrapPanel Margin="0,5,0,0">
                             <Label Content="Follow Distance:"/>
                             <Label Content="min"/>

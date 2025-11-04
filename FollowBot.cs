@@ -470,21 +470,6 @@ namespace FollowBot
 
         private void UpdatePathfinderSettings()
         {
-            // This is the placeholder for your area-specific logic.
-            // You can get the current area name or id like this:
-            // var currentArea = World.CurrentArea;
-            // var areaName = currentArea.Name;
-            // var areaId = currentArea.Id;
-
-            // Example of how you might disable it for Heist areas:
-            // if (areaId.StartsWith("Heist"))
-            // {
-            //     Log.Debug("[UpdatePathfinderSettings] Heist area detected. Forcing AutoReloadPathfinder to false.");
-            //     BotManager.AutoReloadPathfinder = false;
-            //     return;
-            // }
-
-            // For now, it just applies the setting from the GUI.
             var desiredState = FollowBotSettings.Instance.AutoReloadPathfinder;
             if (BotManager.AutoReloadPathfinde != desiredState)
             {
