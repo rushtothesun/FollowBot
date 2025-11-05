@@ -934,6 +934,15 @@
                             <controls:NumericUpDown Value="{Binding SkeletonsMonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
                             <CheckBox Content="Target Normal/Magic" IsChecked="{Binding SkeletonsOnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
                         </StackPanel>
+                        <Separator Margin="0,5,0,5"/>
+                        <CheckBox Content="Enable Breach Graft 1" IsChecked="{Binding EnableBreachGraft1, Mode=TwoWay}" FontWeight="Bold"/>
+                        <StackPanel Orientation="Horizontal" Margin="15,2,2,2">
+                            <Label Content="Custom Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="A custom distance from the leader to allow casting. Overrides the global Max Combat Distance for this skill."/>
+                            <controls:NumericUpDown Value="{Binding BreachGraft1CustomDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
+                            <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="The maximum distance to a monster to trigger casting."/>
+                            <controls:NumericUpDown Value="{Binding BreachGraft1MonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
+                            <CheckBox Content="Target Normal/Magic" IsChecked="{Binding BreachGraft1OnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>

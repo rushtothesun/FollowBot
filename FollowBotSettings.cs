@@ -1162,6 +1162,40 @@ namespace FollowBot
             set { _skeletonsCustomDistance = value; NotifyPropertyChanged(() => SkeletonsCustomDistance); }
         }
         #endregion
+
+        #region Breach Graft 1
+        private bool _enableBreachGraft1;
+        [DefaultValue(false)]
+        public bool EnableBreachGraft1
+        {
+            get => _enableBreachGraft1;
+            set { _enableBreachGraft1 = value; NotifyPropertyChanged(() => EnableBreachGraft1); }
+        }
+
+        private bool _breachGraft1OnNormalMagic;
+        [DefaultValue(false)]
+        public bool BreachGraft1OnNormalMagic
+        {
+            get => _breachGraft1OnNormalMagic;
+            set { _breachGraft1OnNormalMagic = value; NotifyPropertyChanged(() => BreachGraft1OnNormalMagic); }
+        }
+
+        private int _breachGraft1MonsterDistance;
+        [DefaultValue(100)]
+        public int BreachGraft1MonsterDistance
+        {
+            get => _breachGraft1MonsterDistance;
+            set { _breachGraft1MonsterDistance = value; NotifyPropertyChanged(() => BreachGraft1MonsterDistance); }
+        }
+        
+        private int _breachGraft1CustomDistance;
+        [DefaultValue(40)]
+        public int BreachGraft1CustomDistance
+        {
+            get => _breachGraft1CustomDistance;
+            set { _breachGraft1CustomDistance = value; NotifyPropertyChanged(() => BreachGraft1CustomDistance); }
+        }
+        #endregion
         #endregion
 
     }

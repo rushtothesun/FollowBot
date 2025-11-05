@@ -93,19 +93,28 @@ namespace FollowBot.Helpers
         }
         private static async Task<bool> OpenBanditPanel(NetworkObject bandit)
         {
-            if (BanditPanel.IsOpened) return true;
-
-            await PlayerAction.Interact(bandit);
-            await Wait.SleepSafe(250, 500);
-
-            for (int i = 0; i < 5; i++)
+            // If the panel is not open, do nothing. The leader must initiate.
+            if (!BanditPanel.IsOpened)
             {
-                if (BanditPanel.IsOpened) return true;
-                Input.SimulateKeyEvent(Keys.Escape, true, false, false, Keys.None);
-                await Wait.SleepSafe(250, 500);
+                return false;
             }
 
-            return false;
+            // If the panel IS open, this bot must still interact to enable its own buttons.
+            if (!await PlayerAction.Interact(bandit, () => NpcDialogUi.IsOpened, "Bandit dialog open"))
+            {
+                // If interaction fails, check if the panel is open anyway before failing completely.
+                if (!BanditPanel.IsOpened)
+                {
+                    return false;
+                }
+            }
+
+            await SkipDialog(bandit);
+            
+            await Wait.SleepSafe(100, 200); // Brief wait for UI to update.
+
+            // Final confirmation that the panel is still open.
+            return BanditPanel.IsOpened;
         }
         public static async Task<bool> TakeReward(NetworkObject obj, string dialogName)
         {

@@ -64,5 +64,29 @@ namespace FollowBot.Class
                 await Coroutines.ReactionWait();
             }
         }
+
+        public static async Task BreachGraft1()
+        {
+            var settings = FollowBotSettings.Instance;
+
+            var skill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.InternalName == "ManualGraftTrigger");
+            if (skill == null || !skill.CanUse())
+                return;
+
+            var leader = FollowBot.Leader;
+            if (leader == null || leader.Distance > settings.BreachGraft1CustomDistance)
+                return;
+
+            bool monsterNearby = LokiPoe.ObjectManager.GetObjectsByType<Monster>()
+                .Any(m => m.IsHostile && !m.IsHidden && !m.IsDead && m.IsTargetable && m.Distance <= settings.BreachGraft1MonsterDistance &&
+                           ((m.Rarity == Rarity.Rare || m.Rarity == Rarity.Unique) ||
+                            (settings.BreachGraft1OnNormalMagic && (m.Rarity == Rarity.Normal || m.Rarity == Rarity.Magic))));
+
+            if (monsterNearby)
+            {
+                SkillBar.Use(skill.Slot, false, false);
+                await Coroutines.ReactionWait();
+            }
+        }
     }
 }

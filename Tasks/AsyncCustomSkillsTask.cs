@@ -36,6 +36,7 @@ namespace FollowBot.Tasks
 
             if (settings.EnableSummonRagingSpirits) await AsyncCustomSkills.SummonRagingSpirits();
             if (settings.EnableSummonSkeletons) await AsyncCustomSkills.SummonSkeletons();
+            if (settings.EnableBreachGraft1) await AsyncCustomSkills.BreachGraft1();
 
             return false;
         }

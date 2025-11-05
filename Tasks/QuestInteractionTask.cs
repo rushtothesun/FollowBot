@@ -147,19 +147,24 @@ namespace FollowBot.Tasks
         };
         private List<InteractQuestNpc> InteractQuestNpcs { get; set; } = new List<InteractQuestNpc>
         {
+            // Act 1
+            new InteractQuestNpc("1_1_9", "Captain Fairgraves",()=> PlayerHasItem("Allflame"), NpcHelper.TalkAndSkipDialog),
+            // Act 2
             new InteractQuestNpc("1_2_town", "Eramir", ()=>  CheckQuestStateId("a2q7",new int[] {0,2}) && PlayerHasItem(new string[]{"Alira's Amulet","Kraityn's Amulet","Oak's Amulet"}),
                (obj)=>NpcHelper.TakeReward(obj,"Take the Apex")),
-            new InteractQuestNpc("1_1_9", "Captain Fairgraves",()=> PlayerHasItem("Allflame"), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("1_2_town", "Yeena", () => PlayerHasItem("Golden Hand"), (obj) => NpcHelper.TakeReward(obj, "Fellshrine Reward")),
+            new InteractQuestNpc("1_2_4", "Kraityn, Scarbearer", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
+            new InteractQuestNpc("1_2_9", "Alira Darktongue", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
+            new InteractQuestNpc("1_2_12", "Oak, Skullbreaker", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
+            // Act 3
             new InteractQuestNpc("1_3_town", "Clarissa", ()=> PlayerHasItem("Tolman's Bracelet"),
                (obj)=>NpcHelper.TakeReward(obj, "Take Sewer Keys")),
             new InteractQuestNpc("1_3_1", "Clarissa", () => CheckQuestStateId("a3q1",12),
                NpcHelper.TalkAndSkipDialog),
-            new InteractQuestNpc("1_2_4", "Kraityn, Scarbearer",NpcHelper.BanditKillSelect),
-            new InteractQuestNpc("1_2_12", "Oak, Skullbreaker", NpcHelper.BanditKillSelect),
-            new InteractQuestNpc("1_2_9", "Alira Darktongue",NpcHelper.BanditKillSelect),
             new InteractQuestNpc("1_3_8_2", "Lady Dialla",
                 ()=> PlayerHasItem(new string [] {"Ribbon Spool", "Thaumetic Sulphite" }),
                 (obj)=> NpcHelper.TakeReward(obj, "Take Infernal Talc")),
+            // Act 4
             new InteractQuestNpc("1_4_3_3", "Lady Dialla",
                 ()=> PlayerHasItem(new string[] {"The Eye of Fury", "The Eye of Desire"}),
                 NpcHelper.TalkAndSkipDialog),
@@ -168,10 +173,13 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("1_4_6_3", "Piety",
                 ()=> PlayerHasItem(new string[]{"Malachai's Heart", "Malachai's Entrails", "Malachai's Lungs" }),
                 NpcHelper.TalkAndSkipDialog),
+            // Act 5
             //new InteractQuestNpc("1_5_5", "Bannon", NpcHelper.TalkAndSkipDialog),
+            // Act 7
             new InteractQuestNpc("2_7_5_1","Silk",()=> PlayerHasItem("Black Venom"),
                 (obj)=> NpcHelper.TakeReward(obj, "Black Death Reward")),
             new InteractQuestNpc("2_7_11", "Yeena", ()=> CheckQuestStateId("a7q7", 3), NpcHelper.TalkAndSkipDialog),
+            // Act 8
             new InteractQuestNpc("2_8_8", "Clarissa",()=> PlayerHasItem("Ankh of Eternity"),NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_8_8", "Clarissa",()=>{
                 var quest = Dat.QuestStates.FirstOrDefault(x=> x.Quest.Id == "a8q6");
@@ -179,14 +187,15 @@ namespace FollowBot.Tasks
                 if(quest.QuestProgressText == "Talk to Clarissa") return true;
                 return false;
             }, NpcHelper.TalkAndSkipDialog),
-               new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => PlayerHasItem("Storm Blade"), NpcHelper.TalkAndSkipDialog),
+            // Act 9
+            new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => PlayerHasItem("Storm Blade"), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Sin", () => CheckQuestStateId("a9q1", 17), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => CheckQuestStateId("a9q5", 7), (obj)=>NpcHelper.TakeReward(obj,"Take Bottled Storm")),
             new InteractQuestNpc("2_9_8", "Sin", ()=> PlayerHasItem("Trarthan Powder"), NpcHelper.TalkAndSkipDialog),
-            new InteractQuestNpc("2_10_1", "Bannon", ()=>CheckQuestStateId("a10q1",4), NpcHelper.TalkAndSkipDialog),
+            // Act 10
             new InteractQuestNpc("2_10_town", "Bannon", ()=> PlayerHasItem("The Staff of Purity"), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_10_1", "Bannon", ()=>CheckQuestStateId("a10q1",4), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog)
-
         };
 
         private static bool CheckQuestStateId(string questId, int stateId)
