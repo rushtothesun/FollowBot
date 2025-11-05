@@ -514,12 +514,6 @@
                               Content="Level (all) gems"
                               Grid.Row="2"
                               Grid.Column="0"></CheckBox>
-                   <CheckBox Name="UseLevelAllButton"
-                             IsChecked="{Binding Path=UseLevelAllButton, Mode=TwoWay}"
-                             ToolTipService.ToolTip="If selected, the bot will use the 'Level All' button if it's available and Level (all) gems is checked."
-                             Content="Use 'Level All' button"
-                             Grid.Row="3"
-                             Grid.Column="0"></CheckBox>
                    <Grid>
                        <Grid.RowDefinitions>
                            <RowDefinition Height="Auto"/>

@@ -162,7 +162,6 @@ namespace FollowBot
         private bool _gemDebugStatements;
         private bool _levelAllGems;
         private bool _levelOffhandOnly;
-        private bool _useLevelAllButton;
         private ObservableCollection<string> _globalNameIgnoreList;
  
         #endregion
@@ -390,23 +389,6 @@ namespace FollowBot
                 }
                 _levelAllGems = value;
                 NotifyPropertyChanged(() => LevelAllGems);
-            }
-        }
-        [DefaultValue(false)]
-        public bool UseLevelAllButton
-        {
-            get
-            {
-                return _useLevelAllButton;
-            }
-            set
-            {
-                if (value.Equals(_useLevelAllButton))
-                {
-                    return;
-                }
-                _useLevelAllButton = value;
-                NotifyPropertyChanged(() => UseLevelAllButton);
             }
         }
         /// <summary>
