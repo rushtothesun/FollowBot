@@ -2,6 +2,7 @@ using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.SimpleEXtensions;
+using System;
 using System.Threading.Tasks;
 using System.Linq;
 using DreamPoeBot.Loki.RemoteMemoryObjects;
@@ -30,6 +31,26 @@ namespace FollowBot.Tasks
             {
                 if (_voteSent)
                 {
+                    bool isStuck = false;
+                    try
+                    {
+                        if (LokiPoe.InGameState.UltimatumTrialRewardUi.SelectedOption == null)
+                        {
+                            isStuck = true;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Assume exception means it's not selected and we are stuck.
+                        isStuck = true;
+                    }
+
+                    if (isStuck)
+                    {
+                        GlobalLog.Error("[UltimatumTask] Stuck state detected! Resetting vote.");
+                        _voteSent = false;
+                    }
+
                     GlobalLog.Debug("[UltimatumTask] I already Voted, waiting for the rest of the party to vote.");
                     return true;
                 }
@@ -59,7 +80,6 @@ namespace FollowBot.Tasks
                         if (result == LokiPoe.InGameState.UltimatumTrialRewardUi.AcceptTrialResult.None)
                         {
                             GlobalLog.Debug("[UltimatumTask] AcceptTrial returned successful. Setting _voteSent to true.");
-                            GlobalLog.Debug("[UltimatumTask] If the bot is stuck not voting, then DPB failed to lock in the vote.");
                             _voteSent = true;
                         }
                         else
@@ -74,6 +94,7 @@ namespace FollowBot.Tasks
                 // Return true to ensure the task keeps running and doesn't fall through to other logic.
                 return true;
             }
+            
 
             var ultimatum = LokiPoe.ObjectManager.Objects.FirstOrDefault<UltimatumChallengeInteractable>();
             if (ultimatum != null && ultimatum.IsTrialCompleted && !_ultimatumCompletedInThisInstance)
