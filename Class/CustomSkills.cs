@@ -453,10 +453,16 @@ namespace FollowBot.Class
             var leader = FollowBot.Leader;
             if (leader != null && leader.Distance <= 60)
             {
-                bool hasLink = leader.Auras.Any(a => linkSkills.Contains(a.Name));
+                bool hasLink = leader.Auras.Any(a => linkSkills.Contains(a.Name) && a.TimeLeft.TotalSeconds >= 4);
                 if (!hasLink || needsRefresh)
                 {
-                    LokiPoe.InGameState.SkillBarHud.UseOn(linkSkill.Slot, false, leader, false);
+                    var useResult = LokiPoe.InGameState.SkillBarHud.UseOn(linkSkill.Slot, false, leader, false);
+                    if (useResult == LokiPoe.InGameState.UseResult.CouldNotHighlight)
+                    {
+                        LokiPoe.InGameState.SkillBarHud.UseAt(linkSkill.Slot, false, leader.Position, false);
+                        await Task.Delay(500);
+                        return; // Use at leader and exit
+                    }
                     await Task.Delay(500);
                     return; // Use on leader and exit
                 }
@@ -476,10 +482,16 @@ namespace FollowBot.Class
 
                     if (targetPlayer != null && targetPlayer.Distance <= 60)
                     {
-                        bool hasLink = targetPlayer.Auras.Any(a => linkSkills.Contains(a.Name));
+                        bool hasLink = targetPlayer.Auras.Any(a => linkSkills.Contains(a.Name) && a.TimeLeft.TotalSeconds >= 4);
                         if (!hasLink || needsRefresh)
                         {
-                            LokiPoe.InGameState.SkillBarHud.UseOn(linkSkill.Slot, false, targetPlayer, false);
+                            var useResult2 = LokiPoe.InGameState.SkillBarHud.UseOn(linkSkill.Slot, false, targetPlayer, false);
+                            if (useResult2 == LokiPoe.InGameState.UseResult.CouldNotHighlight)
+                            {
+                                LokiPoe.InGameState.SkillBarHud.UseAt(linkSkill.Slot, false, targetPlayer.Position, false);
+                                await Task.Delay(500);
+                                return; // Use at target and exit
+                            }
                             await Task.Delay(500);
                             return; // Cast on one additional target per tick
                         }

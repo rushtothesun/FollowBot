@@ -56,7 +56,10 @@ namespace FollowBot
         private int _maxCombatDistance;
         private int _maxLootDistance;
         public int _portOutThreshold;
-
+        private bool _followInTown;
+        private bool _followInHideout;
+        private bool _followInHeistHub;
+ 
         #region Party Role
         private bool _shouldKill;
         private bool _shouldLoot;
@@ -214,10 +217,31 @@ namespace FollowBot
                 NotifyPropertyChanged(() => PortOutThreshold);
             }
         }
+ 
+        [DefaultValue(false)]
+        public bool FollowInTown
+        {
+            get { return _followInTown; }
+            set { _followInTown = value; NotifyPropertyChanged(() => FollowInTown); }
+        }
+ 
+        [DefaultValue(false)]
+        public bool FollowInHideout
+        {
+            get { return _followInHideout; }
+            set { _followInHideout = value; NotifyPropertyChanged(() => FollowInHideout); }
+        }
+ 
+        [DefaultValue(false)]
+        public bool FollowInHeistHub
+        {
+            get { return _followInHeistHub; }
+            set { _followInHeistHub = value; NotifyPropertyChanged(() => FollowInHeistHub); }
+        }
         #endregion
-
+ 
         #region Party Role
-
+ 
         [DefaultValue(true)]
         public bool ShouldKill
         {

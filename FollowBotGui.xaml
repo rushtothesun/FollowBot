@@ -52,6 +52,9 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <Grid.ColumnDefinitions>
@@ -131,7 +134,28 @@
                                       VerticalAlignment="Center"
                                       ToolTip="If Enabled, the follower will not try to exit a map if the Leader die or leave the area, you will need to use chat command to leave the area."
                                     Grid.ColumnSpan="3"/>
-                            <WrapPanel Grid.Row="6"
+                            <CheckBox Grid.Row="6"
+                                      Grid.Column="0"
+                                      Content="Follow in Town"
+                                      Margin="10,0,10,0"
+                                      IsChecked="{Binding Path=FollowInTown, Mode=TwoWay}"
+                                      VerticalAlignment="Center"
+                                      ToolTip="If Enabled, the follower will follow the leader in town."/>
+                           <CheckBox Grid.Row="7"
+                                     Grid.Column="0"
+                                     Content="Follow in Hideout"
+                                     Margin="10,0,10,0"
+                                     IsChecked="{Binding Path=FollowInHideout, Mode=TwoWay}"
+                                     VerticalAlignment="Center"
+                                     ToolTip="If Enabled, the follower will follow the leader in hideout."/>
+                           <CheckBox Grid.Row="8"
+                                     Grid.Column="0"
+                                     Content="Follow in Heist Hub"
+                                     Margin="10,0,10,0"
+                                     IsChecked="{Binding Path=FollowInHeistHub, Mode=TwoWay}"
+                                     VerticalAlignment="Center"
+                                     ToolTip="If Enabled, the follower will follow the leader in Heist Hub."/>
+                            <WrapPanel Grid.Row="9"
                                     Grid.Column="0"
                                     Grid.ColumnSpan="3">
                                 <Label Content="Teleport Out delay: "

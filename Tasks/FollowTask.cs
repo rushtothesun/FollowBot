@@ -50,7 +50,22 @@ namespace FollowBot.Tasks
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
             }
-            if (!IsInGame || Me.IsDead || Me.IsInTown || Me.IsInHideout)
+            if (!IsInGame || Me.IsDead)
+            {
+                ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
+                return false;
+            }
+            if (Me.IsInTown && !FollowBotSettings.Instance.FollowInTown)
+            {
+                ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
+                return false;
+            }
+            if (Me.IsInHideout && !FollowBotSettings.Instance.FollowInHideout)
+            {
+                ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
+                return false;
+            }
+            if (World.CurrentArea.Id == "HeistHub" && !FollowBotSettings.Instance.FollowInHeistHub)
             {
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
