@@ -538,7 +538,7 @@ namespace FollowBot.Class
             {
                 if (FollowBotSettings.Instance.UseBannersNearUniques)
                 {
-                    if (LokiPoe.ObjectManager.GetObjectsByType<Monster>().Any(m => m.Rarity == Rarity.Unique && m.IsAliveHostile && m.Distance <= 60 && m.IsTargetable))
+                    if (LokiPoe.ObjectManager.GetObjectsByType<Monster>().Any(m => m.Rarity == Rarity.Unique && m.IsAliveHostile && m.Distance <= 100 && m.IsTargetable))
                         useBanner = true;
                 }
                 if (!useBanner && FollowBotSettings.Instance.UseBannersNearRares)
