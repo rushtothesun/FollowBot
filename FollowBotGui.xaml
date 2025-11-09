@@ -8,6 +8,33 @@
              mc:Ignorable="d"
              d:DesignHeight="400"
              d:DesignWidth="800">
+    <UserControl.Resources>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="18" Height="18">
+                                <Path x:Name="checkMark" Data="M 0 6 L 4 10 L 10 0" StrokeThickness="2" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="checkMark" Property="Stroke" Value="{Binding CheckboxColor, FallbackValue=Black}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <Grid DataContext="{x:Static settingsPath:FollowBotSettings.Instance}">
         <TabControl>
             <TabItem Header="General"
@@ -17,17 +44,27 @@
                               HorizontalScrollBarVisibility="Auto">
                     <StackPanel>
 
-                        <WrapPanel Margin="0,5,0,0">
-                            <Label Content="Invite Whitelist:"/>
-                            <TextBox Text="{Binding Path=InviteWhiteList, Mode=TwoWay}"
+                        <Grid Margin="5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Checkbox Color:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CheckboxColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     MinWidth="100"
+                                     ToolTip="Enter color name (Orange, LimeGreen, Yellow, Cyan, White, Gold, etc.) or hex code (#FF6600)"/>
+
+                            <Label Grid.Row="1" Grid.Column="0" Content="Invite Whitelist:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Path=InviteWhiteList, Mode=TwoWay}"
                                      MinWidth="100"
                                      MaxWidth="200"
                                      ToolTip="If the list is empty,the bot will accept any invite, otherwise he will accept invite only from the name in the list."/>
-                       </WrapPanel>
-                       <CheckBox Margin="5"
-                                 IsChecked="{Binding AutoReloadPathfinder, Mode=TwoWay}"
-                                 Content="Auto-Reload Pathfinder on Terrain Change"
-                                 ToolTip="It is recommended to keep this setting off. Only enable it if you encounter blockades that the bot should be able to move through."/>
+                        </Grid>
                        <WrapPanel Margin="0,5,0,0">
                             <Label Content="Follow Distance:"/>
                             <Label Content="min"/>
@@ -196,7 +233,11 @@
                                 </WrapPanel>
                             </StackPanel>
                         </GroupBox>
-                    </StackPanel>
+                       <CheckBox Margin="5"
+                                 IsChecked="{Binding AutoReloadPathfinder, Mode=TwoWay}"
+                                 Content="Auto-Reload Pathfinder on Terrain Change (Keep Off)"
+                                 ToolTip="It is recommended to keep this setting off. Only enable it if you encounter blockades that the bot should be able to move through."/>
+                   </StackPanel>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Auras"

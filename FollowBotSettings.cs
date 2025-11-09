@@ -912,6 +912,21 @@ namespace FollowBot
 
         #endregion
 
+        #region UI Customization
+        private string _checkboxColor = "Black";
+        [DefaultValue("Black")]
+        public string CheckboxColor
+        {
+            get => _checkboxColor;
+            set
+            {
+                if (value == _checkboxColor) return;
+                _checkboxColor = value;
+                NotifyPropertyChanged(() => CheckboxColor);
+            }
+        }
+        #endregion
+
         #region CustomSkills
         // Custom Skills
         public string LinkSkillAdditionalTargets { get; set; } = "";
