@@ -605,9 +605,12 @@ namespace FollowBot.Class
             // 2. Defiance Banner
             if (FollowBotSettings.Instance.UseDefianceBanner)
             {
-                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
                 bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
-                if (hasWarBannerBuff && !hasDefianceBannerBuff && valourCharges >= FollowBotSettings.Instance.DefianceBannerCharges)
+                bool warBannerEnabled = FollowBotSettings.Instance.UseWarBanner;
+                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
+                
+                // Only proceed if War Banner is not enabled OR (War Banner is enabled AND already active)
+                if ((!warBannerEnabled || (warBannerEnabled && hasWarBannerBuff)) && !hasDefianceBannerBuff && valourCharges >= FollowBotSettings.Instance.DefianceBannerCharges)
                 {
                     var defianceBanner = SkillBar.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "ArmourEvasionBanner");
                     if (defianceBanner != null && defianceBanner.CanUse())
@@ -622,10 +625,19 @@ namespace FollowBot.Class
             // 3. Dread Banner
             if (FollowBotSettings.Instance.UseDreadBanner)
             {
+                bool warBannerEnabled = FollowBotSettings.Instance.UseWarBanner;
+                bool defianceBannerEnabled = FollowBotSettings.Instance.UseDefianceBanner;
                 bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
                 bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
                 bool hasDreadBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "puresteel_banner_buff_aura");
-                if (hasWarBannerBuff && hasDefianceBannerBuff && !hasDreadBannerBuff && valourCharges >= FollowBotSettings.Instance.DreadBannerCharges)
+                
+                // Only proceed if higher priority banners are not enabled OR (they are enabled AND already active)
+                bool canCastDread = (!warBannerEnabled || (warBannerEnabled && hasWarBannerBuff)) &&
+                                    (!defianceBannerEnabled || (defianceBannerEnabled && hasDefianceBannerBuff)) &&
+                                    !hasDreadBannerBuff &&
+                                    valourCharges >= FollowBotSettings.Instance.DreadBannerCharges;
+                
+                if (canCastDread)
                 {
                     var dreadBanner = SkillBar.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "PuresteelBanner");
                     if (dreadBanner != null && dreadBanner.CanUse())
