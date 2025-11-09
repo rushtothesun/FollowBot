@@ -45,7 +45,18 @@ namespace FollowBot.Tasks
                     Log.Debug($"[{Name}] Find trial : [{trial.Name}]");
 
                     await trial.WalkablePosition().ComeAtOnce();
-                    await PlayerAction.Interact(trial);
+                    if(await PlayerAction.Interact(trial))
+                    {
+                        await Coroutines.FinishCurrentAction(true);
+                        await Coroutines.LatencyWait();
+                        var portal = LokiPoe.ObjectManager.Objects.FirstOrDefault(x => x.Metadata == "Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
+                        if(portal != null && portal.PathExists() && portal.Position.Distance(me.Position) <= 90)
+                        {
+                            GlobalLog.Debug("[TrialPickerTask] Heading to portal.");
+                            await portal.WalkablePosition().ComeAtOnce();
+                            await PlayerAction.Interact(portal);
+                        }
+                    }
 
                 }
             }

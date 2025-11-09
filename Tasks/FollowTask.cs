@@ -117,36 +117,6 @@ namespace FollowBot.Tasks
                             return true;
                     }
 
-                    // Find the Labyrinth Trial Return Portal
-                    var labPortal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
-                    if (labPortal != null && labPortal.IsTargetable)
-                    {
-                        var portalDistance = LokiPoe.Me.Position.Distance(labPortal.Position);
-
-                        // Move closer if not in interaction range
-                        if (portalDistance > 15)
-                        {
-                            var walkablePosition = ExilePather.FastWalkablePositionFor(labPortal, 13);
-
-                            // Cast Phase Run if available
-                            CustomSkills.PhaseRun();
-
-                            Move.Towards(walkablePosition, "moving to Labyrinth Trial Return Portal");
-                            return true;
-                        }
-
-                        // Interact with the portal if close enough
-                        var tele = await Coroutines.InteractWith(labPortal);
-
-                        if (!tele)
-                        {
-                            Log.DebugFormat("[{0}] Labyrinth Trial Return Portal interaction error.", Name);
-                        }
-
-                        FollowBot.Leader = null;
-                        return true;
-                    }
-
                     //Then check for Delve portals:
                     var delveportal = ObjectManager.GetObjectsByType<AreaTransition>().FirstOrDefault(x => x.Name == "Azurite Mine" && x.Metadata == "Metadata/MiscellaneousObject/PortalTransition");
                     if (delveportal != null)

@@ -148,6 +148,8 @@ namespace FollowBot.Tasks
         private List<InteractQuestNpc> InteractQuestNpcs { get; set; } = new List<InteractQuestNpc>
         {
             // Act 1
+            new InteractQuestNpc("1_1_town", "Tarkleigh", () => CheckQuestStateId("a1q7", 3), (obj) => NpcHelper.TakeReward(obj, "Dweller Reward")),
+            new InteractQuestNpc("1_1_town", "Bestel", () => CheckQuestStateId("a1q6", 3), (obj) => NpcHelper.TakeReward(obj, "Fairgraves Reward")),
             new InteractQuestNpc("1_1_9", "Captain Fairgraves",()=> PlayerHasItem("Allflame"), NpcHelper.TalkAndSkipDialog),
             // Act 2
             new InteractQuestNpc("1_2_town", "Eramir", ()=>  CheckQuestStateId("a2q7",new int[] {0,2}) && PlayerHasItem(new string[]{"Alira's Amulet","Kraityn's Amulet","Oak's Amulet"}),

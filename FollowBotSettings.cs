@@ -1029,6 +1029,14 @@ namespace FollowBot
             set { _enableChaosElixir = value; NotifyPropertyChanged(() => EnableChaosElixir); }
         }
 
+        private int _chaosElixirFlaskSlot;
+        [DefaultValue(1)]
+        public int ChaosElixirFlaskSlot
+        {
+            get => _chaosElixirFlaskSlot;
+            set { _chaosElixirFlaskSlot = value; NotifyPropertyChanged(() => ChaosElixirFlaskSlot); }
+        }
+
         private bool _enableConvocation;
         [DefaultValue(false)]
         public bool EnableConvocation
@@ -1045,36 +1053,44 @@ namespace FollowBot
             set { _enableLinkSkill = value; NotifyPropertyChanged(() => EnableLinkSkill); }
         }
 
-        private bool _enableUseRejuvenationTotemDuringUltimatum;
-        [DefaultValue(false)]
-        public bool EnableUseRejuvenationTotemDuringUltimatum
-        {
-            get => _enableUseRejuvenationTotemDuringUltimatum;
-            set { _enableUseRejuvenationTotemDuringUltimatum = value; NotifyPropertyChanged(() => EnableUseRejuvenationTotemDuringUltimatum); }
-        }
-
-        private bool _enableUseWarBannerDuringUltimatumOrNearUnique;
-        [DefaultValue(false)]
-        public bool EnableUseWarBannerDuringUltimatumOrNearUnique
-        {
-            get => _enableUseWarBannerDuringUltimatumOrNearUnique;
-            set { _enableUseWarBannerDuringUltimatumOrNearUnique = value; NotifyPropertyChanged(() => EnableUseWarBannerDuringUltimatumOrNearUnique); }
-        }
-
-        private bool _enableUseWarDefianceBannerDuringUltimatumOrNearUnique;
-        [DefaultValue(false)]
-        public bool EnableUseWarDefianceBannerDuringUltimatumOrNearUnique
-        {
-            get => _enableUseWarDefianceBannerDuringUltimatumOrNearUnique;
-            set { _enableUseWarDefianceBannerDuringUltimatumOrNearUnique = value; NotifyPropertyChanged(() => EnableUseWarDefianceBannerDuringUltimatumOrNearUnique); }
-        }
-
         private bool _enableRejuvenationTotem;
         [DefaultValue(false)]
         public bool EnableRejuvenationTotem
         {
             get => _enableRejuvenationTotem;
             set { _enableRejuvenationTotem = value; NotifyPropertyChanged(() => EnableRejuvenationTotem); }
+        }
+
+        private int _rejuvenationTotemLeaderHealthPercent;
+        [DefaultValue(70)]
+        public int RejuvenationTotemLeaderHealthPercent
+        {
+            get => _rejuvenationTotemLeaderHealthPercent;
+            set { _rejuvenationTotemLeaderHealthPercent = value; NotifyPropertyChanged(() => RejuvenationTotemLeaderHealthPercent); }
+        }
+
+        private int _rejuvenationTotemFollowerHealthPercent;
+        [DefaultValue(70)]
+        public int RejuvenationTotemFollowerHealthPercent
+        {
+            get => _rejuvenationTotemFollowerHealthPercent;
+            set { _rejuvenationTotemFollowerHealthPercent = value; NotifyPropertyChanged(() => RejuvenationTotemFollowerHealthPercent); }
+        }
+
+        private bool _rejuvenationTotemAlwaysUseInUltimatum;
+        [DefaultValue(false)]
+        public bool RejuvenationTotemAlwaysUseInUltimatum
+        {
+            get => _rejuvenationTotemAlwaysUseInUltimatum;
+            set { _rejuvenationTotemAlwaysUseInUltimatum = value; NotifyPropertyChanged(() => RejuvenationTotemAlwaysUseInUltimatum); }
+        }
+
+        private bool _rejuvenationTotemAlwaysUseInBlight;
+        [DefaultValue(false)]
+        public bool RejuvenationTotemAlwaysUseInBlight
+        {
+            get => _rejuvenationTotemAlwaysUseInBlight;
+            set { _rejuvenationTotemAlwaysUseInBlight = value; NotifyPropertyChanged(() => RejuvenationTotemAlwaysUseInBlight); }
         }
 
         private string _guardiansBlessingMinion;
@@ -1202,6 +1218,121 @@ namespace FollowBot
             set { _breachGraft1CustomDistance = value; NotifyPropertyChanged(() => BreachGraft1CustomDistance); }
         }
         #endregion
+
+        #region Comprehensive Banner Settings
+        private bool _enableComprehensiveBanner;
+        [DefaultValue(false)]
+        public bool EnableComprehensiveBanner
+        {
+            get => _enableComprehensiveBanner;
+            set { _enableComprehensiveBanner = value; NotifyPropertyChanged(() => EnableComprehensiveBanner); }
+        }
+
+        private bool _useWarBanner;
+        [DefaultValue(false)]
+        public bool UseWarBanner
+        {
+            get => _useWarBanner;
+            set { _useWarBanner = value; NotifyPropertyChanged(() => UseWarBanner); }
+        }
+
+        private int _warBannerCharges;
+        [DefaultValue(105)]
+        public int WarBannerCharges
+        {
+            get => _warBannerCharges;
+            set { _warBannerCharges = value; NotifyPropertyChanged(() => WarBannerCharges); }
+        }
+
+        private bool _useDefianceBanner;
+        [DefaultValue(false)]
+        public bool UseDefianceBanner
+        {
+            get => _useDefianceBanner;
+            set { _useDefianceBanner = value; NotifyPropertyChanged(() => UseDefianceBanner); }
+        }
+
+        private int _defianceBannerCharges;
+        [DefaultValue(80)]
+        public int DefianceBannerCharges
+        {
+            get => _defianceBannerCharges;
+            set { _defianceBannerCharges = value; NotifyPropertyChanged(() => DefianceBannerCharges); }
+        }
+
+        private bool _useDreadBanner;
+        [DefaultValue(false)]
+        public bool UseDreadBanner
+        {
+            get => _useDreadBanner;
+            set { _useDreadBanner = value; NotifyPropertyChanged(() => UseDreadBanner); }
+        }
+
+        private int _dreadBannerCharges;
+        [DefaultValue(105)]
+        public int DreadBannerCharges
+        {
+            get => _dreadBannerCharges;
+            set { _dreadBannerCharges = value; NotifyPropertyChanged(() => DreadBannerCharges); }
+        }
+
+        private bool _useBannersNearRares;
+        [DefaultValue(false)]
+        public bool UseBannersNearRares
+        {
+            get => _useBannersNearRares;
+            set { _useBannersNearRares = value; NotifyPropertyChanged(() => UseBannersNearRares); }
+        }
+
+        private bool _useBannersNearUniques;
+        [DefaultValue(false)]
+        public bool UseBannersNearUniques
+        {
+            get => _useBannersNearUniques;
+            set { _useBannersNearUniques = value; NotifyPropertyChanged(() => UseBannersNearUniques); }
+        }
+
+        private bool _useBannersInUltimatum;
+        [DefaultValue(false)]
+        public bool UseBannersInUltimatum
+        {
+            get => _useBannersInUltimatum;
+            set { _useBannersInUltimatum = value; NotifyPropertyChanged(() => UseBannersInUltimatum); }
+        }
+
+        private bool _useBannersInBlight;
+        [DefaultValue(false)]
+        public bool UseBannersInBlight
+        {
+            get => _useBannersInBlight;
+            set { _useBannersInBlight = value; NotifyPropertyChanged(() => UseBannersInBlight); }
+        }
+
+        private bool _generateValorNearUniques;
+        [DefaultValue(false)]
+        public bool GenerateValorNearUniques
+        {
+            get => _generateValorNearUniques;
+            set { _generateValorNearUniques = value; NotifyPropertyChanged(() => GenerateValorNearUniques); }
+        }
+
+        private bool _generateValorInUltimatum;
+        [DefaultValue(false)]
+        public bool GenerateValorInUltimatum
+        {
+            get => _generateValorInUltimatum;
+            set { _generateValorInUltimatum = value; NotifyPropertyChanged(() => GenerateValorInUltimatum); }
+        }
+
+        private bool _generateValorInBlight;
+        [DefaultValue(false)]
+        public bool GenerateValorInBlight
+        {
+            get => _generateValorInBlight;
+            set { _generateValorInBlight = value; NotifyPropertyChanged(() => GenerateValorInBlight); }
+        }
+        #endregion
+
         #endregion
 
     }

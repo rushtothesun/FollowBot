@@ -896,23 +896,17 @@
                 <TextBox Width="140" Margin="5,0,0,0" VerticalAlignment="Center" Text="{Binding GuardSkillName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ToolTip="Enter the name of the Guard Skill to use (e.g., Molten Shell, Steelskin)."/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="2">
-                <CheckBox Content="Enable Enduring Cry" IsChecked="{Binding EnableEnduringCry, Mode=TwoWay}" VerticalAlignment="Center"/>
-                <CheckBox Content="Has Onslaught Cluster?" IsChecked="{Binding EnduringCryHasOnslaughtCluster, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center"/>
-            </StackPanel>
-            <CheckBox Content="Enable Seismic Cry" IsChecked="{Binding EnableSeismicCry, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Battlemage's Cry" IsChecked="{Binding EnableBattlemageCry, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Ancestral Cry" IsChecked="{Binding EnableAncestralCry, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Intimidating Cry" IsChecked="{Binding EnableIntimidatingCry, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Infernal Cry" IsChecked="{Binding EnableInfernalCry, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Rallying Cry" IsChecked="{Binding EnableRallyingCry, Mode=TwoWay}" Margin="2"/>
-            <StackPanel Orientation="Horizontal" Margin="2">
                 <CheckBox Content="Enable Guardian's Blessing Handler" IsChecked="{Binding EnableGuardiansBlessingHandler, Mode=TwoWay}" VerticalAlignment="Center"/>
                 <Label Content="Minion Name:" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 <TextBox Width="140" Margin="5,0,0,0" VerticalAlignment="Center" Text="{Binding GuardiansBlessingMinion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ToolTip="Enter the name of the minion skill used for Guardian's Blessing (e.g., Summon Chaos Golem)."/>
             </StackPanel>
-            <CheckBox Content="Enable Sentinel Usage" IsChecked="{Binding EnableSentinelUsage, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Chaos Elixir" IsChecked="{Binding EnableChaosElixir, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Convocation" IsChecked="{Binding EnableConvocation, Mode=TwoWay}" Margin="2"/>
+            <CheckBox Content="Enable Sentinel of Radiance Auto-Deploy" IsChecked="{Binding EnableSentinelUsage, Mode=TwoWay}" Margin="2"/>
+            <StackPanel Orientation="Horizontal" Margin="2">
+                <CheckBox Content="Enable Chaos Elixir" IsChecked="{Binding EnableChaosElixir, Mode=TwoWay}" VerticalAlignment="Center"/>
+                <Label Content="Flask Slot:" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                <controls:NumericUpDown Value="{Binding ChaosElixirFlaskSlot, Mode=TwoWay}" Minimum="1" Maximum="5" Interval="1" Width="70" VerticalAlignment="Center"/>
+            </StackPanel>
+            <CheckBox Content="Enable Convocation" IsChecked="{Binding EnableConvocation, Mode=TwoWay}" Margin="2" ToolTip="Uses Convocation on cooldown."/>
             <StackPanel Orientation="Horizontal" Margin="2" VerticalAlignment="Center">
                 <CheckBox Content="Enable Link Skill"
                           IsChecked="{Binding EnableLinkSkill, Mode=TwoWay}"
@@ -924,40 +918,146 @@
                          Text="{Binding LinkSkillAdditionalTargets, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Enter player names, separated by commas, for additional link targets."/>
             </StackPanel>
-            <CheckBox Content="Enable Rejuvenation Totem During Ultimatum" IsChecked="{Binding EnableUseRejuvenationTotemDuringUltimatum, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable War Banner During Ultimatum or Near Unique" IsChecked="{Binding EnableUseWarBannerDuringUltimatumOrNearUnique, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable War/Defiance Banner During Ultimatum or Near Unique" IsChecked="{Binding EnableUseWarDefianceBannerDuringUltimatumOrNearUnique, Mode=TwoWay}" Margin="2"/>
-            <CheckBox Content="Enable Rejuvenation Totem" IsChecked="{Binding EnableRejuvenationTotem, Mode=TwoWay}" Margin="2"/>
+            <Expander Header="Rejuvenation Totem" Margin="0,10,0,0" IsExpanded="True">
+                <StackPanel Margin="15,5,0,0">
+                    <CheckBox Content="Enable Rejuvenation Totem" IsChecked="{Binding EnableRejuvenationTotem, Mode=TwoWay}" FontWeight="Bold" Margin="2"/>
+                    <StackPanel Margin="15,5,0,0">
+                        <CheckBox Content="Always Use in Ultimatum" IsChecked="{Binding RejuvenationTotemAlwaysUseInUltimatum, Mode=TwoWay}" Margin="2" ToolTip="Override health checks and always use totem during Ultimatum encounters."/>
+                        <CheckBox Content="Always Use in Blight" IsChecked="{Binding RejuvenationTotemAlwaysUseInBlight, Mode=TwoWay}" Margin="2" ToolTip="Override health checks and always use totem during Blight encounters."/>
+                        <Grid Margin="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Label Grid.Row="0" Grid.Column="0" Content="Leader Below Percent:" VerticalAlignment="Center" ToolTip="Cast totem when leader's health falls below this percentage."/>
+                            <controls:NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding RejuvenationTotemLeaderHealthPercent, Mode=TwoWay}" Minimum="0" Maximum="100" Interval="5" Width="90" VerticalAlignment="Center"/>
+                            <Label Grid.Row="1" Grid.Column="0" Content="Follower Below Percent:" VerticalAlignment="Center" ToolTip="Cast totem when follower's health/ES falls below this percentage."/>
+                            <controls:NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding RejuvenationTotemFollowerHealthPercent, Mode=TwoWay}" Minimum="0" Maximum="100" Interval="5" Width="90" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+            <Expander Header="Warcries" Margin="0,10,0,0" IsExpanded="True">
+                <StackPanel Margin="15,5,0,0">
+                    <StackPanel Orientation="Vertical" Margin="2">
+                        <CheckBox Content="Enable Enduring Cry" IsChecked="{Binding EnableEnduringCry, Mode=TwoWay}" VerticalAlignment="Center"/>
+                        <StackPanel Margin="15,5,0,0">
+                            <CheckBox Content="Has Onslaught Cluster?" IsChecked="{Binding EnduringCryHasOnslaughtCluster, Mode=TwoWay}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <CheckBox Content="Enable Seismic Cry" IsChecked="{Binding EnableSeismicCry, Mode=TwoWay}" Margin="2"/>
+                    <CheckBox Content="Enable Battlemage's Cry" IsChecked="{Binding EnableBattlemageCry, Mode=TwoWay}" Margin="2"/>
+                    <CheckBox Content="Enable Ancestral Cry" IsChecked="{Binding EnableAncestralCry, Mode=TwoWay}" Margin="2"/>
+                    <CheckBox Content="Enable Intimidating Cry" IsChecked="{Binding EnableIntimidatingCry, Mode=TwoWay}" Margin="2"/>
+                    <CheckBox Content="Enable Infernal Cry" IsChecked="{Binding EnableInfernalCry, Mode=TwoWay}" Margin="2"/>
+                    <CheckBox Content="Enable Rallying Cry" IsChecked="{Binding EnableRallyingCry, Mode=TwoWay}" Margin="2"/>
+                </StackPanel>
+            </Expander>
+            <Expander Header="Banner Management" Margin="0,10,0,0" IsExpanded="True">
+                <StackPanel Margin="15,5,0,0">
+                    <CheckBox Content="Enable Comprehensive Banner Control" IsChecked="{Binding EnableComprehensiveBanner, Mode=TwoWay}" FontWeight="Bold"/>
+                    <StackPanel Margin="15,5,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- War Banner -->
+                            <CheckBox Grid.Row="0" Grid.Column="0" Content="Use War Banner" IsChecked="{Binding UseWarBanner, Mode=TwoWay}" VerticalAlignment="Center"/>
+                            <Label Grid.Row="0" Grid.Column="1" Content="Charges:" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Grid.Row="0" Grid.Column="2" Value="{Binding WarBannerCharges, Mode=TwoWay}" Minimum="0" Maximum="200" Interval="1" Width="100" VerticalAlignment="Center"/>
+
+                            <!-- Defiance Banner -->
+                            <CheckBox Grid.Row="1" Grid.Column="0" Content="Use Defiance Banner" IsChecked="{Binding UseDefianceBanner, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,5,0,0"/>
+                            <Label Grid.Row="1" Grid.Column="1" Content="Charges:" Margin="10,5,0,0" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding DefianceBannerCharges, Mode=TwoWay}" Minimum="0" Maximum="200" Interval="1" Width="100" VerticalAlignment="Center" Margin="0,5,0,0"/>
+
+                            <!-- Dread Banner -->
+                            <CheckBox Grid.Row="2" Grid.Column="0" Content="Use Dread Banner" IsChecked="{Binding UseDreadBanner, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,5,0,0"/>
+                            <Label Grid.Row="2" Grid.Column="1" Content="Charges:" Margin="10,5,0,0" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding DreadBannerCharges, Mode=TwoWay}" Minimum="0" Maximum="200" Interval="1" Width="100" VerticalAlignment="Center" Margin="0,5,0,0"/>
+                        </Grid>
+                        <GroupBox Header="Trigger Conditions" Margin="0,10,0,0">
+                            <StackPanel>
+                                <CheckBox Content="Near Rares" IsChecked="{Binding UseBannersNearRares, Mode=TwoWay}" ToolTip="Use banners when near Rare monsters."/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <CheckBox Grid.Row="0" Grid.Column="0" Content="Near Uniques" IsChecked="{Binding UseBannersNearUniques, Mode=TwoWay}" ToolTip="Use banners when near Unique monsters." VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="0" Grid.Column="1" Content="Generate Valor" IsChecked="{Binding GenerateValorNearUniques, Mode=TwoWay}" ToolTip="Use Warcries to generate Valor when near Unique monsters." Margin="10,0,0,0" VerticalAlignment="Center"/>
+
+                                    <CheckBox Grid.Row="1" Grid.Column="0" Content="In Ultimatum" IsChecked="{Binding UseBannersInUltimatum, Mode=TwoWay}" ToolTip="Use banners during Ultimatum encounters. Overrides Near Rares/Uniques." VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="1" Content="Generate Valor" IsChecked="{Binding GenerateValorInUltimatum, Mode=TwoWay}" ToolTip="Use Warcries to generate Valor during Ultimatum encounters." Margin="10,0,0,0" VerticalAlignment="Center"/>
+
+                                    <CheckBox Grid.Row="2" Grid.Column="0" Content="In Blight" IsChecked="{Binding UseBannersInBlight, Mode=TwoWay}" ToolTip="Use banners during Blight encounters. Overrides Near Rares/Uniques." VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="1" Content="Generate Valor" IsChecked="{Binding GenerateValorInBlight, Mode=TwoWay}" ToolTip="Use Warcries to generate Valor during Blight encounters." Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+            <Expander Header="Minions" Margin="0,10,0,0" IsExpanded="True">
+                <StackPanel Margin="15,5,0,0">
+                    <Expander Header="Summon Raging Spirits" IsExpanded="True">
+                        <StackPanel Margin="15,5,0,0">
+                            <CheckBox Content="Enable Summon Raging Spirits" IsChecked="{Binding EnableSummonRagingSpirits, Mode=TwoWay}" FontWeight="Bold"/>
+                            <StackPanel Orientation="Horizontal" Margin="15,2,2,2">
+                                <Label Content="Min Spirits:" VerticalAlignment="Center" ToolTip="The minimum number of raging spirits to maintain."/>
+                                <controls:NumericUpDown Value="{Binding MinRagingSpirits, Mode=TwoWay}" Minimum="1" Maximum="50" Interval="1" Width="90" VerticalAlignment="Center"/>
+                                <Label Content="Custom Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="A custom distance from the leader to allow casting. Overrides the global Max Combat Distance for this skill."/>
+                                <controls:NumericUpDown Value="{Binding SrsCustomDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
+                                <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="The maximum distance to a monster to trigger casting."/>
+                                <controls:NumericUpDown Value="{Binding SrsMonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
+                                <CheckBox Content="Target Normal/Magic" IsChecked="{Binding SrsOnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+                    <Separator Margin="0,5,0,5"/>
+                    <Expander Header="Summon Skeletons" IsExpanded="True">
+                        <StackPanel Margin="15,5,0,0">
+                            <CheckBox Content="Enable Summon Skeletons" IsChecked="{Binding EnableSummonSkeletons, Mode=TwoWay}" FontWeight="Bold"/>
+                            <StackPanel Orientation="Horizontal" Margin="15,2,2,2">
+                                <Label Content="Min Skeletons:" VerticalAlignment="Center" ToolTip="The minimum number of skeletons to maintain."/>
+                                <controls:NumericUpDown Value="{Binding MinSkeletons, Mode=TwoWay}" Minimum="1" Maximum="50" Interval="1" Width="90" VerticalAlignment="Center"/>
+                                <Label Content="Custom Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="A custom distance from the leader to allow casting. Overrides the global Max Combat Distance for this skill."/>
+                                <controls:NumericUpDown Value="{Binding SkeletonsCustomDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
+                                <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="The maximum distance to a monster to trigger casting."/>
+                                <controls:NumericUpDown Value="{Binding SkeletonsMonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
+                                <CheckBox Content="Target Normal/Magic" IsChecked="{Binding SkeletonsOnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </Expander>
             <StackPanel Orientation="Vertical" Margin="2,5,2,2" DataContext="{x:Static settingsPath:FollowBotSettings.Instance}">
                 <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="5">
                     <StackPanel>
-                        <CheckBox Content="Enable Summon Raging Spirits" IsChecked="{Binding EnableSummonRagingSpirits, Mode=TwoWay}" FontWeight="Bold"/>
-                        <StackPanel Orientation="Horizontal" Margin="15,2,2,2">
-                            <Label Content="Min Spirits:" VerticalAlignment="Center" ToolTip="The minimum number of raging spirits to maintain."/>
-                            <controls:NumericUpDown Value="{Binding MinRagingSpirits, Mode=TwoWay}" Minimum="1" Maximum="50" Interval="1" Width="90" VerticalAlignment="Center"/>
-                            <Label Content="Custom Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="A custom distance from the leader to allow casting. Overrides the global Max Combat Distance for this skill."/>
-                            <controls:NumericUpDown Value="{Binding SrsCustomDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
-                            <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="The maximum distance to a monster to trigger casting."/>
-                            <controls:NumericUpDown Value="{Binding SrsMonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
-                            <CheckBox Content="Target Normal/Magic" IsChecked="{Binding SrsOnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
-                        </StackPanel>
-                        <Separator Margin="0,5,0,5"/>
-                        <CheckBox Content="Enable Summon Skeletons" IsChecked="{Binding EnableSummonSkeletons, Mode=TwoWay}" FontWeight="Bold"/>
-                        <StackPanel Orientation="Horizontal" Margin="15,2,2,2">
-                            <Label Content="Min Skeletons:" VerticalAlignment="Center" ToolTip="The minimum number of skeletons to maintain."/>
-                            <controls:NumericUpDown Value="{Binding MinSkeletons, Mode=TwoWay}" Minimum="1" Maximum="50" Interval="1" Width="90" VerticalAlignment="Center"/>
-                            <Label Content="Custom Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="A custom distance from the leader to allow casting. Overrides the global Max Combat Distance for this skill."/>
-                            <controls:NumericUpDown Value="{Binding SkeletonsCustomDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
-                            <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="The maximum distance to a monster to trigger casting."/>
-                            <controls:NumericUpDown Value="{Binding SkeletonsMonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
-                            <CheckBox Content="Target Normal/Magic" IsChecked="{Binding SkeletonsOnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
-                        </StackPanel>
                         <Separator Margin="0,5,0,5"/>
                         <CheckBox Content="Enable Breach Graft 1" IsChecked="{Binding EnableBreachGraft1, Mode=TwoWay}" FontWeight="Bold"/>
                         <StackPanel Orientation="Horizontal" Margin="15,2,2,2">
                             <Label Content="Custom Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="A custom distance from the leader to allow casting. Overrides the global Max Combat Distance for this skill."/>
                             <controls:NumericUpDown Value="{Binding BreachGraft1CustomDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
-                            <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="The maximum distance to a monster to trigger casting."/>
+                            <Label Content="Monster Distance:" Margin="10,0,0,0" VerticalAlignment="center" ToolTip="The maximum distance to a monster to trigger casting."/>
                             <controls:NumericUpDown Value="{Binding BreachGraft1MonsterDistance, Mode=TwoWay}" Minimum="1" Maximum="1000" Interval="5" Width="90" VerticalAlignment="Center"/>
                             <CheckBox Content="Target Normal/Magic" IsChecked="{Binding BreachGraft1OnNormalMagic, Mode=TwoWay}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="If checked, the skill will also be used when near normal or magic rarity monsters."/>
                         </StackPanel>

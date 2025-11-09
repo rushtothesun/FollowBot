@@ -34,9 +34,11 @@ namespace FollowBot.Tasks
 
             var settings = FollowBotSettings.Instance;
 
+            if (settings.EnableLinkSkill) await AsyncCustomSkills.LinkSkillHandler();
             if (settings.EnableSummonRagingSpirits) await AsyncCustomSkills.SummonRagingSpirits();
             if (settings.EnableSummonSkeletons) await AsyncCustomSkills.SummonSkeletons();
             if (settings.EnableBreachGraft1) await AsyncCustomSkills.BreachGraft1();
+            if (settings.EnableSentinelUsage) await AsyncCustomSkills.SentinelUsage();
 
             return false;
         }

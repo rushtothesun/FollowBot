@@ -1,8 +1,10 @@
 ﻿using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
+using DreamPoeBot.Loki.RemoteMemoryObjects;
 using FollowBot.SimpleEXtensions;
 using DreamPoeBot.Loki.Bot;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Diagnostics;
@@ -12,6 +14,7 @@ namespace FollowBot.Class
 {
     public static class CustomSkills
     {
+        #region Private Fields
         private static readonly Stopwatch _enduringCryStopwatch = new Stopwatch();
         private static readonly Stopwatch _seismicCryStopwatch = new Stopwatch();
         private static readonly Stopwatch _battlemageCryStopwatch = new Stopwatch();
@@ -19,7 +22,11 @@ namespace FollowBot.Class
         private static readonly Stopwatch _intimidatingCryStopwatch = new Stopwatch();
         private static readonly Stopwatch _rallyingCryStopwatch = new Stopwatch();
         private static readonly Stopwatch _infernalCryStopwatch = new Stopwatch();
+        private static readonly Stopwatch _valorWarcryStopwatch = new Stopwatch();
+        private static readonly System.Random _random = new System.Random();
+        #endregion
 
+        #region Buff Skills
         public static void PhaseRun()
         {
             if (LokiPoe.Me.Auras.All(x => x.Name != "Phase Run"))
@@ -46,8 +53,9 @@ namespace FollowBot.Class
                 }
             }
         }
+        #endregion
 
-        #region Crys
+        #region Warcries
         //Onslaught cluster tied to Enduring Cry
         public static void EnduringCry()
         {
@@ -273,7 +281,8 @@ namespace FollowBot.Class
             }
         }
         #endregion
-        #region Guardians Blessing
+
+        #region Guardian's Blessing
         /*
         public static void GuardiansBlessingMalevolence()
         {
@@ -398,31 +407,7 @@ namespace FollowBot.Class
         }
         #endregion
 
-
-        //Guardian's Sentinel of Radiance
-        public static void SentinelUsage()
-        {
-            var sentinelSkill = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "SummonRadiantSentinel");
-            if (sentinelSkill != null)
-            {
-                var sentinelObj = sentinelSkill.DeployedObjects.FirstOrDefault() as Monster;
-                if (sentinelObj == null && sentinelSkill.CanUse())
-                {
-                    GlobalLog.Debug($"Casting \"{sentinelSkill.Name}\" - Sentinel");
-                    LokiPoe.InGameState.SkillBarHud.Use(sentinelSkill.Slot, false, false);
-                }
-            }
-        }
-
-        //Coruscating Elixir in flask slot 1
-        public static void ChaosElixir()
-        {
-            if (LokiPoe.Me.Auras.All(x => (x.Name != "Coruscating Elixir") || (x.Name == "Coruscating Elixir" && x.TimeLeft.Seconds <= 1.3)))
-            {
-                LokiPoe.InGameState.QuickFlaskHud.UseFlaskInSlot(1);
-            }
-        }
-
+        #region Utility Skills
         public static void Convocation()
         {
             var Convocation = LokiPoe.InGameState.SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "convocation");
@@ -431,72 +416,12 @@ namespace FollowBot.Class
                 LokiPoe.InGameState.SkillBarHud.Use(Convocation.Slot, false, false);
             }
         }
-
-        public static async void LinkSkillHandler()
+        
+        public static void ChaosElixir()
         {
-            var linkSkills = new[]
+            if (LokiPoe.Me.Auras.All(x => (x.Name != "Coruscating Elixir") || (x.Name == "Coruscating Elixir" && x.TimeLeft.Seconds <= 1.3)))
             {
-                "Intuitive Link", "Vampiric Link", "Destructive Link",
-                "Soul Link", "Protective Link", "Flame Link"
-            };
-
-            var linkSkill = LokiPoe.InGameState.SkillBarHud.SkillBarSkills
-                .FirstOrDefault(s => s != null && linkSkills.Contains(s.Name));
-
-            if (linkSkill == null || !linkSkill.CanUse())
-                return;
-
-            // If we have a link source buff that is about to expire, we should refresh.
-            var needsRefresh = LokiPoe.Me.Auras.Any(x => linkSkills.Contains(x.Name) && x.TimeLeft.Seconds <= 4);
-
-            // Target the leader
-            var leader = FollowBot.Leader;
-            if (leader != null && leader.Distance <= 60)
-            {
-                bool hasLink = leader.Auras.Any(a => linkSkills.Contains(a.Name) && a.TimeLeft.TotalSeconds >= 4);
-                if (!hasLink || needsRefresh)
-                {
-                    var useResult = LokiPoe.InGameState.SkillBarHud.UseOn(linkSkill.Slot, false, leader, false);
-                    if (useResult == LokiPoe.InGameState.UseResult.CouldNotHighlight)
-                    {
-                        LokiPoe.InGameState.SkillBarHud.UseAt(linkSkill.Slot, false, leader.Position, false);
-                        await Task.Delay(500);
-                        return; // Use at leader and exit
-                    }
-                    await Task.Delay(500);
-                    return; // Use on leader and exit
-                }
-            }
-
-            // Handle additional targets
-            string additionalTargets = FollowBotSettings.Instance.LinkSkillAdditionalTargets;
-            if (!string.IsNullOrEmpty(additionalTargets))
-            {
-                var targetNames = additionalTargets.Split(',').Select(s => s.Trim());
-                foreach (var targetName in targetNames)
-                {
-                    if (string.IsNullOrEmpty(targetName)) continue;
-
-                    var targetPlayer = LokiPoe.ObjectManager.GetObjectsByType<Player>()
-                        .FirstOrDefault(p => p.Name.Equals(targetName, System.StringComparison.OrdinalIgnoreCase));
-
-                    if (targetPlayer != null && targetPlayer.Distance <= 60)
-                    {
-                        bool hasLink = targetPlayer.Auras.Any(a => linkSkills.Contains(a.Name) && a.TimeLeft.TotalSeconds >= 4);
-                        if (!hasLink || needsRefresh)
-                        {
-                            var useResult2 = LokiPoe.InGameState.SkillBarHud.UseOn(linkSkill.Slot, false, targetPlayer, false);
-                            if (useResult2 == LokiPoe.InGameState.UseResult.CouldNotHighlight)
-                            {
-                                LokiPoe.InGameState.SkillBarHud.UseAt(linkSkill.Slot, false, targetPlayer.Position, false);
-                                await Task.Delay(500);
-                                return; // Use at target and exit
-                            }
-                            await Task.Delay(500);
-                            return; // Cast on one additional target per tick
-                        }
-                    }
-                }
+                LokiPoe.InGameState.QuickFlaskHud.UseFlaskInSlot(FollowBotSettings.Instance.ChaosElixirFlaskSlot);
             }
         }
 
@@ -508,6 +433,42 @@ namespace FollowBot.Class
             if (rejuvTotem == null || !rejuvTotem.CanUse() || rejuvTotem.NumberDeployed > 0)
                 return;
 
+            var settings = FollowBotSettings.Instance;
+
+            // Override: Always cast during Ultimatum if enabled
+            if (settings.RejuvenationTotemAlwaysUseInUltimatum)
+            {
+                var ultimatum = LokiPoe.ObjectManager.GetObjectsByType<UltimatumChallengeInteractable>().FirstOrDefault();
+                if (ultimatum != null && ultimatum.IsTrialActive && !ultimatum.IsTrialCompleted)
+                {
+                    LokiPoe.InGameState.SkillBarHud.Use(rejuvTotem.Slot, false, false);
+                    GlobalLog.Debug($"[CustomSkills] Casting Rejuvenation Totem (Ultimatum Override).");
+                    return;
+                }
+            }
+
+            // Override: Always cast during Blight if enabled
+            if (settings.RejuvenationTotemAlwaysUseInBlight)
+            {
+                const string blightPumpMetadata = "Metadata/Terrain/Leagues/Blight/Objects/BlightPump";
+                var blightPump = LokiPoe.ObjectManager.GetObjectsByMetadata(blightPumpMetadata).FirstOrDefault();
+                if (blightPump != null)
+                {
+                    var stateMachine = blightPump.Components.StateMachineComponent;
+                    if (stateMachine != null)
+                    {
+                        var activatedState = stateMachine.StageStates.FirstOrDefault(s => s.Name == "activated");
+                        if (activatedState != null && activatedState.IsActive && activatedState.Value == 2)
+                        {
+                            LokiPoe.InGameState.SkillBarHud.Use(rejuvTotem.Slot, false, false);
+                            GlobalLog.Debug($"[CustomSkills] Casting Rejuvenation Totem (Blight Override).");
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Normal health-based logic
             var leader = FollowBot.Leader;
             if (leader == null || leader.Distance > 60)
                 return;
@@ -515,19 +476,19 @@ namespace FollowBot.Class
             var unreservedLeaderHealth = leader.MaxHealth - leader.HealthReserved;
             var leaderHealthPercentage = unreservedLeaderHealth > 0 ? ((double)leader.Health / unreservedLeaderHealth) * 100 : 100;
 
-            bool leaderNeedsHelp = leaderHealthPercentage < 70;
+            bool leaderNeedsHelp = leaderHealthPercentage <= settings.RejuvenationTotemLeaderHealthPercent;
             
             bool selfNeedsHelp;
 
             if (LokiPoe.Me.EnergyShieldMax >= 1000)
             {
-                selfNeedsHelp = LokiPoe.Me.EnergyShieldPercent < 70;
+                selfNeedsHelp = LokiPoe.Me.EnergyShieldPercent <= settings.RejuvenationTotemFollowerHealthPercent;
             }
             else
             {
                 var unreservedSelfHealth = LokiPoe.Me.MaxHealth - LokiPoe.Me.HealthReserved;
                 var selfHealthPercentage = unreservedSelfHealth > 0 ? ((double)LokiPoe.Me.Health / unreservedSelfHealth) * 100 : 100;
-                selfNeedsHelp = selfHealthPercentage < 70;
+                selfNeedsHelp = selfHealthPercentage <= settings.RejuvenationTotemFollowerHealthPercent;
             }
 
             if (leaderNeedsHelp || selfNeedsHelp)
@@ -536,99 +497,204 @@ namespace FollowBot.Class
                 GlobalLog.Debug($"[CustomSkills] Casting Rejuvenation Totem.");
             }
         }
+        #endregion
 
-        public static void UseRejuvenationTotemDuringUltimatum()
+        #region Banner Skills
+        public static void ComprehensiveBannerHandler()
         {
-            // Find the Ultimatum trial object in the area
-            var ultimatum = LokiPoe.ObjectManager.GetObjectsByType<UltimatumChallengeInteractable>().FirstOrDefault();
-            if (ultimatum != null && ultimatum.IsTrialActive && !ultimatum.IsTrialCompleted)
-            {
-                // Find the Rejuvenation Totem skill on the skill bar
-                var rejuvTotem = LokiPoe.InGameState.SkillBarHud.SkillBarSkills
-                    .FirstOrDefault(x => x != null && x.InternalName == "TotemAuraLifeRegen");
+            if (!FollowBotSettings.Instance.EnableComprehensiveBanner)
+                return;
 
-                // Only cast if not already deployed and can use
-                if (rejuvTotem != null && rejuvTotem.CanUse() && rejuvTotem.NumberDeployed == 0)
+            // Determine activation conditions
+            bool isUltimatumActive = false;
+            if (FollowBotSettings.Instance.UseBannersInUltimatum)
+            {
+                var ultimatum = LokiPoe.ObjectManager.GetObjectsByType<UltimatumChallengeInteractable>().FirstOrDefault();
+                isUltimatumActive = ultimatum != null && ultimatum.IsTrialActive && !ultimatum.IsTrialCompleted;
+            }
+
+            bool isBlightActive = false;
+            if (FollowBotSettings.Instance.UseBannersInBlight)
+            {
+                const string blightPumpMetadata = "Metadata/Terrain/Leagues/Blight/Objects/BlightPump";
+                var blightPump = LokiPoe.ObjectManager.GetObjectsByMetadata(blightPumpMetadata).FirstOrDefault();
+                if (blightPump != null)
                 {
-                    LokiPoe.InGameState.SkillBarHud.Use(rejuvTotem.Slot, false, false);
+                    var stateMachine = blightPump.Components.StateMachineComponent;
+                    if (stateMachine != null)
+                    {
+                        var activatedState = stateMachine.StageStates.FirstOrDefault(s => s.Name == "activated");
+                        if (activatedState != null && activatedState.IsActive && activatedState.Value == 2)
+                        {
+                            isBlightActive = true;
+                        }
+                    }
                 }
             }
-        }
 
-        public static void UseWarBannerDuringUltimatumOrNearUnique()
-        {
-            // Check for Ultimatum trial in progress
-            var ultimatum = LokiPoe.ObjectManager.GetObjectsByType<UltimatumChallengeInteractable>().FirstOrDefault();
-            bool isUltimatumActive = ultimatum != null && ultimatum.IsTrialActive && !ultimatum.IsTrialCompleted;
+            bool useBanner = isUltimatumActive || isBlightActive;
 
-            // Check for nearby unique monster (within 60 units)
-            bool isNearUniqueMonster = LokiPoe.ObjectManager.GetObjectsByType<Monster>()
-                .Any(m => m.Rarity == Rarity.Unique && m.IsAliveHostile && m.Distance <= 60 && m.IsTargetable);
-
-            // Only proceed if either condition is true
-            if (isUltimatumActive || isNearUniqueMonster)
+            if (!useBanner)
             {
-                // Find the War Banner skill on the skill bar
-                var warBanner = LokiPoe.InGameState.SkillBarHud.SkillBarSkills
-                    .FirstOrDefault(x => x != null && x.InternalName == "BloodstainedBanner");
-
-                if (warBanner != null && warBanner.CanUse())
+                if (FollowBotSettings.Instance.UseBannersNearUniques)
                 {
-                    // Check for Valour buff with at least 105 charges
-                    var valourBuff = LokiPoe.Me.Auras.FirstOrDefault(x => x.InternalName == "valour");
-                    int valourCharges = valourBuff?.Charges ?? 0;
+                    if (LokiPoe.ObjectManager.GetObjectsByType<Monster>().Any(m => m.Rarity == Rarity.Unique && m.IsAliveHostile && m.Distance <= 60 && m.IsTargetable))
+                        useBanner = true;
+                }
+                if (!useBanner && FollowBotSettings.Instance.UseBannersNearRares)
+                {
+                    if (LokiPoe.ObjectManager.GetObjectsByType<Monster>().Any(m => m.Rarity == Rarity.Rare && m.IsAliveHostile && m.Distance <= 60 && m.IsTargetable))
+                        useBanner = true;
+                }
+            }
 
-                    // Check if War Banner buff is missing
-                    bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
+            if (!useBanner)
+                return;
 
-                    if (valourCharges >= 105 && !hasWarBannerBuff)
+            // Get Valour charges
+            var valourBuff = LokiPoe.Me.Auras.FirstOrDefault(x => x.InternalName == "valour");
+            int valourCharges = valourBuff?.Charges ?? 0;
+
+            // --- Valor on Demand ---
+            bool needsValor = false;
+            if (FollowBotSettings.Instance.UseWarBanner && !LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura") && valourCharges < FollowBotSettings.Instance.WarBannerCharges) needsValor = true;
+            else if (FollowBotSettings.Instance.UseDefianceBanner && !LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura") && valourCharges < FollowBotSettings.Instance.DefianceBannerCharges) needsValor = true;
+            else if (FollowBotSettings.Instance.UseDreadBanner && !LokiPoe.Me.Auras.Any(x => x.InternalName == "puresteel_banner_buff_aura") && valourCharges < FollowBotSettings.Instance.DreadBannerCharges) needsValor = true;
+
+            if (needsValor)
+            {
+                bool shouldGenerateValor = false;
+                if (isUltimatumActive && FollowBotSettings.Instance.GenerateValorInUltimatum)
+                {
+                    shouldGenerateValor = true;
+                }
+                else if (isBlightActive && FollowBotSettings.Instance.GenerateValorInBlight)
+                {
+                    shouldGenerateValor = true;
+                }
+                else if (useBanner && FollowBotSettings.Instance.GenerateValorNearUniques) // Fallback for uniques if not in blight/ult
+                {
+                    shouldGenerateValor = true;
+                }
+
+
+                if (shouldGenerateValor)
+                {
+                    UseWarcryForValor();
+                    return;
+                }
+            }
+
+            // --- Banner Priority Logic ---
+            // 1. War Banner
+            if (FollowBotSettings.Instance.UseWarBanner)
+            {
+                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
+                if (!hasWarBannerBuff && valourCharges >= FollowBotSettings.Instance.WarBannerCharges)
+                {
+                    var warBanner = SkillBar.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "BloodstainedBanner");
+                    if (warBanner != null && warBanner.CanUse())
                     {
-                        LokiPoe.InGameState.SkillBarHud.Use(warBanner.Slot, false, false);
+                        GlobalLog.Debug($"Using War Banner");
+                        SkillBar.Use(warBanner.Slot, false, false);
+                        return;
+                    }
+                }
+            }
+
+            // 2. Defiance Banner
+            if (FollowBotSettings.Instance.UseDefianceBanner)
+            {
+                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
+                bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
+                if (hasWarBannerBuff && !hasDefianceBannerBuff && valourCharges >= FollowBotSettings.Instance.DefianceBannerCharges)
+                {
+                    var defianceBanner = SkillBar.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "ArmourEvasionBanner");
+                    if (defianceBanner != null && defianceBanner.CanUse())
+                    {
+                        GlobalLog.Debug($"Using Defiance Banner");
+                        SkillBar.Use(defianceBanner.Slot, false, false);
+                        return;
+                    }
+                }
+            }
+
+            // 3. Dread Banner
+            if (FollowBotSettings.Instance.UseDreadBanner)
+            {
+                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
+                bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
+                bool hasDreadBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "puresteel_banner_buff_aura");
+                if (hasWarBannerBuff && hasDefianceBannerBuff && !hasDreadBannerBuff && valourCharges >= FollowBotSettings.Instance.DreadBannerCharges)
+                {
+                    var dreadBanner = SkillBar.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "PuresteelBanner");
+                    if (dreadBanner != null && dreadBanner.CanUse())
+                    {
+                        GlobalLog.Debug($"Using Dread Banner");
+                        SkillBar.Use(dreadBanner.Slot, false, false);
+                        return;
                     }
                 }
             }
         }
+        #endregion
 
-        public static void UseWarDefianceBannerDuringUltimatumOrNearUnique()
+        #region Helper Methods
+        private static void UseWarcryForValor()
         {
-            // Check for Ultimatum trial in progress
-            var ultimatum = LokiPoe.ObjectManager.GetObjectsByType<UltimatumChallengeInteractable>().FirstOrDefault();
-            bool isUltimatumActive = ultimatum != null && ultimatum.IsTrialActive && !ultimatum.IsTrialCompleted;
+            if (_valorWarcryStopwatch.IsRunning && _valorWarcryStopwatch.ElapsedMilliseconds < 500)
+                return;
 
-            // Check for nearby unique monster (within 60 units)
-            bool isNearUniqueMonster = LokiPoe.ObjectManager.GetObjectsByType<Monster>()
-                .Any(m => m.Rarity == Rarity.Unique && m.IsAliveHostile && m.Distance <= 60 && m.IsTargetable);
+            var availableWarcries = new List<DreamPoeBot.Loki.RemoteMemoryObjects.Skill>();
+            var settings = FollowBotSettings.Instance;
 
-            // Only proceed if either condition is true
-            if (isUltimatumActive || isNearUniqueMonster)
+            if (settings.EnableEnduringCry)
             {
-                // Check Valour buff and charges
-                var valourBuff = LokiPoe.Me.Auras.FirstOrDefault(x => x.InternalName == "valour");
-                int valourCharges = valourBuff?.Charges ?? 0;
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "EnduringCry" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
+            if (settings.EnableSeismicCry)
+            {
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "SeismicCry" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
+            if (settings.EnableBattlemageCry)
+            {
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "DivineCry" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
+            if (settings.EnableAncestralCry)
+            {
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "AncestralCry" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
+            if (settings.EnableIntimidatingCry)
+            {
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "IntimidatingCry" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
+            if (settings.EnableInfernalCry)
+            {
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "InfernalCry" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
+            if (settings.EnableRallyingCry)
+            {
+                var cry = SkillBar.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "RallyingCryNew" && s.CanUse());
+                if (cry != null) availableWarcries.Add(cry);
+            }
 
-                // Check if War Banner buff is present
-                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
-
-                // Try to use War Banner first (requires 105 Valour and not already placed)
-                var warBanner = LokiPoe.InGameState.SkillBarHud.SkillBarSkills
-                    .FirstOrDefault(x => x != null && x.InternalName == "BloodstainedBanner");
-
-                if (warBanner != null && warBanner.CanUse() && valourCharges >= 105 && !hasWarBannerBuff)
+            if (availableWarcries.Any())
+            {
+                var warcryToUse = availableWarcries[_random.Next(availableWarcries.Count)];
+                if (warcryToUse.CanUse())
                 {
-                    LokiPoe.InGameState.SkillBarHud.Use(warBanner.Slot, false, false);
-                    return; // Prioritize War Banner, do not use Defiance Banner in the same tick
-                }
-
-                // If War Banner is already placed, try Defiance Banner (requires 80 Valour and not already placed)
-                bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
-                var defianceBanner = LokiPoe.InGameState.SkillBarHud.SkillBarSkills
-                    .FirstOrDefault(x => x != null && x.InternalName == "ArmourEvasionBanner");
-
-                if (defianceBanner != null && defianceBanner.CanUse() && valourCharges >= 80 && hasWarBannerBuff && !hasDefianceBannerBuff)
-                {
-                    LokiPoe.InGameState.SkillBarHud.Use(defianceBanner.Slot, false, false);
+                    GlobalLog.Debug($"[UseWarcryForValor] Using {warcryToUse.Name}.");
+                    SkillBar.Use(warcryToUse.Slot, false, false);
+                    _valorWarcryStopwatch.Restart();
                 }
             }
         }
+        #endregion
     }
 }

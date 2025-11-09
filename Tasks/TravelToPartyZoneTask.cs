@@ -71,10 +71,11 @@ namespace FollowBot.Tasks
             }
             else
             {
-                //if (LokiPoe.CurrentWorldArea.IsMap || LokiPoe.CurrentWorldArea.Id.Contains("AfflictionTown") || LokiPoe.CurrentWorldArea.Id.Contains("Delve_"))
-                //{
-                //    if (FollowBotSettings.Instance.DontPortOutofMap) return false;
-                //}
+                if (LokiPoe.CurrentWorldArea.IsMap || LokiPoe.CurrentWorldArea.Id.Contains("AfflictionTown") || LokiPoe.CurrentWorldArea.Id.Contains("Delve_"))
+                {
+                    if (FollowBotSettings.Instance.DontPortOutofMap) return false;
+                }
+
                 if (PortOutStopwatch.IsRunning && PortOutStopwatch.ElapsedMilliseconds < FollowBotSettings.Instance.PortOutThreshold * 1000)
                 {
 
@@ -90,9 +91,10 @@ namespace FollowBot.Tasks
                     }
                 }
             }
-            //First check the DontPortOutofMap
             
-            //if (!curZone.IsTown && !curZone.IsHideoutArea && FollowBotSettings.Instance.DontPortOutofMap) return false;
+            //First check the DontPortOutofMap
+            var whereAmI = World.CurrentArea;
+            if (!whereAmI.IsTown && !whereAmI.IsHideoutArea && FollowBotSettings.Instance.DontPortOutofMap) return false;
 
             
             #region Delve
@@ -287,35 +289,6 @@ namespace FollowBot.Tasks
                 if (!tele)
                 {
                     Log.DebugFormat("[{0}] lab return portal error.", Name);
-                }
-
-                FollowBot.Leader = null;
-                return true;
-            }
-
-            var campaignLabPortal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
-            if (campaignLabPortal != null && campaignLabPortal.IsTargetable)
-            {
-                var portalDistance = LokiPoe.Me.Position.Distance(campaignLabPortal.Position);
-
-                // Move closer if not in interaction range
-                if (portalDistance > 15)
-                {
-                    var walkablePosition = ExilePather.FastWalkablePositionFor(campaignLabPortal, 13);
-
-                    // Cast Phase Run if available
-                    CustomSkills.PhaseRun();
-
-                    Move.Towards(walkablePosition, "moving to Labyrinth Trial Return Portal");
-                    return true;
-                }
-
-                // Interact with the portal if close enough
-                var tele = await Coroutines.InteractWith(campaignLabPortal);
-
-                if (!tele)
-                {
-                    Log.DebugFormat("[{0}] Labyrinth Trial Return Portal interaction error.", Name);
                 }
 
                 FollowBot.Leader = null;

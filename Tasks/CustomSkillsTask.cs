@@ -46,13 +46,9 @@ namespace FollowBot.Tasks
             if (settings.EnableInfernalCry) CustomSkills.InfernalCry();
             if (settings.EnableRallyingCry) CustomSkills.RallyingCry();
             if (settings.EnableGuardiansBlessingHandler) CustomSkills.GuardiansBlessingHandler();
-            if (settings.EnableSentinelUsage) CustomSkills.SentinelUsage();
             if (settings.EnableChaosElixir) CustomSkills.ChaosElixir();
             if (settings.EnableConvocation) CustomSkills.Convocation();
-            if (settings.EnableLinkSkill) CustomSkills.LinkSkillHandler();
-            if (settings.EnableUseRejuvenationTotemDuringUltimatum) CustomSkills.UseRejuvenationTotemDuringUltimatum();
-            if (settings.EnableUseWarBannerDuringUltimatumOrNearUnique) CustomSkills.UseWarBannerDuringUltimatumOrNearUnique();
-            if (settings.EnableUseWarDefianceBannerDuringUltimatumOrNearUnique) CustomSkills.UseWarDefianceBannerDuringUltimatumOrNearUnique();
+            if (settings.EnableComprehensiveBanner) CustomSkills.ComprehensiveBannerHandler();
             if (settings.EnableRejuvenationTotem) CustomSkills.RejuvenationTotem();
 
             return Task.FromResult(false);
