@@ -148,13 +148,15 @@ namespace FollowBot.Tasks
         private List<InteractQuestNpc> InteractQuestNpcs { get; set; } = new List<InteractQuestNpc>
         {
             // Act 1
-            new InteractQuestNpc("1_1_town", "Tarkleigh", () => CheckQuestStateId("a1q7", 3), (obj) => NpcHelper.TakeReward(obj, "Dweller Reward")),
-            new InteractQuestNpc("1_1_town", "Bestel", () => CheckQuestStateId("a1q6", 3), (obj) => NpcHelper.TakeReward(obj, "Fairgraves Reward")),
+            new InteractQuestNpc("1_1_town", "Nessa", () => CheckQuestStateId("a1q5", 2) && PlayerHasItem("Medicine Chest"), (obj) => NpcHelper.TakeReward(obj, "Medicine Chest Reward", "Quicksilver Flask")),
+            new InteractQuestNpc("1_1_town", "Tarkleigh", () => CheckQuestStateId("a1q7", 3), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Dweller Reward")),
+            new InteractQuestNpc("1_1_town", "Bestel", () => CheckQuestStateId("a1q6", 3), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Fairgraves Reward")),
             new InteractQuestNpc("1_1_9", "Captain Fairgraves",()=> PlayerHasItem("Allflame"), NpcHelper.TalkAndSkipDialog),
             // Act 2
+            new InteractQuestNpc("1_1_town", "Bestel", () => CheckQuestStateId("a2q11", 0), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Road Reward")),
             new InteractQuestNpc("1_2_town", "Eramir", ()=>  CheckQuestStateId("a2q7",new int[] {0,2}) && PlayerHasItem(new string[]{"Alira's Amulet","Kraityn's Amulet","Oak's Amulet"}),
                (obj)=>NpcHelper.TakeReward(obj,"Take the Apex")),
-            new InteractQuestNpc("1_2_town", "Yeena", () => PlayerHasItem("Golden Hand"), (obj) => NpcHelper.TakeReward(obj, "Fellshrine Reward")),
+            new InteractQuestNpc("1_2_town", "Yeena", () => PlayerHasItem("Golden Hand"), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Fellshrine Reward")),
             new InteractQuestNpc("1_2_4", "Kraityn, Scarbearer", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
             new InteractQuestNpc("1_2_9", "Alira Darktongue", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
             new InteractQuestNpc("1_2_12", "Oak, Skullbreaker", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
