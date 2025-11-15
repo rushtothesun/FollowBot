@@ -163,8 +163,8 @@ namespace FollowBot
 
         #region Gems
         private bool _gemDebugStatements;
-        private bool _levelAllGems;
-        private bool _levelOffhandOnly;
+        private bool _levelGems;
+        private bool _useLevelAllButton;
         private ObservableCollection<string> _globalNameIgnoreList;
  
         #endregion
@@ -381,38 +381,38 @@ namespace FollowBot
                 NotifyPropertyChanged(() => GemDebugStatements);
             }
         }
-        [DefaultValue(false)]
-        public bool LevelOffhandOnly
+        [DefaultValue(true)]
+        public bool LevelGems
         {
             get
             {
-                return _levelOffhandOnly;
+                return _levelGems;
             }
             set
             {
-                if (value.Equals(_levelOffhandOnly))
+                if (value.Equals(_levelGems))
                 {
                     return;
                 }
-                _levelOffhandOnly = value;
-                NotifyPropertyChanged(() => LevelOffhandOnly);
+                _levelGems = value;
+                NotifyPropertyChanged(() => LevelGems);
             }
         }
-        [DefaultValue(false)]
-        public bool LevelAllGems
+        [DefaultValue(true)]
+        public bool UseLevelAllButton
         {
             get
             {
-                return _levelAllGems;
+                return _useLevelAllButton;
             }
             set
             {
-                if (value.Equals(_levelAllGems))
+                if (value.Equals(_useLevelAllButton))
                 {
                     return;
                 }
-                _levelAllGems = value;
-                NotifyPropertyChanged(() => LevelAllGems);
+                _useLevelAllButton = value;
+                NotifyPropertyChanged(() => UseLevelAllButton);
             }
         }
         /// <summary>
@@ -435,53 +435,6 @@ namespace FollowBot
             }
         }
 
-        /// <summary>
-		/// A list of SkillGemEntry for the user's skillgems.
-		/// </summary>
-		[JsonIgnore]
-        public ObservableCollection<SkillGemEntry> UserSkillGemsInOffHands
-        {
-            get
-            {
-                //using (LokiPoe.AcquireFrame())
-                //{
-                ObservableCollection<SkillGemEntry> skillGemEntries = new ObservableCollection<SkillGemEntry>();
-
-                if (!LokiPoe.IsInGame)
-                {
-                    return skillGemEntries;
-                }
-
-                foreach (Inventory inv in UsableOffInventories)
-                {
-                    foreach (Item item in inv.Items)
-                    {
-                        if (item == null)
-                        {
-                            continue;
-                        }
-
-                        if (item.Components.SocketsComponent == null)
-                        {
-                            continue;
-                        }
-
-                        for (int idx = 0; idx < item.SocketedGems.Length; idx++)
-                        {
-                            Item gem = item.SocketedGems[idx];
-                            if (gem == null)
-                            {
-                                continue;
-                            }
-
-                            skillGemEntries.Add(new SkillGemEntry(gem.Name, inv.PageSlot, idx));
-                        }
-                    }
-                }
-                return skillGemEntries;
-                //}
-            }
-        }
         /// <summary>
         /// A list of SkillGemEntry for the user's skillgems.
         /// </summary>
@@ -597,11 +550,6 @@ namespace FollowBot
             LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.LeftRing),
             LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.RightRing),
             LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.Neck)
-        };
-        private static IEnumerable<Inventory> UsableOffInventories => new[]
-        {
-            LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.OffLeftHand),
-            LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.OffRightHand),
         };
         #endregion
 

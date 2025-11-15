@@ -567,18 +567,15 @@
                               IsChecked="{Binding Path=GemDebugStatements, Mode=TwoWay}"
                               ToolTip="If enabled, it will log some debug informations"
                               Content="Gem Debug Info."></CheckBox>
-                    <CheckBox Name="LevelOffhandOnly"
-                              IsChecked="{Binding Path=LevelOffhandOnly, Mode=TwoWay}"
-                              ToolTipService.ToolTip="If selected, only skill gem equiped in secondary weapons slot will be leveled. Gems in the ignore list are still ignored."
-                              Content="Level Offhand (all) gems ONLY"
-                              Grid.Row="1"
-                              Grid.Column="0"></CheckBox>
-                    <CheckBox Name="LevelAllGems"
-                              IsChecked="{Binding Path=LevelAllGems, Mode=TwoWay}"
-                              ToolTipService.ToolTip="If selected, all skill gem equiped but the one in the ignore list will be leveled."
-                              Content="Level (all) gems"
-                              Grid.Row="2"
-                              Grid.Column="0"></CheckBox>
+                    <CheckBox Name="LevelGems"
+                              IsChecked="{Binding Path=LevelGems, Mode=TwoWay}"
+                              ToolTipService.ToolTip="If selected, all equipped gems will be leveled automatically (except those in the ignore list)."
+                              Content="Level Gems"></CheckBox>
+                    <CheckBox Name="UseLevelAllButton"
+                              IsChecked="{Binding Path=UseLevelAllButton, Mode=TwoWay}"
+                              ToolTipService.ToolTip="If enabled and 2+ gems are ready to level, use the 'Level All' button. Otherwise, level gems one at a time."
+                              Content="Use the 'Level All' Button"
+                              Margin="15,0,0,0"></CheckBox>
                    <Grid>
                        <Grid.RowDefinitions>
                            <RowDefinition Height="Auto"/>

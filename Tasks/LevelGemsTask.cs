@@ -1,3 +1,4 @@
+using DreamPoeBot.BotFramework;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
@@ -7,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FollowBot.Tasks
@@ -15,8 +17,6 @@ namespace FollowBot.Tasks
     {
         private static readonly ILog Log = Logger.GetLoggerInstanceForType();
         private readonly WaitTimer _levelWait = WaitTimer.FiveSeconds;
-        private bool _needsToUpdate = true;
-        private bool _needsToCloseInventory;
 
         public string Name { get { return "LevelGemsTask"; } }
         public string Description { get { return "This task will Level gems."; } }
@@ -65,8 +65,15 @@ namespace FollowBot.Tasks
             {
                 return false;
             }
+
+            // Check if feature is enabled
+            if (!FollowBotSettings.Instance.LevelGems)
+            {
+                return false;
+            }
+
             // Only check for skillgem leveling at a fixed interval.
-            if (!_needsToUpdate && !_levelWait.IsFinished)
+            if (!_levelWait.IsFinished)
             {
                 return false;
             }
@@ -84,10 +91,11 @@ namespace FollowBot.Tasks
                     await Coroutines.FinishCurrentAction();
                     await Coroutines.LatencyWait();
 
-                    // Get pending gems list and decide which approach to use
+                    // Get pending elements and gems lists
+                    var pendingElements = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillElements;
                     var pendingGems = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillGems;
 
-                    if (pendingGems == null || pendingGems.Count == 0)
+                    if (pendingElements == null || pendingElements.Count == 0 || pendingGems == null || pendingGems.Count == 0)
                     {
                         if (FollowBotSettings.Instance.GemDebugStatements)
                         {
@@ -96,66 +104,132 @@ namespace FollowBot.Tasks
                         return false;
                     }
 
-                    // Check if we can use the fast path (LevelAll)
-                    // Note: LevelAll button only appears when there are 2+ gems
-                    if (CanUseFastPath(pendingGems))
+                    // PHASE 1: Dismiss ignored gems (one at a time)
+                    for (int i = 0; i < pendingElements.Count && i < pendingGems.Count; i++)
                     {
-                        Log.InfoFormat("[LevelGemsTask] Using LevelAll() for {0} gems (fast path).", pendingGems.Count);
+                        var element = pendingElements[i];
+                        var gem = pendingGems[i];
+
+                        // Check if gem is in the ignore list
+                        if (ContainsHelper(gem.Item.Name, gem.Item.SkillGemLevel))
+                        {
+                            if (FollowBotSettings.Instance.GemDebugStatements)
+                            {
+                                Log.DebugFormat("[LevelGemsTask] Dismissing ignored gem: {0} [Level: {1}]", gem.Item.Name, gem.Item.SkillGemLevel);
+                            }
+
+                            // Right-click Child[1] (the button) to dismiss
+                            if (element.Children != null && element.Children.Count > 1)
+                            {
+                                var buttonElement = element.Children[1];
+                                var clickPos = buttonElement.CenterClickLocation();
+                                
+                                MouseManager.SetMousePosition(clickPos, useRandomPos: false);
+                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                                MouseManager.ClickRMB();
+                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+
+                                if (FollowBotSettings.Instance.GemDebugStatements)
+                                {
+                                    Log.DebugFormat("[LevelGemsTask] Dismissed gem at position {0}", clickPos);
+                                }
+
+                                // Re-check list on next run
+                                return false;
+                            }
+                        }
+                    }
+
+                    // PHASE 2: Count levelable gems
+                    int levelableCount = 0;
+                    int firstLevelableIndex = -1;
+
+                    // Primary approach: Use GemCanLevelUp property (more reliable)
+                    for (int i = 0; i < pendingGems.Count; i++)
+                    {
+                        var gem = pendingGems[i];
+
+                        if (gem.GemCanLevelUp)
+                        {
+                            if (firstLevelableIndex == -1)
+                            {
+                                firstLevelableIndex = i;
+                            }
+                            levelableCount++;
+                        }
+                    }
+
+                    // Fallback approach: Check Child[3] for "Click to level up" text
+                    // Uncomment this block and comment out the GemCanLevelUp loop above if API breaks
+                    /*
+                    for (int i = 0; i < pendingElements.Count; i++)
+                    {
+                        var element = pendingElements[i];
+
+                        // Check Child[3] for "Click to level up" text
+                        if (element.Children != null && element.Children.Count > 3)
+                        {
+                            var textElement = element.Children[3];
+                            if (textElement != null &&
+                                textElement.Text != null &&
+                                textElement.Text.Contains("Click to level up"))
+                            {
+                                if (firstLevelableIndex == -1)
+                                {
+                                    firstLevelableIndex = i;
+                                }
+                                levelableCount++;
+                            }
+                        }
+                    }
+                    */
+
+                    if (FollowBotSettings.Instance.GemDebugStatements)
+                    {
+                        Log.DebugFormat("[LevelGemsTask] Found {0} levelable gems", levelableCount);
+                    }
+
+                    // PHASE 3: Level gems
+                    if (levelableCount >= 2 && FollowBotSettings.Instance.UseLevelAllButton)
+                    {
+                        // Use LevelAll button if enabled and 2+ gems ready
+                        Log.InfoFormat("[LevelGemsTask] Using LevelAll() for {0} gems", levelableCount);
                         LokiPoe.InGameState.SkillGemHud.LevelAll();
                     }
-                    else
+                    else if (levelableCount >= 1)
                     {
-                        Log.InfoFormat("[LevelGemsTask] Using selective leveling via HandlePendingLevelUps ({0} gems).", pendingGems.Count);
-                        LokiPoe.InGameState.HandlePendingLevelUpResult res = LokiPoe.InGameState.SkillGemHud.HandlePendingLevelUps(eval);
-                        Log.InfoFormat("[LevelGemsTask] SkillGemHud.HandlePendingLevelUps returned {0}.", res);
+                        // Level one gem at a time
+                        if (firstLevelableIndex >= 0 && firstLevelableIndex < pendingElements.Count)
+                        {
+                            var element = pendingElements[firstLevelableIndex];
+                            
+                            if (element.Children != null && element.Children.Count > 1)
+                            {
+                                var buttonElement = element.Children[1];
+                                var clickPos = buttonElement.CenterClickLocation();
+                                
+                                if (FollowBotSettings.Instance.GemDebugStatements)
+                                {
+                                    Log.DebugFormat("[LevelGemsTask] Leveling single gem at index {0}", firstLevelableIndex);
+                                }
+
+                                MouseManager.SetMousePosition(clickPos, useRandomPos: false);
+                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                                MouseManager.ClickLMB();
+                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+
+                                Log.InfoFormat("[LevelGemsTask] Leveled gem at position {0}", clickPos);
+                            }
+                        }
                     }
 
                     return false;
-                }
-            }
-
-            if (LokiPoe.InGameState.InventoryUi.IsOpened)
-            {
-                _needsToCloseInventory = false;
-            }
-            else
-            {
-                _needsToCloseInventory = true;
-            }
-            if (_needsToUpdate)
-            {
-                // We need the inventory panel open.
-                if (!await SimpleEXtensions.Inventories.OpenInventory())
-                {
-                    Log.ErrorFormat("[LevelGemsTask] OpenInventoryPanel failed.");
-                    return false;
-                }
-            retry:
-                // If we have icons on the inventory ui to process.
-                // This is only valid when the inventory panel is opened.
-                if (LokiPoe.InGameState.InventoryUi.AreIconsDisplayed)
-                {
-                    LokiPoe.InGameState.HandlePendingLevelUpResult res = LokiPoe.InGameState.InventoryUi.HandlePendingLevelUps(eval);
-
-                    Log.InfoFormat("[LevelGemsTask] InventoryUi.HandlePendingLevelUps returned {0}.", res);
-                    if (res == LokiPoe.InGameState.HandlePendingLevelUpResult.GemDismissed ||
-                        res == LokiPoe.InGameState.HandlePendingLevelUpResult.GemLeveled)
-                    {
-                        goto retry;
-                    }
                 }
             }
 
             // Just wait 5-10s between checks.
             _levelWait.Reset(TimeSpan.FromMilliseconds(LokiPoe.Random.Next(5000, 10000)));
 
-            if (_needsToCloseInventory)
-            {
-                await Coroutines.CloseBlockingWindows();
-                _needsToCloseInventory = false;
-            }
-
-            _needsToUpdate = false;
             return false;
         }
 
@@ -167,67 +241,10 @@ namespace FollowBot.Tasks
 
         public MessageResult Message(Message message)
         {
-            bool handled = false;
-            if (message.Id == "player_leveled_event")
-            {
-                _needsToUpdate = true;
-                handled = true;
-            }
-            return handled ? MessageResult.Processed : MessageResult.Unprocessed;
+            return MessageResult.Unprocessed;
         }
 
-        Func<Inventory, Item, Item, bool> eval = (inv, holder, gem) =>
-        {
-            // Ignore any "globally ignored" gems. This just lets the user move gems around
-            // equipment, without having to worry about where or what it is.
-            if (ContainsHelper(gem.Name, gem.SkillGemLevel))
-            {
-                if (FollowBotSettings.Instance.GemDebugStatements)
-                {
-                    Log.DebugFormat("[LevelGemsTask] {0}[Lev: {1}] => {2}.", gem.Name, gem.SkillGemLevel, "Is contained in GlobalNameIgnoreList");
-                }
 
-                return false;
-            }
-
-            // Now look though the list of skillgem strings to level, and see if the current gem matches any of them.
-            string ss = string.Format("{0} [{1}: {2}]", gem.Name, inv.PageSlot, holder.GetSocketIndexOfGem(gem));
-
-
-
-            ObservableCollection<string> gemsToConsider = new ObservableCollection<string>();
-            if (FollowBotSettings.Instance.LevelOffhandOnly)
-            {
-                ObservableCollection<FollowBotSettings.SkillGemEntry> userSkillGems = FollowBotSettings.Instance.UserSkillGemsInOffHands;
-                foreach (FollowBotSettings.SkillGemEntry g in userSkillGems)
-                {
-                    gemsToConsider.Add(string.Format("{0} [{1}: {2}]", g.Name, g.InventorySlot, g.SocketIndex));
-                }
-            }
-            else if (FollowBotSettings.Instance.LevelAllGems)
-            {
-                ObservableCollection<FollowBotSettings.SkillGemEntry> userSkillGems = FollowBotSettings.Instance.UserSkillGems;
-                foreach (FollowBotSettings.SkillGemEntry g in userSkillGems)
-                {
-                    gemsToConsider.Add(string.Format("{0} [{1}: {2}]", g.Name, g.InventorySlot, g.SocketIndex));
-                }
-            }
-
-            foreach (string str in gemsToConsider)
-            {
-                if (str.Equals(ss, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (FollowBotSettings.Instance.GemDebugStatements)
-                    {
-                        Log.DebugFormat("[LevelGemsTask] Adding {0} To gems to level.", gem.Name);
-                    }
-                    return true;
-                }
-            }
-
-            // No match, we shouldn't level this gem.
-            return false;
-        };
         private static bool ContainsHelper(string name, int level)
         {
             foreach (string entry in FollowBotSettings.Instance.GlobalNameIgnoreList)
@@ -251,85 +268,5 @@ namespace FollowBot.Tasks
             return false;
         }
 
-        /// <summary>
-        /// Determines if we can use the fast path (LevelAll) for leveling gems.
-        /// Returns false if any gem needs to be filtered (ignored, doesn't meet requirements, or doesn't match mode).
-        /// </summary>
-        private bool CanUseFastPath(List<LokiPoe.InGameState.SkillGemHud.LevelingGem> pendingGems)
-        {
-            if (pendingGems == null || pendingGems.Count == 0 || pendingGems.Count == 1)
-                return false;
-
-            foreach (var levelingGem in pendingGems)
-            {
-                // Check if gem is in the ignore list
-                if (ContainsHelper(levelingGem.Item.Name, levelingGem.Item.SkillGemLevel))
-                {
-                    if (FollowBotSettings.Instance.GemDebugStatements)
-                    {
-                        Log.DebugFormat("[LevelGemsTask] Fast path blocked: {0}[Lev: {1}] is in GlobalNameIgnoreList",
-                            levelingGem.Item.Name, levelingGem.Item.SkillGemLevel);
-                    }
-                    return false;
-                }
-
-                // Check if gem can actually level up (requirements met, not greyed out)
-                if (!levelingGem.GemCanLevelUp)
-                {
-                    if (FollowBotSettings.Instance.GemDebugStatements)
-                    {
-                        Log.DebugFormat("[LevelGemsTask] Fast path blocked: {0}[Lev: {1}] cannot level (requirements not met or greyed out)",
-                            levelingGem.Item.Name, levelingGem.Item.SkillGemLevel);
-                    }
-                    return false;
-                }
-
-                // Check mode-specific filtering
-                if (FollowBotSettings.Instance.LevelOffhandOnly)
-                {
-                    // If offhand-only mode, gem must be in offhand
-                    if (!IsGemInOffhandMode(levelingGem))
-                    {
-                        if (FollowBotSettings.Instance.GemDebugStatements)
-                        {
-                            Log.DebugFormat("[LevelGemsTask] Fast path blocked: {0}[Lev: {1}] not in offhand (LevelOffhandOnly enabled)",
-                                levelingGem.Item.Name, levelingGem.Item.SkillGemLevel);
-                        }
-                        return false;
-                    }
-                }
-                else if (!FollowBotSettings.Instance.LevelAllGems)
-                {
-                    // If neither mode is enabled, we shouldn't level anything
-                    if (FollowBotSettings.Instance.GemDebugStatements)
-                    {
-                        Log.DebugFormat("[LevelGemsTask] Fast path blocked: No leveling mode enabled (LevelAllGems: false, LevelOffhandOnly: false)");
-                    }
-                    return false;
-                }
-                // If LevelAllGems is true, gem passes this check
-            }
-
-            // All gems passed all checks - we can use the fast path
-            if (FollowBotSettings.Instance.GemDebugStatements)
-            {
-                Log.DebugFormat("[LevelGemsTask] Fast path approved: All {0} gems can be leveled", pendingGems.Count);
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Checks if a gem is in the offhand weapon slots.
-        /// Used when LevelOffhandOnly mode is enabled.
-        /// </summary>
-        private bool IsGemInOffhandMode(LokiPoe.InGameState.SkillGemHud.LevelingGem levelingGem)
-        {
-            var offhandGems = FollowBotSettings.Instance.UserSkillGemsInOffHands;
-
-            // Check if this gem exists in the offhand gems collection
-            // We match by name, which aligns with how the eval callback works
-            return offhandGems.Any(g =>
-                g.Name.Equals(levelingGem.Item.Name, StringComparison.OrdinalIgnoreCase));
-        }
     }
 }
