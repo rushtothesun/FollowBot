@@ -284,7 +284,7 @@
                         </Expander>
 
                         <!-- Ultimatum (Collapsible) -->
-                        <Expander Header="Ultimatum" IsExpanded="False" Margin="5">
+                        <Expander Header="Ultimatum Settings" IsExpanded="False" Margin="5">
                             <StackPanel>
                                 <CheckBox Content="Portal After Ultimatum" IsChecked="{Binding ShouldLootUltimatum, Mode=TwoWay}" ToolTip="If enabled, the bot will search for a portal for a configurable amount of time after an Ultimatum is completed."/>
                                 <WrapPanel>

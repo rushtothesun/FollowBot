@@ -205,7 +205,6 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog)
 
 
-
         };
 
         private static bool CheckQuestStateId(string questId, int stateId)

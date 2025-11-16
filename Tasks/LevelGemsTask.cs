@@ -84,22 +84,65 @@ namespace FollowBot.Tasks
                 // If the InventoryUi is already opened, skip this logic and let the next set run.
                 if (!LokiPoe.InGameState.InventoryUi.IsOpened)
                 {
-                    // We need to close blocking windows.
+                    // EARLY CHECK: Do we have ANY actionable gems?
+                    // This prevents FinishCurrentAction() spam when only greyed-out gems are visible
+                    var prependingGems = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillGems;
+
+                    if (prependingGems == null || prependingGems.Count == 0)
+                    {
+                        if (FollowBotSettings.Instance.GemDebugStatements)
+                        {
+                            Log.DebugFormat("[LevelGemsTask] No pending gems on HUD.");
+                        }
+                        return false;
+                    }
+
+                    // Count gems that can actually be leveled OR need to be dismissed
+                    bool hasActionableGem = false;
+                    foreach (var gem in prependingGems)
+                    {
+                        // Gem can be leveled
+                        if (gem.GemCanLevelUp)
+                        {
+                            hasActionableGem = true;
+                            break;
+                        }
+                        
+                        // Gem needs to be dismissed (in ignore list)
+                        if (ContainsHelper(gem.Item.Name, gem.Item.SkillGemLevel))
+                        {
+                            hasActionableGem = true;
+                            break;
+                        }
+                    }
+
+                    // Exit early if only greyed-out gems (no action needed)
+                    if (!hasActionableGem)
+                    {
+                        if (FollowBotSettings.Instance.GemDebugStatements)
+                        {
+                            Log.DebugFormat("[LevelGemsTask] All {0} gems are greyed out, skipping until requirements met.", prependingGems.Count);
+                        }
+                        return false;
+                    }
+
+                    // NOW proceed with blocking operations (we have work to do)
                     await Coroutines.CloseBlockingWindows();
 
                     // We need to let skills finish casting, because of 2.6 changes.
                     await Coroutines.FinishCurrentAction();
                     await Coroutines.LatencyWait();
 
-                    // Get pending elements and gems lists
+                    // RE-FETCH both lists - state may have changed during waits (combat finished, player leveled, gem gained XP, etc.)
                     var pendingElements = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillElements;
                     var pendingGems = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillGems;
 
+                    // Safety check for both lists
                     if (pendingElements == null || pendingElements.Count == 0 || pendingGems == null || pendingGems.Count == 0)
                     {
                         if (FollowBotSettings.Instance.GemDebugStatements)
                         {
-                            Log.DebugFormat("[LevelGemsTask] No pending gems on HUD.");
+                            Log.DebugFormat("[LevelGemsTask] No pending elements (UI issue?)");
                         }
                         return false;
                     }
