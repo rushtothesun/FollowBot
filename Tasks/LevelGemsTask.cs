@@ -214,9 +214,9 @@ namespace FollowBot.Tasks
                                 }
 
                                 MouseManager.SetMousePosition(clickPos, useRandomPos: false);
-                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                                Thread.Sleep(LokiPoe.Random.Next(90, 150));
                                 MouseManager.ClickLMB();
-                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                                Thread.Sleep(LokiPoe.Random.Next(90, 150));
 
                                 Log.InfoFormat("[LevelGemsTask] Leveled gem at position {0}", clickPos);
                             }

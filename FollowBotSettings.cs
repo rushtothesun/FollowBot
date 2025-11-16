@@ -50,7 +50,6 @@ namespace FollowBot
             }
         }
 
-        private string _acceptedManualInviteNames;
         private int _followDistance;
         private int _maxfollowDistance;
         private int _maxCombatDistance;
@@ -166,17 +165,11 @@ namespace FollowBot
         private bool _levelGems;
         private bool _useLevelAllButton;
         private ObservableCollection<string> _globalNameIgnoreList;
+        private ObservableCollection<string> _inviteTradeWhiteList;
  
         #endregion
         
         #region Follow Settings
-        [DefaultValue("")]
-        public string InviteWhiteList
-        {
-            get { return _acceptedManualInviteNames; }
-            set
-            { _acceptedManualInviteNames = value; NotifyPropertyChanged(() => InviteWhiteList); }
-        }
         [DefaultValue(15)]
         public int FollowDistance
         {
@@ -485,6 +478,31 @@ namespace FollowBot
         public void UpdateGlobalNameIgnoreList()
         {
             NotifyPropertyChanged(() => GlobalNameIgnoreList);
+        }
+
+        /// <summary>
+        /// A list of account names or character names to allow for invites/trades.
+        /// </summary>
+        public ObservableCollection<string> InviteTradeWhiteList
+        {
+            get
+            {
+                return _inviteTradeWhiteList ?? (_inviteTradeWhiteList = new ObservableCollection<string>());
+            }
+            set
+            {
+                if (value.Equals(_inviteTradeWhiteList))
+                {
+                    return;
+                }
+                _inviteTradeWhiteList = value;
+                NotifyPropertyChanged(() => InviteTradeWhiteList);
+            }
+        }
+
+        public void UpdateInviteTradeWhiteList()
+        {
+            NotifyPropertyChanged(() => InviteTradeWhiteList);
         }
         public class SkillGemEntry
         {
@@ -1293,6 +1311,46 @@ namespace FollowBot
         {
             get => _generateValorInBlight;
             set { _generateValorInBlight = value; NotifyPropertyChanged(() => GenerateValorInBlight); }
+        }
+        #endregion
+
+        #region Trade Settings
+        private bool _enableTradeDebugLog;
+        private bool[,] _excludedTradeSlots = new bool[12, 5]; // 12x5 grid, default all false
+
+        [DefaultValue(false)]
+        public bool EnableTradeDebugLog
+        {
+            get => _enableTradeDebugLog;
+            set
+            {
+                _enableTradeDebugLog = value;
+                NotifyPropertyChanged(() => EnableTradeDebugLog);
+            }
+        }
+
+        public bool[,] ExcludedTradeSlots
+        {
+            get => _excludedTradeSlots;
+            set
+            {
+                _excludedTradeSlots = value;
+                NotifyPropertyChanged(() => ExcludedTradeSlots);
+            }
+        }
+
+        // Helper method to get/set individual slots
+        public bool IsSlotExcluded(int x, int y)
+        {
+            if (x < 0 || x >= 12 || y < 0 || y >= 5) return false;
+            return _excludedTradeSlots[x, y];
+        }
+
+        public void SetSlotExcluded(int x, int y, bool excluded)
+        {
+            if (x < 0 || x >= 12 || y < 0 || y >= 5) return;
+            _excludedTradeSlots[x, y] = excluded;
+            NotifyPropertyChanged(() => ExcludedTradeSlots);
         }
         #endregion
 

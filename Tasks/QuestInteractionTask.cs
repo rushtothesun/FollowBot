@@ -170,6 +170,7 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("1_3_8_2", "Lady Dialla",
                 ()=> PlayerHasItem(new string [] {"Ribbon Spool", "Thaumetic Sulphite" }),
                 (obj)=> NpcHelper.TakeReward(obj, "Take Infernal Talc")),
+            new InteractQuestNpc("1_3_town", "Grigor", () => CheckQuestStateId("a3q9", 3), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Piety Reward")),
             // Act 4
             new InteractQuestNpc("1_4_3_3", "Lady Dialla",
                 ()=> PlayerHasItem(new string[] {"The Eye of Fury", "The Eye of Desire"}),
@@ -202,6 +203,9 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("2_10_town", "Bannon", ()=> PlayerHasItem("The Staff of Purity"), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_1", "Bannon", ()=>CheckQuestStateId("a10q1",4), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog)
+
+
+
         };
 
         private static bool CheckQuestStateId(string questId, int stateId)

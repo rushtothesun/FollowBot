@@ -12,9 +12,66 @@ namespace FollowBot
     public partial class FollowBotGui : UserControl
     {
         private static readonly ILog Log = Logger.GetLoggerInstanceForType();
+        private CheckBox[,] slotCheckboxes = new CheckBox[12, 5];
+
         public FollowBotGui()
         {
             InitializeComponent();
+            InitializeTradeSlotGrid();
+        }
+
+        private void InitializeTradeSlotGrid()
+        {
+            for (int y = 0; y < 5; y++)
+            {
+                for (int x = 0; x < 12; x++)
+                {
+                    var checkbox = new CheckBox
+                    {
+                        ToolTip = $"Slot ({x}, {y})",
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Width = 18,
+                        Height = 18,
+                        Margin = new Thickness(1),
+                        IsChecked = FollowBotSettings.Instance.IsSlotExcluded(x, y)
+                    };
+
+                    // Capture x,y in closure properly
+                    int capturedX = x;
+                    int capturedY = y;
+
+                    checkbox.Checked += (s, e) =>
+                        FollowBotSettings.Instance.SetSlotExcluded(capturedX, capturedY, true);
+                    checkbox.Unchecked += (s, e) =>
+                        FollowBotSettings.Instance.SetSlotExcluded(capturedX, capturedY, false);
+
+                    Grid.SetColumn(checkbox, x);
+                    Grid.SetRow(checkbox, y);
+                    TradeSlotGrid.Children.Add(checkbox);
+
+                    slotCheckboxes[x, y] = checkbox;
+                }
+            }
+        }
+
+        private void ClearAllSlots_Click(object sender, RoutedEventArgs e)
+        {
+            for (int y = 0; y < 5; y++)
+            {
+                for (int x = 0; x < 12; x++)
+                {
+                    slotCheckboxes[x, y].IsChecked = false;
+                }
+            }
+        }
+
+        private void ExcludeLeftColumn_Click(object sender, RoutedEventArgs e)
+        {
+            for (int y = 0; y < 5; y++)
+            {
+                slotCheckboxes[0, y].IsChecked = true;
+            }
         }
 
         private void RemoveDefensiveSkillRule(object sender, RoutedEventArgs e)
@@ -68,6 +125,55 @@ namespace FollowBot
             if (e != null && e.AddedItems.Count > 0)
             {
                 GlobalNameIgnoreTextBox.Text = e.AddedItems[0].ToString();
+            }
+        }
+
+        private void AddInviteTradeWhiteListButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            string text = InviteTradeWhiteListTextBox.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (!FollowBotSettings.Instance.InviteTradeWhiteList.Contains(text))
+            {
+                FollowBotSettings.Instance.InviteTradeWhiteList.Add(text);
+                FollowBotSettings.Instance.UpdateInviteTradeWhiteList();
+                InviteTradeWhiteListTextBox.Text = "";
+            }
+            else
+            {
+                Log.ErrorFormat(
+                    "[AddInviteTradeWhiteListButton_OnClick] The name {0} is already in the InviteTradeWhiteList.", text);
+            }
+        }
+
+        private void RemoveInviteTradeWhiteListButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            string text = InviteTradeWhiteListTextBox.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (FollowBotSettings.Instance.InviteTradeWhiteList.Contains(text))
+            {
+                FollowBotSettings.Instance.InviteTradeWhiteList.Remove(text);
+                FollowBotSettings.Instance.UpdateInviteTradeWhiteList();
+                InviteTradeWhiteListTextBox.Text = "";
+            }
+            else
+            {
+                Log.ErrorFormat("[RemoveInviteTradeWhiteListButton_OnClick] The name {0} is not in the InviteTradeWhiteList.", text);
+            }
+        }
+
+        private void InviteTradeWhiteListListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e != null && e.AddedItems.Count > 0)
+            {
+                InviteTradeWhiteListTextBox.Text = e.AddedItems[0].ToString();
             }
         }
 

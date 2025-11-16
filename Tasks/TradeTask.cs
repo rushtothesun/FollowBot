@@ -4,6 +4,7 @@ using DreamPoeBot.Loki.Coroutine;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
+using FollowBot.Helpers;
 using FollowBot.SimpleEXtensions;
 using log4net;
 using System;
@@ -62,7 +63,8 @@ namespace FollowBot.Tasks
 
                 if (!currentArea.IsHideoutArea && !currentArea.IsTown)
                 {
-                    Log.InfoFormat("[TradeTask] Start Trade in map");
+                    if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                        Log.InfoFormat("[TradeTask] Start Trade in map");
                     //  Map trade logic
                     try
                     {
@@ -75,7 +77,8 @@ namespace FollowBot.Tasks
 
                             if (tradeControl1 == null)
                             {
-                                GlobalLog.Debug("[TradeTask] TradeControl is null");
+                                if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                    GlobalLog.Debug("[TradeTask] TradeControl is null");
                                 break;
                             }
 
@@ -85,7 +88,8 @@ namespace FollowBot.Tasks
 
                             var transparentItems = allItems?.Where(
                                                           (item) => TradeUi.TradeControl.InventoryControl_OtherOffer.IsItemTransparent(item.LocalId));
-                            Log.DebugFormat($"[TradeTask] Find {transparentItems.Count()} transparent items.");
+                            if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                Log.DebugFormat($"[TradeTask] Find {transparentItems.Count()} transparent items.");
 
 
                             foreach (Item item in transparentItems)
@@ -104,7 +108,8 @@ namespace FollowBot.Tasks
                             if (TradeUi.TradeControl.AcceptButtonText == "accept" && TradeUi.TradeControl.OtherAcceptedTheOffert)
                             {
                                 TradeUi.TradeControl.Accept(true);
-                                Log.InfoFormat("[TradeTask] Accepting trade");
+                                if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                    Log.InfoFormat("[TradeTask] Accepting trade");
                                 await Coroutines.CloseBlockingWindows();
                                 await Coroutines.LatencyWait();
                             }
@@ -113,14 +118,16 @@ namespace FollowBot.Tasks
                     }
                     catch (Exception)
                     {
-                        GlobalLog.Debug("[TradeTask] Some error in the trade");
+                        if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                            GlobalLog.Debug("[TradeTask] Some error in the trade");
                         await Coroutines.ReactionWait();
                         await Coroutines.LatencyWait();
                     }
                 }
                 if (currentArea.IsHideoutArea || currentArea.IsTown || currentArea.Id == "HeistHub" || currentArea.Name == "Monastery of the Keepers")
                 {
-                    Log.InfoFormat("[TradeTask] Start Trade in Hideout");
+                    if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                        Log.InfoFormat("[TradeTask] Start Trade in Hideout");
 
                     try
                     {
@@ -133,20 +140,23 @@ namespace FollowBot.Tasks
 
                             if (tradeControl1 == null)
                             {
-                                GlobalLog.Debug("[TradeTask] TradeControl is null");
+                                if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                    GlobalLog.Debug("[TradeTask] TradeControl is null");
                                 break;
                             }
 
 
                             if (TradeUi.TradeControl.MeAcceptedTheOffert)
                             {
-                                Log.InfoFormat("[TradeTask] Wait accept trade");
+                                if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                    Log.InfoFormat("[TradeTask] Wait accept trade");
                                 continue;
                             }
 
                             
                             
                             var mainInventoryItems = InventoryUi.InventoryControl_Main.Inventory.Items;
+                            //commented out code stopped working for some reason
                             //var sortedInventoryItems = mainInventoryItems.OrderByDescending(item => item.Size.X * item.Size.Y).ToList();
                             /*var sortedInventoryItems = mainInventoryItems
 								.OrderByDescending(item => item.Size.X * item.Size.Y) // Area first
@@ -181,6 +191,22 @@ namespace FollowBot.Tasks
                                     if (item == null)
                                         continue;
 
+                                    // Skip quest items
+                                    if (item.Class == ItemClasses.QuestItem)
+                                    {
+                                        if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                            Log.DebugFormat($"[TradeTask] Skipping quest item: {item.Name}");
+                                        continue;
+                                    }
+
+                                    // Skip excluded slots
+                                    if (FollowBotSettings.Instance.IsSlotExcluded(x, y))
+                                    {
+                                        if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                            Log.DebugFormat($"[TradeTask] Skipping excluded slot ({x}, {y}): {item.Name}");
+                                        continue;
+                                    }
+
                                    // List<Item> yourOfferInventoryItems = TradeUi.TradeControl.InventoryControl_YourOffer.Inventory.Items;
                                     //if (yourOfferInventoryItems.Any(e => e.LocalId == item.LocalId))
                                         //continue;
@@ -192,10 +218,16 @@ namespace FollowBot.Tasks
 
                             var tradeItemsFromYourInventory = TradeUi.TradeControl.InventoryControl_YourOffer.Inventory.Items;
 
-                            if (tradeItemsFromYourInventory.Count == mainInventoryItems.Count && TradeUi.TradeControl.AcceptButtonText == "accept")
+                            // Count tradable items (non-quest AND non-excluded slots)
+                            int tradableItemCount = mainInventoryItems.Count(i =>
+                                i.Class != ItemClasses.QuestItem &&
+                                !FollowBotSettings.Instance.IsSlotExcluded(i.LocationTopLeft.X, i.LocationTopLeft.Y));
+                            
+                            if (tradeItemsFromYourInventory.Count == tradableItemCount && TradeUi.TradeControl.AcceptButtonText == "accept")
                             {
                                 TradeUi.TradeControl.Accept(true);
-                                Log.InfoFormat("[TradeTask] Accepting trade");
+                                if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                                    Log.InfoFormat("[TradeTask] Accepting trade");
                                 await Coroutines.LatencyWait();
                             }
 
@@ -204,7 +236,8 @@ namespace FollowBot.Tasks
                     }
                     catch (Exception)
                     {
-                        GlobalLog.Debug("[TradeTask] Some error in the trade");
+                        if (FollowBotSettings.Instance.EnableTradeDebugLog)
+                            GlobalLog.Debug("[TradeTask] Some error in the trade");
                         await Coroutines.ReactionWait();
                         await Coroutines.LatencyWait();
                     }
@@ -229,14 +262,14 @@ namespace FollowBot.Tasks
         }
         private static async Task<bool> HandleTradeRequest()
         {
-			bool hasVisibleTradeNotification = NotificationHud.NotificationList
-				.Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Trade);
+   bool hasVisibleTradeNotification = NotificationHud.NotificationList
+    .Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Trade);
             if (hasVisibleTradeNotification && NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count > 0)
             {
                 FollowBot.Log.WarnFormat($"[FollowBot] Visible Notifications: {NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count}");
                 ProcessNotificationEx isTradeRequestToBeAccepted = (x, y) =>
                 {
-                    var res = y == NotificationType.Trade && (string.IsNullOrEmpty(FollowBotSettings.Instance.InviteWhiteList) || FollowBotSettings.Instance.InviteWhiteList.Contains(x.CharacterName));
+                    var res = y == NotificationType.Trade && PartyHelper.IsNameInWhiteList(x.CharacterName, x.AccountName);
                     FollowBot.Log.WarnFormat($"[FollowBot] Detected {y} request from char: {x.CharacterName} [AccountName: {x.AccountName}] Accepting? {res}");
                     return res;
                 };

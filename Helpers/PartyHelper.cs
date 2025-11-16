@@ -1,6 +1,7 @@
 ﻿using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,14 +28,14 @@ namespace FollowBot.Helpers
 
         public static async Task<bool> HandlePartyInvite()
         {
-			bool hasVisiblePartyNotification = NotificationHud.NotificationList
-				.Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Party);
+      bool hasVisiblePartyNotification = NotificationHud.NotificationList
+       .Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Party);
             if (hasVisiblePartyNotification && LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count > 0)
             {
                 FollowBot.Log.WarnFormat($"[FollowBot] Visible Notifications: {LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count}");
                 LokiPoe.InGameState.ProcessNotificationEx isPartyRequestToBeAccepted = (x, y) =>
                 {
-                    var res = y == LokiPoe.InGameState.NotificationType.Party && (string.IsNullOrEmpty(FollowBotSettings.Instance.InviteWhiteList) || FollowBotSettings.Instance.InviteWhiteList.Contains(x.CharacterName));
+                    var res = y == LokiPoe.InGameState.NotificationType.Party && IsNameInWhiteList(x.CharacterName, x.AccountName);
                     FollowBot.Log.WarnFormat($"[FollowBot] Detected {y.ToString()} request from char: {x.CharacterName} [AccountName: {x.AccountName}] Accepting? {res}");
                     return res;
                 };
@@ -100,6 +101,40 @@ namespace FollowBot.Helpers
             if (LokiPoe.InGameState.GlobalWarningDialog.IsOpened)
                 LokiPoe.InGameState.GlobalWarningDialog.ConfirmDialog();
             return true;
+        }
+
+        /// <summary>
+        /// Checks if a character name or account name is in the whitelist.
+        /// Whitelist entries with "#" are treated as account names, otherwise as character names.
+        /// </summary>
+        public static bool IsNameInWhiteList(string characterName, string accountName)
+        {
+            var whiteListCollection = FollowBotSettings.Instance.InviteTradeWhiteList;
+            
+            // If whitelist is empty, allow all
+            if (whiteListCollection == null || whiteListCollection.Count == 0)
+                return true;
+
+            foreach (var entry in whiteListCollection)
+            {
+                if (string.IsNullOrEmpty(entry))
+                    continue;
+
+                // If entry contains "#", it's an account name
+                if (entry.Contains("#"))
+                {
+                    if (!string.IsNullOrEmpty(accountName) && entry.Equals(accountName, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                else
+                {
+                    // Otherwise, it's a character name
+                    if (!string.IsNullOrEmpty(characterName) && entry.Equals(characterName, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            
+            return false;
         }
     }
 }

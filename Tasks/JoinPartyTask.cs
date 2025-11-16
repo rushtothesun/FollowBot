@@ -36,21 +36,19 @@ namespace FollowBot.Tasks
         {
 			
             if (LokiPoe.InstanceInfo.PartyStatus == DreamPoeBot.Loki.Game.GameData.PartyStatus.PartyMember)
-			{
-				if (FollowBot._leaderPartyEntry?.PlayerEntry != null)
-				{
-					var leadername = FollowBot._leaderPartyEntry.PlayerEntry.Name;
-					if (!string.IsNullOrEmpty(FollowBotSettings.Instance.InviteWhiteList))
-					{
-						var whiteList = FollowBotSettings.Instance.InviteWhiteList.Split(',').Select(x => x.Trim()).ToList();
-						if (!whiteList.Contains(leadername))
-						{
-							await PartyHelper.LeaveParty();
-						}
-					}
-				}					        
-				return false;
-			}
+  {
+   if (FollowBot._leaderPartyEntry?.PlayerEntry != null)
+   {
+    var leaderCharacterName = FollowBot._leaderPartyEntry.PlayerEntry.Name;
+    var leaderAccountName = FollowBot._leaderPartyEntry.PlayerEntry.AccountName;
+    
+    if (!PartyHelper.IsNameInWhiteList(leaderCharacterName, leaderAccountName))
+    {
+     await PartyHelper.LeaveParty();
+    }
+   }
+   return false;
+  }
 			
             if (LokiPoe.InstanceInfo.PartyStatus == DreamPoeBot.Loki.Game.GameData.PartyStatus.PartyLeader)
             {

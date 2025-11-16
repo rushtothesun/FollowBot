@@ -43,28 +43,23 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Auto">
                     <StackPanel>
+                        <!-- Follower Settings (Collapsible) -->
+                        <Expander Header="Follower Settings" IsExpanded="False" Margin="5">
+                            <StackPanel>
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                        <Grid Margin="5">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Label Grid.Row="0" Grid.Column="0" Content="Checkbox Color:" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CheckboxColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     MinWidth="100"
-                                     ToolTip="Enter color name (Orange, LimeGreen, Yellow, Cyan, White, Gold, etc.) or hex code (#FF6600)"/>
-
-                            <Label Grid.Row="1" Grid.Column="0" Content="Invite Whitelist:" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Path=InviteWhiteList, Mode=TwoWay}"
-                                     MinWidth="100"
-                                     MaxWidth="200"
-                                     ToolTip="If the list is empty,the bot will accept any invite, otherwise he will accept invite only from the name in the list."/>
-                        </Grid>
+                                    <Label Grid.Row="0" Grid.Column="0" Content="Checkbox Color:" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CheckboxColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             MinWidth="100"
+                                             ToolTip="Enter color name (Orange, LimeGreen, Yellow, Cyan, White, Gold, etc.) or hex code (#FF6600)"/>
+                                </Grid>
                        <WrapPanel Margin="0,5,0,0">
                             <Label Content="Follow Distance:"/>
                             <Label Content="min"/>
@@ -77,10 +72,10 @@
                                      MinWidth="25"
                                      MaxWidth="50"
                                      ToolTip="Max follow distance. the follower will try to keep a random distance from the leader between min and max follow distance."/>
-                        </WrapPanel>
+                                </WrapPanel>
 
-                        <Label Content="Party role:   "></Label>
-                        <Grid>
+                                <Label Content="Party role:   "></Label>
+                                <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -217,12 +212,79 @@
                                         Margin="0,5,0,0"
                                         VerticalAlignment="Center"
                                         ToolTip="If the Leader Leave the zone for some reason, the bot will wait this numbr of seconds before to leave the map."/>
-                                <Label Content="Seconds."
-                                        ToolTip="If the Leader Leave the zone for some reason, the bot will wait this numbr of seconds before to leave the map."/>
-                            </WrapPanel>
+                                    <Label Content="Seconds."
+                                            ToolTip="If the Leader Leave the zone for some reason, the bot will wait this numbr of seconds before to leave the map."/>
+                                </WrapPanel>
 
-                        </Grid>
-                        <GroupBox Header="Ultimatum" Margin="5" BorderThickness="1">
+                                </Grid>
+                                
+                                <CheckBox Margin="5"
+                                          IsChecked="{Binding AutoReloadPathfinder, Mode=TwoWay}"
+                                          Content="Auto-Reload Pathfinder on Terrain Change (Keep Off)"
+                                          ToolTip="It is recommended to keep this setting off. Only enable it if you encounter blockades that the bot should be able to move through."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Invite/Trade Whitelist (Collapsible) -->
+                        <Expander Header="Invite/Trade Whitelist" IsExpanded="False" Margin="5">
+                            <StackPanel VerticalAlignment="Top" Margin="0,5,0,0">
+                                <TextBlock Text="Manage allowed account names (name#1234) or character names for party invites and trades."
+                                           Margin="5" FontStyle="Italic" Foreground="Gray"/>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Label Grid.Row="0"
+                                           Grid.Column="0"
+                                           Content="Name to Add: "
+                                           Margin="3"
+                                           ToolTipService.ToolTip="Enter an account name (name#1234) or character name to add to the whitelist."/>
+                                    <TextBox x:Name="InviteTradeWhiteListTextBox"
+                                             Grid.Row="0"
+                                             Grid.Column="1"
+                                             Width="160"/>
+                                    <Button x:Name="AddInviteTradeWhiteListButton"
+                                            Grid.Row="0"
+                                            Grid.Column="2"
+                                            Content="Add"
+                                            Margin="3,5,3,1"
+                                            ToolTipService.ToolTip="Adds the name to the whitelist. Use account name (name#1234) or character name."
+                                            Click="AddInviteTradeWhiteListButton_OnClick"/>
+                                    <Button x:Name="RemoveInviteTradeWhiteListButton"
+                                            Grid.Row="0"
+                                            Grid.Column="3"
+                                            Content="Remove"
+                                            Margin="3,5,3,1"
+                                            ToolTipService.ToolTip="Removes the selected name from the whitelist."
+                                            Click="RemoveInviteTradeWhiteListButton_OnClick"/>
+
+                                    <Label Grid.Row="1"
+                                           Grid.Column="0"
+                                           Content="Whitelist: "
+                                           Margin="3"
+                                           ToolTipService.ToolTip="Names allowed to send party invites and trade requests."/>
+                                    <ListBox x:Name="InviteTradeWhiteListListBox"
+                                             Grid.Row="1"
+                                             Grid.Column="1"
+                                             Grid.ColumnSpan="3"
+                                             ItemsSource="{Binding Path=InviteTradeWhiteList, Mode=TwoWay}"
+                                             SelectionChanged="InviteTradeWhiteListListBox_SelectionChanged"
+                                             MinHeight="100"/>
+                                </Grid>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Ultimatum (Collapsible) -->
+                        <Expander Header="Ultimatum" IsExpanded="False" Margin="5">
                             <StackPanel>
                                 <CheckBox Content="Portal After Ultimatum" IsChecked="{Binding ShouldLootUltimatum, Mode=TwoWay}" ToolTip="If enabled, the bot will search for a portal for a configurable amount of time after an Ultimatum is completed."/>
                                 <WrapPanel>
@@ -232,11 +294,56 @@
                                     <Label Content="seconds"/>
                                 </WrapPanel>
                             </StackPanel>
-                        </GroupBox>
-                       <CheckBox Margin="5"
-                                 IsChecked="{Binding AutoReloadPathfinder, Mode=TwoWay}"
-                                 Content="Auto-Reload Pathfinder on Terrain Change (Keep Off)"
-                                 ToolTip="It is recommended to keep this setting off. Only enable it if you encounter blockades that the bot should be able to move through."/>
+                        </Expander>
+
+                        <!-- Trade Settings (Collapsible) - NEW -->
+                        <Expander Header="Trade Settings" IsExpanded="False" Margin="5">
+                            <StackPanel>
+                                <CheckBox Content="Enable Trade Debug Log"
+                                          IsChecked="{Binding EnableTradeDebugLog, Mode=TwoWay}"
+                                          Margin="5"
+                                          ToolTip="If enabled, detailed trade logs will be shown for debugging purposes."/>
+                                <Expander Header="Exclude Specific Inventory Slots" IsExpanded="False" Margin="5">
+                                    <StackPanel>
+                                        <TextBlock Text="Check slots to exclude from trading (items will be kept):"
+                                                   Margin="5" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Useful for protecting flasks, currency, or important items"
+                                                   FontStyle="Italic" Foreground="Gray" Margin="5,0,5,5"/>
+                                        
+                                        <!-- 12x5 Inventory Grid -->
+                                        <Grid Name="TradeSlotGrid" HorizontalAlignment="Center" Margin="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                                <ColumnDefinition Width="20"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="20"/>
+                                                <RowDefinition Height="20"/>
+                                                <RowDefinition Height="20"/>
+                                                <RowDefinition Height="20"/>
+                                                <RowDefinition Height="20"/>
+                                            </Grid.RowDefinitions>
+                                            <!-- Checkboxes will be generated in code-behind -->
+                                        </Grid>
+                                        
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,5">
+                                            <Button Content="Clear All" Width="80" Height="25" Margin="3" Click="ClearAllSlots_Click"/>
+                                            <Button Content="Exclude Left Column" Width="120" Height="25" Margin="3" Click="ExcludeLeftColumn_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+                        </Expander>
                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
