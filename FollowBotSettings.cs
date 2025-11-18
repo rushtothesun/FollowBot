@@ -166,6 +166,7 @@ namespace FollowBot
         private bool _useLevelAllButton;
         private ObservableCollection<string> _globalNameIgnoreList;
         private ObservableCollection<string> _inviteTradeWhiteList;
+        private ObservableCollection<string> _lootBlacklist;
  
         #endregion
         
@@ -504,6 +505,27 @@ namespace FollowBot
         {
             NotifyPropertyChanged(() => InviteTradeWhiteList);
         }
+
+        /// <summary>
+        /// A list of blacklisted items that won't be picked up.
+        /// Format: "[N] itemName" or "[M] metadata"
+        /// </summary>
+        public ObservableCollection<string> LootBlacklist
+        {
+            get => _lootBlacklist ?? (_lootBlacklist = new ObservableCollection<string>());
+            set
+            {
+                if (value.Equals(_lootBlacklist)) return;
+                _lootBlacklist = value;
+                NotifyPropertyChanged(() => LootBlacklist);
+            }
+        }
+
+        public void UpdateLootBlacklist()
+        {
+            NotifyPropertyChanged(() => LootBlacklist);
+        }
+
         public class SkillGemEntry
         {
             public string Name;

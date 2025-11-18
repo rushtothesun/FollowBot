@@ -62,6 +62,12 @@ namespace FollowBot.Tasks
 
                 if (!PlayerHasItem(interactQuestObj.IncludeQuestItem)) continue;
 
+                // Special handling for Ascendancy Plaque - check quest state
+                if (interactQuestObj.ObjectName == "Ascendancy Plaque")
+                {
+                    if (!CheckQuestStateId("labyrinth_a3", 9)) continue;
+                }
+
                 NetworkObject interactTarget = LokiPoe.ObjectManager.Objects.FirstOrDefault(x => x.Name == interactQuestObj.ObjectName);
 
                 if (interactTarget == null) continue;
@@ -73,6 +79,24 @@ namespace FollowBot.Tasks
                 Log.Debug($"[{Name}: Find interact object [{interactQuestObj.ObjectName}]");
                 await interactTarget.WalkablePosition().ComeAtOnce();
                 await PlayerAction.Interact(interactTarget);
+
+                // Special handling for Ascendancy Plaque - take transition after clicking
+                if (interactQuestObj.ObjectName == "Ascendancy Plaque")
+                {
+                    Log.Debug($"[{Name}]: Ascendancy Plaque clicked, waiting before taking transition");
+                    await Wait.SleepSafe(500, 1000);
+                    
+                    var transition = LokiPoe.ObjectManager.Objects.FirstOrDefault<AreaTransition>(x => x.Name == "Aspirants' Plaza");
+                    if (transition != null)
+                    {
+                        Log.Debug($"[{Name}]: Taking transition to Aspirants' Plaza");
+                        await PlayerAction.TakeTransition(transition);
+                    }
+                    else
+                    {
+                        Log.Warn($"[{Name}]: Could not find transition to Aspirants' Plaza");
+                    }
+                }
 
                 return true;
             }
@@ -144,6 +168,7 @@ namespace FollowBot.Tasks
             new InteractQuestObject("2_6_14", "The Beacon", new string[]{"The Black Flag"}),
             new InteractQuestObject("2_7_5_2","Secret Passage" ),
             new InteractQuestObject("2_7_9", "Firefly"),
+            new InteractQuestObject("1_3_town", "Ascendancy Plaque"),
         };
         private List<InteractQuestNpc> InteractQuestNpcs { get; set; } = new List<InteractQuestNpc>
         {
@@ -203,8 +228,7 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("2_10_town", "Bannon", ()=> PlayerHasItem("The Staff of Purity"), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_1", "Bannon", ()=>CheckQuestStateId("a10q1",4), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog)
-
-
+        
         };
 
         private static bool CheckQuestStateId(string questId, int stateId)

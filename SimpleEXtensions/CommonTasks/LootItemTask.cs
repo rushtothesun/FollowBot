@@ -38,6 +38,9 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             List<CachedWorldItem> validItems = new List<CachedWorldItem>();
             var allItems = items.FindAll(i => !i.Ignored && !i.Unwalkable);
 
+            // Apply blacklist filter
+            allItems = allItems.FindAll(i => !IsBlacklisted(i));
+
             if (FollowBotSettings.Instance.ShouldLootOnlyQuestItem)
             {
                 allItems = allItems.FindAll(i => i.Rarity == Rarity.Quest);
@@ -303,6 +306,35 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             }
 
             return MessageResult.Unprocessed;
+        }
+
+        private static bool IsBlacklisted(CachedWorldItem item)
+        {
+            var blacklist = FollowBotSettings.Instance.LootBlacklist;
+            if (blacklist == null || blacklist.Count == 0)
+                return false;
+
+            string itemName = item.Position.Name;
+            
+            foreach (string entry in blacklist)
+            {
+                // Name entries start with [N]
+                if (entry.StartsWith("[N] ", StringComparison.OrdinalIgnoreCase))
+                {
+                    string name = entry.Substring(4);
+                    if (itemName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                // Metadata entries start with [M]
+                else if (entry.StartsWith("[M] ", StringComparison.OrdinalIgnoreCase))
+                {
+                    string metadata = entry.Substring(4);
+                    if (item.Metadata.Equals(metadata, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            
+            return false;
         }
 
         #region Unused interface methods

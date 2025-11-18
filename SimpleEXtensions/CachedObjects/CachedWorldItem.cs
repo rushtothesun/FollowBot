@@ -12,12 +12,16 @@ namespace FollowBot.SimpleEXtensions
     {
         public Vector2i Size { get; }
         public Rarity Rarity { get; }
+        public string Metadata { get; }
+        public string Class { get; }
 
-        public CachedWorldItem(int id, WalkablePosition position, Vector2i size, Rarity rarity)
+        public CachedWorldItem(int id, WalkablePosition position, Vector2i size, Rarity rarity, string metadata, string itemClass)
             : base(id, position)
         {
             Size = size;
             Rarity = rarity;
+            Metadata = metadata ?? string.Empty;
+            Class = itemClass ?? string.Empty;
         }
 
         public new WorldItem Object

@@ -266,7 +266,7 @@ namespace FollowBot.SimpleEXtensions.Global
 
                 var pos = worldItem.WalkablePosition();
                 pos.Initialized = true; //disable walkable position searching for items
-                Items.Add(new CachedWorldItem(id, pos, item.Size, item.Rarity));
+                Items.Add(new CachedWorldItem(id, pos, item.Size, item.Rarity, item.Metadata, item.Class));
                 
                 _processedItems.Add(id);
             }

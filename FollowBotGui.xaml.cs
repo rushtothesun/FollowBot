@@ -177,6 +177,56 @@ namespace FollowBot
             }
         }
 
+        private void AddLootBlacklistButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            string text = LootBlacklistTextBox.Text.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+            
+            // Determine type based on radio button
+            bool isMetadata = BlacklistByMetadata.IsChecked == true;
+            string prefix = isMetadata ? "[M] " : "[N] ";
+            string entry = prefix + text;
+            
+            // Check for duplicates
+            if (FollowBotSettings.Instance.LootBlacklist.Contains(entry))
+            {
+                MessageBox.Show($"'{text}' is already blacklisted.", "Duplicate",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            
+            FollowBotSettings.Instance.LootBlacklist.Add(entry);
+            FollowBotSettings.Instance.UpdateLootBlacklist();
+            LootBlacklistTextBox.Text = string.Empty;
+        }
+
+        private void RemoveLootBlacklistButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (LootBlacklistListBox.SelectedItem == null) return;
+            
+            string selected = LootBlacklistListBox.SelectedItem.ToString();
+            FollowBotSettings.Instance.LootBlacklist.Remove(selected);
+            FollowBotSettings.Instance.UpdateLootBlacklist();
+        }
+
+        private void LootBlacklistListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (LootBlacklistListBox.SelectedItem != null)
+            {
+                string selected = LootBlacklistListBox.SelectedItem.ToString();
+                if (selected.StartsWith("[N] "))
+                {
+                    LootBlacklistTextBox.Text = selected.Substring(4);
+                    BlacklistByName.IsChecked = true;
+                }
+                else if (selected.StartsWith("[M] "))
+                {
+                    LootBlacklistTextBox.Text = selected.Substring(4);
+                    BlacklistByMetadata.IsChecked = true;
+                }
+            }
+        }
+
         private void ChangeStance_OnClick(object sender, RoutedEventArgs e)
         {
             if (FollowBotSettings.Instance.BloorOrSand == FollowBotSettings.BloodAndSand.Blood)

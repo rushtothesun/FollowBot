@@ -283,6 +283,72 @@
                             </StackPanel>
                         </Expander>
 
+                        <!-- Loot Blacklist -->
+                        <Expander Header="Loot Blacklist" IsExpanded="False" Margin="5">
+                            <StackPanel VerticalAlignment="Top" Margin="5">
+                                <TextBlock Text="Prevent specific items from being picked up, even if visible."
+                                           Margin="5" FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap"/>
+                                
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Type Selection -->
+                                    <Label Grid.Row="0" Grid.Column="0" Content="Type:" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="3">
+                                        <RadioButton x:Name="BlacklistByName" Content="By Name" IsChecked="True"
+                                                     GroupName="BlacklistType" Margin="0,0,15,0"
+                                                     ToolTip="Block by display name (e.g., 'Scroll of Wisdom')"/>
+                                        <RadioButton x:Name="BlacklistByMetadata" Content="By Metadata"
+                                                     GroupName="BlacklistType"
+                                                     ToolTip="Block by metadata (e.g., 'Metadata/Items/Currency/CurrencyIdentification')"/>
+                                    </StackPanel>
+
+                                    <!-- Input Field -->
+                                    <Label Grid.Row="1" Grid.Column="0" Content="Item:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="LootBlacklistTextBox" Grid.Row="1" Grid.Column="1"
+                                             MinWidth="200" Margin="3" VerticalAlignment="Center"/>
+                                    
+                                    <!-- Action Buttons -->
+                                    <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="3">
+                                        <Button x:Name="AddLootBlacklistButton" Content="Add" MinWidth="60"
+                                                Margin="0,0,3,0" Click="AddLootBlacklistButton_OnClick"
+                                                ToolTip="Add to blacklist"/>
+                                        <Button x:Name="RemoveLootBlacklistButton" Content="Remove" MinWidth="60"
+                                                Click="RemoveLootBlacklistButton_OnClick"
+                                                ToolTip="Remove selected from blacklist"/>
+                                    </StackPanel>
+
+                                    <!-- Blacklist Display -->
+                                    <Label Grid.Row="2" Grid.Column="0" Content="Blacklist:"
+                                           VerticalAlignment="Top" Margin="0,5,0,0"/>
+                                    <ListBox x:Name="LootBlacklistListBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                                             MinHeight="100" MaxHeight="200" Margin="3,5,3,3"
+                                             ItemsSource="{Binding Path=LootBlacklist, Mode=TwoWay}"
+                                             SelectionChanged="LootBlacklistListBox_SelectionChanged"/>
+
+                                    <!-- Examples -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="5"
+                                               FontSize="10" Foreground="Gray" TextWrapping="Wrap">
+                                        <Run Text="Examples: "/>
+                                        <LineBreak/>
+                                        <Run Text="• Name: 'Scroll of Wisdom', 'Portal Scroll'"/>
+                                        <LineBreak/>
+                                        <Run Text="• Metadata: 'Metadata/Items/Currency/CurrencyIdentification'"/>
+                                    </TextBlock>
+                                </Grid>
+                            </StackPanel>
+                        </Expander>
+
                         <!-- Ultimatum (Collapsible) -->
                         <Expander Header="Ultimatum Settings" IsExpanded="False" Margin="5">
                             <StackPanel>
