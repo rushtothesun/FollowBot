@@ -32,11 +32,11 @@ namespace FollowBot.Helpers
        .Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Party);
             if (hasVisiblePartyNotification && LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count > 0)
             {
-                FollowBot.Log.WarnFormat($"[FollowBot] Visible Notifications: {LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count}");
+                GlobalLog.Warn($"[FollowBot] Visible Notifications: {LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count}");
                 LokiPoe.InGameState.ProcessNotificationEx isPartyRequestToBeAccepted = (x, y) =>
                 {
                     var res = y == LokiPoe.InGameState.NotificationType.Party && IsNameInWhiteList(x.CharacterName, x.AccountName);
-                    FollowBot.Log.WarnFormat($"[FollowBot] Detected {y.ToString()} request from char: {x.CharacterName} [AccountName: {x.AccountName}] Accepting? {res}");
+                    GlobalLog.Warn($"[FollowBot] Detected {y.ToString()} request from char: {x.CharacterName} [AccountName: {x.AccountName}] Accepting? {res}");
                     return res;
                 };
 
@@ -46,7 +46,7 @@ namespace FollowBot.Helpers
                     await Wait.Sleep(500);
                 }
                 var ret = LokiPoe.InGameState.NotificationHud.HandleNotificationEx(isPartyRequestToBeAccepted);
-                FollowBot.Log.WarnFormat($"[HandlePartyInvite] Result: {ret}");
+                GlobalLog.Warn($"[HandlePartyInvite] Result: {ret}");
                 await Coroutines.LatencyWait();
                 if (ret == LokiPoe.InGameState.HandleNotificationResult.Accepted) return true;
             }
@@ -109,7 +109,7 @@ namespace FollowBot.Helpers
         /// </summary>
         public static bool IsNameInWhiteList(string characterName, string accountName)
         {
-            var whiteListCollection = FollowBotSettings.Instance.InviteTradeWhiteList;
+            var whiteListCollection = FollowBotSettings.Instance.Follow.PartyAndTradeWhitelist;
             
             // If whitelist is empty, allow all
             if (whiteListCollection == null || whiteListCollection.Count == 0)

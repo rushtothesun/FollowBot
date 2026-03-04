@@ -11,7 +11,6 @@ using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.CommonTasks;
 using FollowBot.SimpleEXtensions.Global;
 using FollowBot.Tasks;
-using log4net;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -26,7 +25,6 @@ namespace FollowBot
 {
     public class FollowBot : IBot
     {
-        public static readonly ILog Log = Logger.GetLoggerInstanceForType();
 
         private FollowBotGui _gui;
         private Coroutine _coroutine;
@@ -131,8 +129,8 @@ namespace FollowBot
             LokiPoe.Input.Binding.Update();
 
             // Reset the default MsBetweenTicks on start.
-            Log.Debug($"[Start] MsBetweenTicks: {BotManager.MsBetweenTicks}.");
-            Log.Debug($"[Start] PlayerMover.Instance: {PlayerMoverManager.Current.GetType()}.");
+            GlobalLog.Debug($"[Start] MsBetweenTicks: {BotManager.MsBetweenTicks}.");
+            GlobalLog.Debug($"[Start] PlayerMover.Instance: {PlayerMoverManager.Current.GetType()}.");
 
             // Since this bot will be performing client actions, we need to enable the process hook manager.
             LokiPoe.ProcessHookManager.Enable();
@@ -156,10 +154,10 @@ namespace FollowBot
 
             foreach (var plugin in PluginManager.EnabledPlugins)
             {
-                Log.Debug($"[Start] The plugin {plugin.Name} is enabled.");
+                GlobalLog.Debug($"[Start] The plugin {plugin.Name} is enabled.");
             }
 
-            Log.Debug($"[Start] PlayerMover.Instance: {PlayerMoverManager.Current.GetType()}.");
+            GlobalLog.Debug($"[Start] PlayerMover.Instance: {PlayerMoverManager.Current.GetType()}.");
 
             //if (ExilePather.BlockTrialOfAscendancy == FeatureEnum.Unset)
             //{
@@ -191,7 +189,7 @@ namespace FollowBot
             // Check to see if the coroutine is finished. If it is, stop the bot.
             if (_coroutine.IsFinished)
             {
-                Log.Debug($"The bot coroutine has finished in a state of {_coroutine.Status}");
+                GlobalLog.Debug($"The bot coroutine has finished in a state of {_coroutine.Status}");
                 BotManager.Stop();
                 return;
             }
@@ -273,7 +271,7 @@ namespace FollowBot
                         // Wait for game pause
                         if (LokiPoe.InstanceInfo.IsGamePaused)
                         {
-                            Log.Debug("Waiting for game pause");
+                            GlobalLog.Debug("Waiting for game pause");
                         }
                         // Resurrect character if it is dead
                         else if (LokiPoe.Me.IsDead && World.CurrentArea.Id != "HallsOfTheDead_League")
@@ -375,9 +373,11 @@ namespace FollowBot
             _taskManager.Add(new ClearCursorTask());
 			_taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new TradeTask());
+            _taskManager.Add(new StashTask());
             _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
             _taskManager.Add(new UltimatumTask());
+            _taskManager.Add(new DivineFontTask());
             _taskManager.Add(new CustomSkillsTask());
             _taskManager.Add(new AsyncCustomSkillsTask());
             _taskManager.Add(new LootItemTask());
@@ -408,7 +408,7 @@ namespace FollowBot
         private static void OnNewMapEnter()
         {
             var areaName = World.CurrentArea.Name;
-            Log.Info($"[FollowBot] New map has been entered: {areaName}.");
+            GlobalLog.Info($"[FollowBot] New map has been entered: {areaName}.");
             IsOnRun = true;
             Utility.BroadcastMessage(null, Messages.NewMapEntered, areaName);
         }
@@ -470,10 +470,10 @@ namespace FollowBot
 
         private void UpdatePathfinderSettings()
         {
-            var desiredState = FollowBotSettings.Instance.AutoReloadPathfinder;
+            var desiredState = FollowBotSettings.Instance.Follow.AutoReloadPathfinder;
             if (BotManager.AutoReloadPathfinde != desiredState)
             {
-                Log.Debug($"[UpdatePathfinderSettings] Setting BotManager.AutoReloadPathfinde to {desiredState}.");
+                GlobalLog.Debug($"[UpdatePathfinderSettings] Setting BotManager.AutoReloadPathfinde to {desiredState}.");
                 BotManager.AutoReloadPathfinde = desiredState;
             }
         }

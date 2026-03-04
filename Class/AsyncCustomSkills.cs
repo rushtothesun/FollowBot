@@ -14,6 +14,10 @@ namespace FollowBot.Class
 
         public static async Task LinkSkillHandler()
         {
+
+            if (CustomSkills.IsOnCooldown("LinkSkill"))
+                return;
+
             var linkSkills = new[]
             {
                 "Intuitive Link", "Vampiric Link", "Destructive Link",
@@ -40,16 +44,18 @@ namespace FollowBot.Class
                     if (useResult == LokiPoe.InGameState.UseResult.CouldNotHighlight)
                     {
                         LokiPoe.InGameState.SkillBarHud.UseAt(linkSkill.Slot, false, leader.Position, false);
+                        CustomSkills.UpdateCooldown("LinkSkill");
                         await Coroutines.ReactionWait();
                         return; // Use at leader and exit
                     }
+                    CustomSkills.UpdateCooldown("LinkSkill");
                     await Coroutines.ReactionWait();
                     return; // Use on leader and exit
                 }
             }
 
             // Handle additional targets
-            string additionalTargets = FollowBotSettings.Instance.LinkSkillAdditionalTargets;
+            string additionalTargets = FollowBotSettings.Instance.CustomSkills.LinkSkillAdditionalTargets;
             if (!string.IsNullOrEmpty(additionalTargets))
             {
                 var targetNames = additionalTargets.Split(',').Select(s => s.Trim());
@@ -69,9 +75,11 @@ namespace FollowBot.Class
                             if (useResult2 == LokiPoe.InGameState.UseResult.CouldNotHighlight)
                             {
                                 LokiPoe.InGameState.SkillBarHud.UseAt(linkSkill.Slot, false, targetPlayer.Position, false);
+                                CustomSkills.UpdateCooldown("LinkSkill");
                                 await Coroutines.ReactionWait();
                                 return; // Use at target and exit
                             }
+                            CustomSkills.UpdateCooldown("LinkSkill");
                             await Coroutines.ReactionWait();
                             return; // Cast on one additional target per tick
                         }
@@ -82,7 +90,7 @@ namespace FollowBot.Class
 
         public static async Task SummonRagingSpirits()
         {
-            var settings = FollowBotSettings.Instance;
+            var settings = FollowBotSettings.Instance.CustomSkills;
 
             var srsSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.Name == "Summon Raging Spirit");
             if (srsSkill == null || !srsSkill.CanUse())
@@ -109,7 +117,7 @@ namespace FollowBot.Class
 
         public static async Task SummonSkeletons()
         {
-            var settings = FollowBotSettings.Instance;
+            var settings = FollowBotSettings.Instance.CustomSkills;
 
             var skeletonSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.Name == "Summon Skeletons");
             if (skeletonSkill == null || !skeletonSkill.CanUse())
@@ -134,29 +142,6 @@ namespace FollowBot.Class
             }
         }
 
-        public static async Task BreachGraft1()
-        {
-            var settings = FollowBotSettings.Instance;
-
-            var skill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.InternalName == "ManualGraftTrigger");
-            if (skill == null || !skill.CanUse())
-                return;
-
-            var leader = FollowBot.Leader;
-            if (leader == null || leader.Distance > settings.BreachGraft1CustomDistance)
-                return;
-
-            bool monsterNearby = LokiPoe.ObjectManager.GetObjectsByType<Monster>()
-                .Any(m => m.IsHostile && !m.IsHidden && !m.IsDead && m.IsTargetable && m.Distance <= settings.BreachGraft1MonsterDistance &&
-                           ((m.Rarity == Rarity.Rare || m.Rarity == Rarity.Unique) ||
-                            (settings.BreachGraft1OnNormalMagic && (m.Rarity == Rarity.Normal || m.Rarity == Rarity.Magic))));
-
-            if (monsterNearby)
-            {
-                SkillBar.Use(skill.Slot, false, false);
-                await Coroutines.ReactionWait();
-            }
-        }
 
         public static async Task SentinelUsage()
         {

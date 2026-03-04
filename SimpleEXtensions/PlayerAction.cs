@@ -137,6 +137,30 @@ namespace FollowBot.SimpleEXtensions
             }
             return false;
         }
+
+        public static async Task<bool> InteractWithoutDelay(NetworkObject obj, int attempts)
+        {
+            if (obj == null)
+                return false;
+
+            var name = obj.Name;
+            for (int i = 1; i <= attempts; i++)
+            {
+                if (!LokiPoe.IsInGame || LokiPoe.Me.IsDead)
+                    break;
+
+                await Coroutines.CloseBlockingWindows();
+                await Coroutines.FinishCurrentAction();
+
+                if (await Coroutines.InteractWith(obj))
+                    return true;
+                GlobalLog.Error($"[Interact] Fail to interact with \"{name}\". Attempt: {i}/{attempts}.");
+                await Coroutines.LatencyWait();
+                //await Wait.SleepSafe(100, 200);
+            }
+            return false;
+        }
+        
         public static async Task<bool> Logout()
         {
             GlobalLog.Debug("[Logout] Now going to log out.");
@@ -426,7 +450,7 @@ namespace FollowBot.SimpleEXtensions
             }
             return await Wait.ForAreaChange(areaHash);
         }
-        private static async Task<bool> CreateNewInstance(AreaTransition transition)
+        public static async Task<bool> CreateNewInstance(AreaTransition transition)
         {
             var name = transition.Name;
             if (!await Coroutines.InteractWith(transition, true))

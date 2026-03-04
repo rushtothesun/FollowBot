@@ -3,7 +3,7 @@ using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
-using log4net;
+using FollowBot.SimpleEXtensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -15,7 +15,6 @@ namespace FollowBot.Tasks
 {
     public class LevelGemsTask : ITask
     {
-        private static readonly ILog Log = Logger.GetLoggerInstanceForType();
         private readonly WaitTimer _levelWait = WaitTimer.FiveSeconds;
 
         public string Name { get { return "LevelGemsTask"; } }
@@ -67,7 +66,7 @@ namespace FollowBot.Tasks
             }
 
             // Check if feature is enabled
-            if (!FollowBotSettings.Instance.LevelGems)
+            if (!FollowBotSettings.Instance.Gems.LevelGems)
             {
                 return false;
             }
@@ -90,9 +89,9 @@ namespace FollowBot.Tasks
 
                     if (prependingGems == null || prependingGems.Count == 0)
                     {
-                        if (FollowBotSettings.Instance.GemDebugStatements)
+                        if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                         {
-                            Log.DebugFormat("[LevelGemsTask] No pending gems on HUD.");
+                            GlobalLog.Debug("[LevelGemsTask] No pending gems on HUD.");
                         }
                         return false;
                     }
@@ -119,9 +118,9 @@ namespace FollowBot.Tasks
                     // Exit early if only greyed-out gems (no action needed)
                     if (!hasActionableGem)
                     {
-                        if (FollowBotSettings.Instance.GemDebugStatements)
+                        if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                         {
-                            Log.DebugFormat("[LevelGemsTask] All {0} gems are greyed out, skipping until requirements met.", prependingGems.Count);
+                            GlobalLog.Debug($"[LevelGemsTask] All {prependingGems.Count} gems are greyed out, skipping until requirements met.");
                         }
                         return false;
                     }
@@ -140,9 +139,9 @@ namespace FollowBot.Tasks
                     // Safety check for both lists
                     if (pendingElements == null || pendingElements.Count == 0 || pendingGems == null || pendingGems.Count == 0)
                     {
-                        if (FollowBotSettings.Instance.GemDebugStatements)
+                        if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                         {
-                            Log.DebugFormat("[LevelGemsTask] No pending elements (UI issue?)");
+                            GlobalLog.Debug("[LevelGemsTask] No pending elements (UI issue?)");
                         }
                         return false;
                     }
@@ -156,9 +155,9 @@ namespace FollowBot.Tasks
                         // Check if gem is in the ignore list
                         if (ContainsHelper(gem.Item.Name, gem.Item.SkillGemLevel))
                         {
-                            if (FollowBotSettings.Instance.GemDebugStatements)
+                            if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                             {
-                                Log.DebugFormat("[LevelGemsTask] Dismissing ignored gem: {0} [Level: {1}]", gem.Item.Name, gem.Item.SkillGemLevel);
+                                GlobalLog.Debug($"[LevelGemsTask] Dismissing ignored gem: {gem.Item.Name} [Level: {gem.Item.SkillGemLevel}]");
                             }
 
                             // Right-click Child[1] (the button) to dismiss
@@ -168,13 +167,13 @@ namespace FollowBot.Tasks
                                 var clickPos = buttonElement.CenterClickLocation();
                                 
                                 MouseManager.SetMousePosition(clickPos, useRandomPos: false);
-                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                                Thread.Sleep(LokiPoe.Random.Next(25, 100));
                                 MouseManager.ClickRMB();
-                                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                                Thread.Sleep(LokiPoe.Random.Next(25, 100));
 
-                                if (FollowBotSettings.Instance.GemDebugStatements)
+                                if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                                 {
-                                    Log.DebugFormat("[LevelGemsTask] Dismissed gem at position {0}", clickPos);
+                                    GlobalLog.Debug($"[LevelGemsTask] Dismissed gem at position {clickPos}");
                                 }
 
                                 // Re-check list on next run
@@ -227,16 +226,16 @@ namespace FollowBot.Tasks
                     }
                     */
 
-                    if (FollowBotSettings.Instance.GemDebugStatements)
+                    if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                     {
-                        Log.DebugFormat("[LevelGemsTask] Found {0} levelable gems", levelableCount);
+                        GlobalLog.Debug($"[LevelGemsTask] Found {levelableCount} levelable gems");
                     }
 
                     // PHASE 3: Level gems
-                    if (levelableCount >= 2 && FollowBotSettings.Instance.UseLevelAllButton)
+                    if (levelableCount >= 2 && FollowBotSettings.Instance.Gems.UseLevelAllButton)
                     {
                         // Use LevelAll button if enabled and 2+ gems ready
-                        Log.InfoFormat("[LevelGemsTask] Using LevelAll() for {0} gems", levelableCount);
+                        GlobalLog.Info($"[LevelGemsTask] Using LevelAll() for {levelableCount} gems");
                         LokiPoe.InGameState.SkillGemHud.LevelAll();
                     }
                     else if (levelableCount >= 1)
@@ -251,9 +250,9 @@ namespace FollowBot.Tasks
                                 var buttonElement = element.Children[1];
                                 var clickPos = buttonElement.CenterClickLocation();
                                 
-                                if (FollowBotSettings.Instance.GemDebugStatements)
+                                if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                                 {
-                                    Log.DebugFormat("[LevelGemsTask] Leveling single gem at index {0}", firstLevelableIndex);
+                                    GlobalLog.Debug($"[LevelGemsTask] Leveling single gem at index {firstLevelableIndex}");
                                 }
 
                                 MouseManager.SetMousePosition(clickPos, useRandomPos: false);
@@ -261,7 +260,7 @@ namespace FollowBot.Tasks
                                 MouseManager.ClickLMB();
                                 Thread.Sleep(LokiPoe.Random.Next(90, 150));
 
-                                Log.InfoFormat("[LevelGemsTask] Leveled gem at position {0}", clickPos);
+                                GlobalLog.Info($"[LevelGemsTask] Leveled gem at position {clickPos}");
                             }
                         }
                     }
@@ -290,7 +289,7 @@ namespace FollowBot.Tasks
 
         private static bool ContainsHelper(string name, int level)
         {
-            foreach (string entry in FollowBotSettings.Instance.GlobalNameIgnoreList)
+            foreach (string entry in FollowBotSettings.Instance.Gems.GlobalNameIgnoreList)
             {
                 string[] ignoreArray = entry.Split(',');
                 if (ignoreArray.Length == 1)

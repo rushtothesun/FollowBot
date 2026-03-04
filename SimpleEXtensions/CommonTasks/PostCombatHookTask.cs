@@ -9,7 +9,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
         public async Task<bool> Run()
         {
-            if (!FollowBotSettings.Instance.ShouldKill) return false;
+            if (!FollowBotSettings.Instance.Combat.ShouldKill) return false;
             foreach (var plugin in PluginManager.EnabledPlugins)
             {
                 if (await plugin.Logic(new Logic(MessageId, this)) == LogicResult.Provided)

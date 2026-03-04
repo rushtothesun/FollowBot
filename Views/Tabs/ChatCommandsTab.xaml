@@ -1,0 +1,148 @@
+<UserControl x:Class="FollowBot.Views.Tabs.ChatCommandsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:settingsPath="clr-namespace:FollowBot"
+             mc:Ignorable="d"
+             d:DataContext="{x:Static settingsPath:FollowBotSettings.Instance}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Label Content=""
+               Grid.Row="0"
+               Grid.Column="0"
+               HorizontalAlignment="Center"></Label>
+        <Label Content="On"
+               Grid.Row="0"
+               Grid.Column="1"
+               HorizontalAlignment="Center"></Label>
+        <Label Content="Off"
+               Grid.Row="0"
+               Grid.Column="2"
+               HorizontalAlignment="Center"></Label>
+        <Label Content="Teleport to Leader: "
+               Grid.Row="1"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.TeleportToLeaderChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="1"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by trying to teleport to the leader zone."/>
+
+        <Label Content="Follow: "
+               Grid.Row="2"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.StartFollowChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="2"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by restart following the leader."/>
+        <TextBox Text="{Binding Path=ChatCommands.StopFollowChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="2"
+                 Grid.Column="2"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by stop following the leader, the follower will still perform common actions like cast auras, use flasks, use skills, loot or fight if enabled."/>
+
+        <Label Content="Loot: "
+               Grid.Row="3"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.StartLootChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="3"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning on the loot feature."/>
+        <TextBox Text="{Binding Path=ChatCommands.StopLootChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="3"
+                 Grid.Column="2"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning off the loot feature."/>
+
+        <Label Content="Attack: "
+               Grid.Row="4"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.StartAttackChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="4"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning on the fight feature."/>
+        <TextBox Text="{Binding Path=ChatCommands.StopAttackChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="4"
+                 Grid.Column="2"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning off the fight feature."/>
+
+        <Label Content="Sentinel: "
+               Grid.Row="5"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.StartSentinelChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="5"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning on the sentinel feature."/>
+        <TextBox Text="{Binding Path=ChatCommands.StopSentinelChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="5"
+                 Grid.Column="2"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning off the sentinel feature."/>
+
+        <Label Content="Auto Teleport: "
+               Grid.Row="6"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.StartAutoTeleportChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="6"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning on the Don't Port Out of Map feature."/>
+        <TextBox Text="{Binding Path=ChatCommands.StopAutoTeleportChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="6"
+                 Grid.Column="2"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by turning off the Don't Port Out of Map feature."/>
+
+        <Label Content="Enter Portal: "
+               Grid.Row="7"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.EnterPortalChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="7"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by trying to enter a nearby portal."/>
+
+        <Label Content="Deposit to Stash: "
+               Grid.Row="8"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.DepositStashChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="8"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by depositing inventory to stash (only works in hideout or town)."/>
+
+        <Label Content="New Instance: "
+               Grid.Row="9"
+               Grid.Column="0"/>
+        <TextBox Text="{Binding Path=ChatCommands.NewInstanceChatCommand, Mode=TwoWay}"
+                 MinWidth="100"
+                 Grid.Row="9"
+                 Grid.Column="1"
+                 ToolTip="The follower will react to this message (if the message come from the party leader in whisper or group chat) by creating a new instance of the nearest area transition."/>
+    </Grid>
+
+</UserControl>

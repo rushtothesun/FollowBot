@@ -5,7 +5,6 @@ using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Helpers;
 using FollowBot.SimpleEXtensions;
-using log4net;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,8 +34,7 @@ namespace FollowBot.Tasks
     class QuestInteractionTask : ITask
     {
 
-        private readonly ILog Log = Logger.GetLoggerInstanceForType();
-        public string Author => "Letale";
+        public string Author => "Letale, Rushtothesun";
         public string Description => "Quest interact";
         public string Name => "QuestInteract";
         public string Version => "0.0.0.1";
@@ -53,7 +51,9 @@ namespace FollowBot.Tasks
 
         public async Task<bool> Run()
         {
-            if (!FollowBotSettings.Instance.InteractQuest) return false;
+            if (!FollowBotSettings.Instance.Follow.InteractQuest) return false;
+            if (LokiPoe.CurrentWorldArea.IsMap || LokiPoe.CurrentWorldArea.IsHideoutArea) return false;
+
             var areaId = LokiPoe.CurrentWorldArea.Id;
 
             foreach (var interactQuestObj in QuestInteractionObjects)
@@ -76,25 +76,25 @@ namespace FollowBot.Tasks
                 {
                     return false;
                 }
-                Log.Debug($"[{Name}: Find interact object [{interactQuestObj.ObjectName}]");
+                GlobalLog.Debug($"[{Name}: Find interact object [{interactQuestObj.ObjectName}]");
                 await interactTarget.WalkablePosition().ComeAtOnce();
                 await PlayerAction.Interact(interactTarget);
 
                 // Special handling for Ascendancy Plaque - take transition after clicking
                 if (interactQuestObj.ObjectName == "Ascendancy Plaque")
                 {
-                    Log.Debug($"[{Name}]: Ascendancy Plaque clicked, waiting before taking transition");
+                    GlobalLog.Debug($"[{Name}]: Ascendancy Plaque clicked, waiting before taking transition");
                     await Wait.SleepSafe(500, 1000);
-                    
+
                     var transition = LokiPoe.ObjectManager.Objects.FirstOrDefault<AreaTransition>(x => x.Name == "Aspirants' Plaza");
                     if (transition != null)
                     {
-                        Log.Debug($"[{Name}]: Taking transition to Aspirants' Plaza");
+                        GlobalLog.Debug($"[{Name}]: Taking transition to Aspirants' Plaza");
                         await PlayerAction.TakeTransition(transition);
                     }
                     else
                     {
-                        Log.Warn($"[{Name}]: Could not find transition to Aspirants' Plaza");
+                        GlobalLog.Warn($"[{Name}]: Could not find transition to Aspirants' Plaza");
                     }
                 }
 
@@ -111,10 +111,12 @@ namespace FollowBot.Tasks
                 if (findObj == null) continue;
                 if (findObj.Reaction != Reaction.Npc) continue;
                 if (!findObj.IsTargetable) continue;
-                if (!findObj.PathExists()) continue;
+
+                // Only check PathExists for non-town areas - in towns it can incorrectly return false
+                if (!LokiPoe.CurrentWorldArea.IsTown && !findObj.PathExists()) continue;
 
                 if (!LokiPoe.CurrentWorldArea.IsTown && LokiPoe.Me.Position.Distance(findObj.Position) > 30) continue;
-                Log.Debug($"[{Name}: Find Npc [{npcInteractInf.NpcName}]");
+                GlobalLog.Debug($"[{Name}: Find Npc [{npcInteractInf.NpcName}]");
 
                 await npcInteractInf.Action(findObj);
 
@@ -164,7 +166,6 @@ namespace FollowBot.Tasks
             new InteractQuestObject("1_4_3_2", "Deshret's Spirit"),
             new InteractQuestObject("1_5_3", "Templar Courts Entrance", new string[] {"Eyes of Zeal"}),
             new InteractQuestObject("2_6_4","Fortress Gate", new string[] {"Eye of Conquest"}),
-            new InteractQuestObject("2_6_14","Ignition Switch", new string[]{"The Black Flag"}),
             new InteractQuestObject("2_6_14", "The Beacon", new string[]{"The Black Flag"}),
             new InteractQuestObject("2_7_5_2","Secret Passage" ),
             new InteractQuestObject("2_7_9", "Firefly"),
@@ -197,6 +198,8 @@ namespace FollowBot.Tasks
                 (obj)=> NpcHelper.TakeReward(obj, "Take Infernal Talc")),
             new InteractQuestNpc("1_3_town", "Grigor", () => CheckQuestStateId("a3q9", 3), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Piety Reward")),
             // Act 4
+            new InteractQuestNpc("1_4_town", "Tasuni", () => CheckQuestStateId("a4q6", 2),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Deshret Reward")),
             new InteractQuestNpc("1_4_3_3", "Lady Dialla",
                 ()=> PlayerHasItem(new string[] {"The Eye of Fury", "The Eye of Desire"}),
                 NpcHelper.TalkAndSkipDialog),
@@ -206,29 +209,67 @@ namespace FollowBot.Tasks
                 ()=> PlayerHasItem(new string[]{"Malachai's Heart", "Malachai's Entrails", "Malachai's Lungs" }),
                 NpcHelper.TalkAndSkipDialog),
             // Act 5
+            new InteractQuestNpc("1_5_town", "Vilenta", () => PlayerHasItem("Miasmeter"), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Miasmeter Reward")),
+            new InteractQuestNpc("1_5_town", "Lani", () => CheckQuestStateId("a5q4", 1), (obj) => NpcHelper.TakeReward(obj, "Avarius Reward")),
+            new InteractQuestNpc("1_5_town", "Lani", () => CheckQuestStateId("a5q7", new int[] {1, 2, 3}) && PlayerHasItem(new string[] {"Valako's Jaw", "Tukohama's Tooth", "Hinekora's Hair"}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Torments Reward")),
             //new InteractQuestNpc("1_5_5", "Bannon", NpcHelper.TalkAndSkipDialog),
+            // Act 6
+            new InteractQuestNpc("2_6_town", "Lilly Roth", () => CheckQuestStateId("a6q4", 2),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Twilight Strand Reward")),
+            new InteractQuestNpc("2_6_town", "Bestel", () => CheckQuestStateId("a6q7", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Abberath Reward")),
+            new InteractQuestNpc("2_6_town", "Tarkleigh", () => CheckQuestStateId("a6q3", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Tukohama Reward")),
+            new InteractQuestNpc("2_6_town", "Tarkleigh", () => CheckQuestStateId("a6q6", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Puppet Mistress Reward")),
             // Act 7
             new InteractQuestNpc("2_7_5_1","Silk",()=> PlayerHasItem("Black Venom"),
                 (obj)=> NpcHelper.TakeReward(obj, "Black Death Reward")),
-            new InteractQuestNpc("2_7_11", "Yeena", ()=> CheckQuestStateId("a7q7", 3), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_7_11", "Yeena", ()=> PlayerHasItem("Firefly"), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_7_town", "Yeena", ()=> CheckQuestStateId("a7q7", 3), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_7_town", "Weylam Roth", () => CheckQuestStateId("a7q6", new int[] {1, 2, 3}) && PlayerHasItem("Kishara's Star"),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Kishara's Star Reward")),
+            new InteractQuestNpc("2_7_town", "Eramir", () => CheckQuestStateId("a7q9", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Gruthkul Reward")),
+            new InteractQuestNpc("2_7_town", "Eramir", () => CheckQuestStateId("a7q1", 15),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Ralakesh Reward")),
             // Act 8
             new InteractQuestNpc("2_8_8", "Clarissa",()=> PlayerHasItem("Ankh of Eternity"),NpcHelper.TalkAndSkipDialog),
-            new InteractQuestNpc("2_8_8", "Clarissa",()=>{
+            /*new InteractQuestNpc("2_8_8", "Clarissa",()=>{
                 var quest = Dat.QuestStates.FirstOrDefault(x=> x.Quest.Id == "a8q6");
                 if(quest == null) return false;
                 if(quest.QuestProgressText == "Talk to Clarissa") return true;
                 return false;
-            }, NpcHelper.TalkAndSkipDialog),
+            }, NpcHelper.TalkAndSkipDialog),*/
+            new InteractQuestNpc("2_8_town", "Clarissa", () => CheckQuestStateId("a8q6", new int[] {1, 2, 3}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Tolman Reward")),
+            new InteractQuestNpc("2_8_town", "Hargan", () => CheckQuestStateId("a8q4", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Yugul Reward")),
+            new InteractQuestNpc("2_8_town", "Maramoa", () => CheckQuestStateId("a8q7", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Gemling Legion Reward")),
             // Act 9
             new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => PlayerHasItem("Storm Blade"), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Sin", () => CheckQuestStateId("a9q1", 17), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_9_town", "Sin", () => CheckQuestStateId("a9q5", 10), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => CheckQuestStateId("a9q5", 7), (obj)=>NpcHelper.TakeReward(obj,"Take Bottled Storm")),
             new InteractQuestNpc("2_9_8", "Sin", ()=> PlayerHasItem("Trarthan Powder"), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => CheckQuestStateId("a9q4", new int[] {1, 2, 3}) && PlayerHasItem("Calendar of Fortune"),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Maraketh Calendar Reward")),
+            new InteractQuestNpc("2_9_town", "Irasha", () => CheckQuestStateId("a9q5", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Shakari Reward")),
+            new InteractQuestNpc("2_9_town", "Irasha", () => CheckQuestStateId("a9q2", new int[] {2, 3}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Feather Reward")),
             // Act 10
             new InteractQuestNpc("2_10_town", "Bannon", ()=> PlayerHasItem("The Staff of Purity"), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_1", "Bannon", ()=>CheckQuestStateId("a10q1",4), NpcHelper.TalkAndSkipDialog),
-            new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog)
-        
+            new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("2_10_town", "Weylam Roth", () => CheckQuestStateId("a10q4", new int[] {1, 2, 3}) && PlayerHasItem("Elixir of Allure"),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Elixir of Allure Reward")),
+            new InteractQuestNpc("2_10_town", "Lani", () => CheckQuestStateId("a10q3", new int[] {2, 5}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Kitava Reward")),
+            new InteractQuestNpc("2_10_town", "Lani", () => CheckQuestStateId("a10q6", new int[] {1, 2}),
+                (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Vilenta Reward"))
         };
 
         private static bool CheckQuestStateId(string questId, int stateId)

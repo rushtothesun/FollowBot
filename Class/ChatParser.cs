@@ -12,14 +12,16 @@ namespace FollowBot.Class
     public class ChatParser
     {
         public bool shouldCleanMessages;
-        private volatile string _lastMd5;
-        private volatile Dictionary<string, bool> _treatedMd5List = new Dictionary<string, bool>();
+        // MD5 deduplication disabled - was unreliable across area transitions.
+        // Currently relying on /cls after command processing instead.
+        // private volatile string _lastMd5;
+        // private volatile Dictionary<string, bool> _treatedMd5List = new Dictionary<string, bool>();
 
         public ChatParser()
         {
-            _treatedMd5List.Clear();
+            // _treatedMd5List.Clear();
             shouldCleanMessages = true;
-            _lastMd5 = "";
+            // _lastMd5 = "";
         }
 
         public static LokiPoe.InGameState.ChatResult SendChatMsg(string msg, bool closeChatUi = true)
@@ -55,31 +57,31 @@ namespace FollowBot.Class
         {
             if (!LokiPoe.IsInGame) return;
             SendChatMsg("/cls");
-            List<chatPanel.ChatEntry> msgs = LokiPoe.InGameState.ChatPanel.Messages.ToList();
-            if (msgs.Count <= 0)
-            {
-                return;
-            }
-
-            for (int i = 0; i < msgs.Count; i++)
-            {
-                var chatEntry = msgs[i];
-                _lastMd5 = chatEntry.MD5;
-                if (_treatedMd5List.TryGetValue(chatEntry.MD5, out bool alreadyTreated))
-                {
-                    if (alreadyTreated)
-                    {
-                        continue;
-                    }
-
-                    _treatedMd5List[chatEntry.MD5] = true;
-                }
-                else
-                {
-                    _treatedMd5List.Add(chatEntry.MD5, true);
-                }
-            }
-
+            // MD5 deduplication disabled - was unreliable across area transitions.
+            // List<chatPanel.ChatEntry> msgs = LokiPoe.InGameState.ChatPanel.Messages.ToList();
+            // if (msgs.Count <= 0)
+            // {
+            //     return;
+            // }
+            //
+            // for (int i = 0; i < msgs.Count; i++)
+            // {
+            //     var chatEntry = msgs[i];
+            //     _lastMd5 = chatEntry.MD5;
+            //     if (_treatedMd5List.TryGetValue(chatEntry.MD5, out bool alreadyTreated))
+            //     {
+            //         if (alreadyTreated)
+            //         {
+            //             continue;
+            //         }
+            //
+            //         _treatedMd5List[chatEntry.MD5] = true;
+            //     }
+            //     else
+            //     {
+            //         _treatedMd5List.Add(chatEntry.MD5, true);
+            //     }
+            // }
         }
         public void Update()
         {
@@ -96,40 +98,43 @@ namespace FollowBot.Class
                 return;
             }
 
-            string lastMd5 = msgs.Last().MD5;
-
-            if (lastMd5 == _lastMd5)
-            {
-                return;
-            }
-
-            _lastMd5 = lastMd5;
+            // MD5 deduplication disabled - was unreliable across area transitions.
+            // Now we process all messages and rely on /cls after command processing.
+            // string lastMd5 = msgs.Last().MD5;
+            //
+            // if (lastMd5 == _lastMd5)
+            // {
+            //     return;
+            // }
+            //
+            // _lastMd5 = lastMd5;
 
             for (int i = 0; i < msgs.Count; i++)
             {
                 var chatEntry = msgs[i];
-                if (_treatedMd5List.TryGetValue(chatEntry.MD5, out bool alreadyTreated))
-                {
-                    if (alreadyTreated)
-                    {
-                        continue;
-                    }
-
-                    _treatedMd5List[chatEntry.MD5] = true;
-                }
-                else
-                {
-                    _treatedMd5List.Add(chatEntry.MD5, true);
-                }
+                // MD5 deduplication disabled
+                // if (_treatedMd5List.TryGetValue(chatEntry.MD5, out bool alreadyTreated))
+                // {
+                //     if (alreadyTreated)
+                //     {
+                //         continue;
+                //     }
+                //
+                //     _treatedMd5List[chatEntry.MD5] = true;
+                // }
+                // else
+                // {
+                //     _treatedMd5List.Add(chatEntry.MD5, true);
+                // }
 
                 try
                 {
                     ProcessNewMessage(chatEntry);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    // Suppressing all Exception without warming. This is a bad practice, under mormal circustance you want to know what went wrong.
-                    //GlobalLog.Error($"{e}");
+                    // Suppressing exceptions - if command processing fails, we don't want to crash the bot.
+                    // Consider uncommenting for debugging: GlobalLog.Error($"{e}");
                 }
             }
         }
@@ -160,95 +165,54 @@ namespace FollowBot.Class
             }
         }
 
-        private static Task ProcessPartyMessage(LokiPoe.InGameState.ChatPanel.ChatEntry newmessage)
+        private static bool TryCommand(string command, string expected, Action action)
+        {
+            if (command != expected) return false;
+            action();
+            return true;
+        }
+
+        private static void ProcessPartyMessage(LokiPoe.InGameState.ChatPanel.ChatEntry newmessage)
         {
             if (FollowBot._leaderPartyEntry == null || FollowBot._leaderPartyEntry.PlayerEntry == null)
-                return Task.CompletedTask;
+                return;
             var leadername = FollowBot._leaderPartyEntry.PlayerEntry.Name;
             if (string.IsNullOrEmpty(leadername))
-                return Task.CompletedTask;
+                return;
             if (newmessage.RemoteName != leadername)
-                return Task.CompletedTask;
+                return;
             var start = newmessage.Message.IndexOf($"{leadername}:", StringComparison.InvariantCulture) + $"{leadername}:".Length + 1;
             var end = newmessage.Message.Length - start;
             var command = newmessage.Message.Substring(start, end);
 
-            GlobalLog.Warn($"Recieved Message: {newmessage.Message}, Command: {command}");
+            GlobalLog.Warn($"Received Message: {newmessage.Message}, Command: {command}");
 
-            bool commandProcessed = false;
+            var chatCommands = FollowBotSettings.Instance.ChatCommands;
+            var follow = FollowBotSettings.Instance.Follow;
+            var combat = FollowBotSettings.Instance.Combat;
+            var loot = FollowBotSettings.Instance.Loot;
 
-            if (command == FollowBotSettings.Instance.OpenTownPortalChatCommand)
-            {
-                DefenseAndFlaskTask.ShouldOpenPortal = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.TeleportToLeaderChatCommand)
-            {
-                DefenseAndFlaskTask.ShouldTeleport = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StartFollowChatCommand)
-            {
-                FollowBotSettings.Instance.ShouldFollow = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StopFollowChatCommand)
-            {
-                FollowBotSettings.Instance.ShouldFollow = false;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StartAttackChatCommand)
-            {
-                FollowBotSettings.Instance.ShouldKill = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StopAttackChatCommand)
-            {
-                FollowBotSettings.Instance.ShouldKill = false;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StartLootChatCommand)
-            {
-                FollowBotSettings.Instance.ShouldLoot = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StopLootChatCommand)
-            {
-                FollowBotSettings.Instance.ShouldLoot = false;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StartAutoTeleportChatCommand)
-            {
-                FollowBotSettings.Instance.DontPortOutofMap = false;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StopAutoTeleportChatCommand)
-            {
-                FollowBotSettings.Instance.DontPortOutofMap = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StartSentinelChatCommand)
-            {
-                FollowBotSettings.Instance.UseStalkerSentinel = true;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.StopSentinelChatCommand)
-            {
-                FollowBotSettings.Instance.UseStalkerSentinel = false;
-                commandProcessed = true;
-            }
-            if (command == FollowBotSettings.Instance.EnterPortalChatCommand)
-            {
-                UltimatumTask.ShouldEnterPortal = true;
-                commandProcessed = true;
-            }
+            bool commandProcessed =
+                TryCommand(command, chatCommands.OpenTownPortalChatCommand, () => DefenseAndFlaskTask.ShouldOpenPortal = true) ||
+                TryCommand(command, chatCommands.TeleportToLeaderChatCommand, () => DefenseAndFlaskTask.ShouldTeleport = true) ||
+                TryCommand(command, chatCommands.StartFollowChatCommand, () => follow.ShouldFollow = true) ||
+                TryCommand(command, chatCommands.StopFollowChatCommand, () => follow.ShouldFollow = false) ||
+                TryCommand(command, chatCommands.StartAttackChatCommand, () => combat.ShouldKill = true) ||
+                TryCommand(command, chatCommands.StopAttackChatCommand, () => combat.ShouldKill = false) ||
+                TryCommand(command, chatCommands.StartLootChatCommand, () => loot.ShouldLoot = true) ||
+                TryCommand(command, chatCommands.StopLootChatCommand, () => loot.ShouldLoot = false) ||
+                TryCommand(command, chatCommands.StartAutoTeleportChatCommand, () => follow.DontPortOutofMap = false) ||
+                TryCommand(command, chatCommands.StopAutoTeleportChatCommand, () => follow.DontPortOutofMap = true) ||
+                TryCommand(command, chatCommands.StartSentinelChatCommand, () => combat.UseStalkerSentinel = true) ||
+                TryCommand(command, chatCommands.StopSentinelChatCommand, () => combat.UseStalkerSentinel = false) ||
+                TryCommand(command, chatCommands.EnterPortalChatCommand, () => UltimatumTask.ShouldEnterPortal = true) ||
+                TryCommand(command, chatCommands.DepositStashChatCommand, () => StashTask.ShouldDepositFromChat = true) ||
+                TryCommand(command, chatCommands.NewInstanceChatCommand, () => FollowTask.ShouldCreateNewInstance = true);
 
             if (commandProcessed)
             {
                 SendChatMsg("/cls");
             }
-
-            return Task.CompletedTask;
         }
     }
 }

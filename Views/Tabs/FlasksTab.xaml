@@ -1,0 +1,134 @@
+<UserControl x:Class="FollowBot.Views.Tabs.FlasksTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:settingsPath="clr-namespace:FollowBot"
+             mc:Ignorable="d"
+             d:DataContext="{x:Static settingsPath:FollowBotSettings.Instance}">
+    <DataGrid CanUserSortColumns="False"
+              ItemsSource="{Binding Path=Combat.Flasks, Mode=TwoWay}"
+              AutoGenerateColumns="False"
+              AllowDrop="False"
+              CanUserAddRows="False"
+              VerticalAlignment="Top"
+              Margin="0,5,0,0">
+        <DataGrid.Columns>
+            <DataGridTemplateColumn Header="Enabled">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <CheckBox HorizontalAlignment="Center"
+                                      IsChecked="{Binding Path=Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Enabled ?"
+                                      Width="Auto"/>
+                        </Grid>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!--<DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Path=Enabled}" Width="Auto"></DataGridCheckBoxColumn>-->
+            <DataGridTemplateColumn Header="Slot">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Label Content="{Binding Path=Slot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"></Label>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="UseEs">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <CheckBox HorizontalAlignment="Center"
+                                      IsChecked="{Binding Path=UseEs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Use energy shield as threshold instead of life"
+                                      Width="Auto"/>
+                        </Grid>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!--<DataGridCheckBoxColumn Header="UseEs" Binding="{Binding Path=UseEs}" Width="Auto"></DataGridCheckBoxColumn>-->
+            <DataGridTemplateColumn Header="UseMana">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <CheckBox HorizontalAlignment="Center"
+                                      IsChecked="{Binding Path=UseMana, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Use mana as threshold instead of life"
+                                      Width="Auto"/>
+                        </Grid>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!--<DataGridCheckBoxColumn Header="UseMana" Binding="{Binding Path=UseMana}" Width="Auto"></DataGridCheckBoxColumn>-->
+            <DataGridTemplateColumn Header="Threshold">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <WrapPanel>
+                            <Slider Name="SlThreshold"
+                                    Minimum="0"
+                                    Margin="0,5,0,0"
+                                    Width="160"
+                                    Value="{Binding Path=Threshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    SmallChange="1"
+                                    LargeChange="1"
+                                    Maximum="101"
+                                    AutoToolTipPrecision="1"
+                                    VerticalAlignment="Center"
+                                    ToolTip="This flask will be triggered when the selected property (Life, Es, Mana) is under this percent. set to 101 to always trigger."/>
+                            <TextBox Name="TbThreshold"
+                                     Text="{Binding ElementName=SlThreshold, Path=Value}"
+                                     Width="40"
+                                     HorizontalAlignment="Left"
+                                     Margin="0,5,0,0"
+                                     VerticalAlignment="Center"/>
+                        </WrapPanel>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="IgnoreEffect">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <CheckBox HorizontalAlignment="Center"
+                                      IsChecked="{Binding Path=IgnoreEffect, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Ignore the Effect duration when deciding if to use this flask, use it in conjunction with Cooldown to trigger this flask each x ms."
+                                      Width="Auto"/>
+                        </Grid>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Cooldown (Ms)">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <WrapPanel>
+                            <Slider Name="SlCooldown"
+                                    Minimum="0"
+                                    Margin="0,5,0,0"
+                                    Width="160"
+                                    Value="{Binding Path=Cooldown, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    SmallChange="1"
+                                    LargeChange="1"
+                                    Maximum="15000"
+                                    AutoToolTipPrecision="1"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Cooldown time for this flask. The flask will be used once every x milliseconds as per delay configuration, Pls note, if the option IgnoreEffect is not selected, the flask will newer be used till the flask effect wear off, regardless for the Cooldown configuration.."/>
+                            <TextBox Name="TbCooldown"
+                                     Text="{Binding ElementName=SlCooldown, Path=Value}"
+                                     MinWidth="40"
+                                     HorizontalAlignment="Left"
+                                     Margin="0,5,0,0"
+                                     VerticalAlignment="Center"/>
+                        </WrapPanel>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+        </DataGrid.Columns>
+    </DataGrid>
+
+</UserControl>

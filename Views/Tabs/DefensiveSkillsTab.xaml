@@ -1,0 +1,116 @@
+<UserControl x:Class="FollowBot.Views.Tabs.DefensiveSkillsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:settingsPath="clr-namespace:FollowBot"
+             mc:Ignorable="d"
+             d:DataContext="{x:Static settingsPath:FollowBotSettings.Instance}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Auto">
+        <DataGrid CanUserSortColumns="False"
+                  ItemsSource="{Binding Path=Combat.DefensiveSkills, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  AllowDrop="False"
+                  VerticalAlignment="Top"
+                  Margin="0,5,0,0">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="Enabled"
+                                        Binding="{Binding Path=Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="Auto"></DataGridCheckBoxColumn>
+                <DataGridTextColumn Header="Skill Name"
+                                    Binding="{Binding Path=Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Width="Auto"></DataGridTextColumn>
+                <DataGridCheckBoxColumn Header="UseEs"
+                                        Binding="{Binding Path=UseEs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="Auto"></DataGridCheckBoxColumn>
+
+                <DataGridTemplateColumn Header="Threshold">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <WrapPanel>
+                                <Slider Name="SlThreshold"
+                                        Minimum="0"
+                                        Margin="0,5,0,0"
+                                        Width="160"
+                                        Value="{Binding Path=Threshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        TickFrequency="1"
+                                        IsSnapToTickEnabled="True"
+                                        SmallChange="1"
+                                        LargeChange="1"
+                                        Maximum="101"
+                                        AutoToolTipPrecision="1"
+                                        VerticalAlignment="Center"/>
+                                <TextBox Name="TbThreshold"
+                                         Text="{Binding ElementName=SlThreshold, Path=Value}"
+                                         Width="40"
+                                         HorizontalAlignment="Left"
+                                         Margin="0,5,0,0"
+                                         VerticalAlignment="Center"/>
+                            </WrapPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="SleepOnUse (Sec)">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <WrapPanel>
+                                <Slider Name="SlSleep"
+                                        Minimum="0"
+                                        Margin="0,5,0,0"
+                                        Width="100"
+                                        Value="{Binding Path=SleepSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        TickFrequency="0.1"
+                                        IsSnapToTickEnabled="True"
+                                        SmallChange="0.1"
+                                        LargeChange="1"
+                                        Maximum="60"
+                                        AutoToolTipPrecision="1"
+                                        VerticalAlignment="Center"/>
+                                <TextBox Name="TbSleep"
+                                         Text="{Binding ElementName=SlSleep, Path=Value}"
+                                         Width="40"
+                                         HorizontalAlignment="Left"
+                                         Margin="0,5,0,0"
+                                         VerticalAlignment="Center"/>
+                            </WrapPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridCheckBoxColumn Header="CastOnParty"
+                                        Binding="{Binding Path=CastOnLeader, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="Auto"></DataGridCheckBoxColumn>
+
+                <DataGridTemplateColumn Header="Link Whitelist">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <WrapPanel>
+                                <TextBox Name="linkWhitelist"
+                                         Text="{Binding Path=LinkWhitelist, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MinWidth="100"
+                                         MaxWidth="200"
+                                         Width="auto"
+                                         HorizontalAlignment="Left"
+                                         Margin="0,5,0,0"
+                                         VerticalAlignment="Center"
+                                         ToolTip="List of names, coma separated, of player that will recieve the Link cast. Ex: name1,name2,name3. PLS NOTE: if this field is empty, the link skill will be used on leader only as usual."/>
+                            </WrapPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Remove">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Click="RemoveDefensiveSkillRule"
+                                    VerticalAlignment="Center">X</Button>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </ScrollViewer>
+
+</UserControl>

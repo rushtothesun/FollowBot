@@ -31,7 +31,7 @@ namespace FollowBot.Class
 		private Geometry _gridGeometry;
 		private Rectangle _gridBounds;
 
-		private Random _random;
+		private Random _random = new Random();
 		[DllImport("user32.dll")]
 		private static extern IntPtr GetForegroundWindow();
 
@@ -51,7 +51,7 @@ namespace FollowBot.Class
 
 			_window = new StickyWindow(parentPtr, gfx)
 			{
-				FPS = FollowBotSettings.Instance.FPS,
+				FPS = FollowBotSettings.Instance.Overlay.FPS,
 				IsTopmost = true,
 				IsVisible = true
 			};
@@ -79,7 +79,7 @@ namespace FollowBot.Class
 			}
 
 			_brushes["black"] = gfx.CreateSolidBrush(0, 0, 0);
-            _brushes["transparent_black"] = gfx.CreateSolidBrush(0, 0, 0, FollowBotSettings.Instance.OverlayTransparency);
+            _brushes["transparent_black"] = gfx.CreateSolidBrush(0, 0, 0, FollowBotSettings.Instance.Overlay.OverlayTransparency);
 			_brushes["white"] = gfx.CreateSolidBrush(255, 255, 255);
 			_brushes["red"] = gfx.CreateSolidBrush(255, 0, 0);
 			_brushes["green"] = gfx.CreateSolidBrush(0, 255, 0);
@@ -125,12 +125,12 @@ namespace FollowBot.Class
 		{
             var gfx = e.Graphics;
 			gfx.ClearScene();
-			if (!FollowBotSettings.Instance.EnableOverlay)
+			if (!FollowBotSettings.Instance.Overlay.EnableOverlay)
 			{
 				return;
 			}
 
-			if (!FollowBotSettings.Instance.DrawInBackground && LokiPoe.ClientWindowHandle != GetForegroundWindow())
+			if (!FollowBotSettings.Instance.Overlay.DrawInBackground && LokiPoe.ClientWindowHandle != GetForegroundWindow())
 			{
 				return;
 			}
@@ -146,23 +146,23 @@ namespace FollowBot.Class
 				.ToString();
 
             var botInfoText = new StringBuilder()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Follow: ", $"{FollowBotSettings.Instance.ShouldFollow}","")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Loot: ", $"{FollowBotSettings.Instance.ShouldLoot}", "")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Attack: ", $"{FollowBotSettings.Instance.ShouldKill}", "")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Sentinel: ", $"{FollowBotSettings.Instance.UseStalkerSentinel}", "")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Auto Teleport: ", $"{!FollowBotSettings.Instance.DontPortOutofMap}", "")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Follow Dist: ", $"{FollowBotSettings.Instance.FollowDistance}/{FollowBotSettings.Instance.MaxFollowDistance}", "")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Combat Dist: ", $"{FollowBotSettings.Instance.MaxCombatDistance}", "")).AppendLine()
-                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Loot Dist: ", $"{FollowBotSettings.Instance.MaxLootDistance}", "")).AppendLine()
-				.ToString();
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Follow: ", $"{FollowBotSettings.Instance.Follow.ShouldFollow}","")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Loot: ", $"{FollowBotSettings.Instance.Loot.ShouldLoot}", "")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Attack: ", $"{FollowBotSettings.Instance.Combat.ShouldKill}", "")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Sentinel: ", $"{FollowBotSettings.Instance.Combat.UseStalkerSentinel}", "")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Auto Teleport: ", $"{!FollowBotSettings.Instance.Follow.DontPortOutofMap}", "")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Follow Dist: ", $"{FollowBotSettings.Instance.Follow.FollowDistance}/{FollowBotSettings.Instance.Follow.MaxFollowDistance}", "")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Combat Dist: ", $"{FollowBotSettings.Instance.Follow.MaxCombatDistance}", "")).AppendLine()
+                .Append(string.Format("{0,-16}  {1,-10}  {2,5}", "Loot Dist: ", $"{FollowBotSettings.Instance.Follow.MaxLootDistance}", "")).AppendLine()
+    .ToString();
 
 
-			gfx.DrawTextWithBackground(_fonts["consolas"], _brushes["green"], _brushes["transparent_black"], 58, 20, infoText);
-            gfx.DrawTextWithBackground(_fonts["consolas"], _brushes["green"], _brushes["transparent_black"], FollowBotSettings.Instance.OverlayXCoord, FollowBotSettings.Instance.OverlayYCoord, botInfoText);
-			if (!LokiPoe.IsInGame) return;
+   gfx.DrawTextWithBackground(_fonts["consolas"], _brushes["green"], _brushes["transparent_black"], 58, 20, infoText);
+            gfx.DrawTextWithBackground(_fonts["consolas"], _brushes["green"], _brushes["transparent_black"], FollowBotSettings.Instance.Overlay.OverlayXCoord, FollowBotSettings.Instance.Overlay.OverlayYCoord, botInfoText);
+   if (!LokiPoe.IsInGame) return;
 
-            if (FollowBotSettings.Instance.DrawMobs || FollowBotSettings.Instance.DrawCorpses)
-				DrawMobs(gfx);
+            if (FollowBotSettings.Instance.Overlay.DrawMobs || FollowBotSettings.Instance.Overlay.DrawCorpses)
+    DrawMobs(gfx);
         }
 
         private SolidBrush GetHpBasedBrush(float hpPct, Graphics gfx)
@@ -194,8 +194,8 @@ namespace FollowBot.Class
 						if (networkObject.Distance > 85) continue;
 						var monter = networkObject as Monster;
 						if (monter == null) continue;
-						if (monter.IsActiveDead && !FollowBotSettings.Instance.DrawCorpses) continue;
-						if (!monter.IsActiveDead && !FollowBotSettings.Instance.DrawMobs) continue;
+						if (monter.IsActiveDead && !FollowBotSettings.Instance.Overlay.DrawCorpses) continue;
+						if (!monter.IsActiveDead && !FollowBotSettings.Instance.Overlay.DrawMobs) continue;
 						int monsterX, monsterY;
 						LokiPoe.ClientFunctions.WorldToScreen(monter.Position.MapToWorld3(), out monsterX, out monsterY);
                         var name = monter.Name;
@@ -276,7 +276,7 @@ namespace FollowBot.Class
         {
             if ((_window) == null) return;
             if (_brushes == null || !_brushes.ContainsKey("transparent_black")) return;
-			_brushes["transparent_black"] = _window.Graphics.CreateSolidBrush(0, 0, 0, FollowBotSettings.Instance.OverlayTransparency);
+			_brushes["transparent_black"] = _window.Graphics.CreateSolidBrush(0, 0, 0, FollowBotSettings.Instance.Overlay.OverlayTransparency);
 		}
     }
 }

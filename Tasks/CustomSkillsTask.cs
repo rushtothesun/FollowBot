@@ -33,7 +33,7 @@ namespace FollowBot.Tasks
                 return Task.FromResult(false);
             }
 
-            var settings = FollowBotSettings.Instance;
+            var settings = FollowBotSettings.Instance.CustomSkills;
 
 
             if (settings.EnablePhaseRun) CustomSkills.PhaseRun();

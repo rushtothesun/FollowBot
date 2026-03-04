@@ -27,7 +27,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
         public async Task<bool> Run()
         {
-            if (!FollowBotSettings.Instance.ShouldLoot) return false;
+            if (!FollowBotSettings.Instance.Loot.ShouldLoot) return false;
 
             if (!World.CurrentArea.IsCombatArea)
             {
@@ -41,7 +41,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             // Apply blacklist filter
             allItems = allItems.FindAll(i => !IsBlacklisted(i));
 
-            if (FollowBotSettings.Instance.ShouldLootOnlyQuestItem)
+            if (FollowBotSettings.Instance.Loot.ShouldLootOnlyQuestItem)
             {
                 allItems = allItems.FindAll(i => i.Rarity == Rarity.Quest);
             }
@@ -53,9 +53,9 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
             var refPos = FollowBot.Leader != null ? FollowBot.Leader.Position : LokiPoe.Me.Position;
 
-            validItems = allItems.FindAll(i => i.Position.AsVector.Distance(refPos) <= FollowBotSettings.Instance.MaxLootDistance);
+            validItems = allItems.FindAll(i => i.Position.AsVector.Distance(refPos) <= FollowBotSettings.Instance.Follow.MaxLootDistance);
 
-            if (FollowBotSettings.Instance.ShouldLootOnlyQuestItem)
+            if (FollowBotSettings.Instance.Loot.ShouldLootOnlyQuestItem)
             {
                 validItems = validItems.FindAll(i => i.Rarity == Rarity.Quest);
             }
@@ -79,7 +79,6 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             {
                 _item = validItems.OrderBy(i => i.Position.DistanceSqr).First();
             }
-
             if (!CanFit(_item.Size, Inventories.AvailableInventorySquares))
             {
                 GlobalLog.Warn($"[LootItemTask] No room in inventory for {_item.Position.Name}");
@@ -92,9 +91,9 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             WalkablePosition pos = _item.Position;
 
 
-            if (pos.AsVector.Distance(refPos) > FollowBotSettings.Instance.MaxLootDistance)
+            if (pos.AsVector.Distance(refPos) > FollowBotSettings.Instance.Follow.MaxLootDistance)
             {
-                GlobalLog.Warn($"[LootItemTask] {pos} is now to far away. [{pos.Distance}/{FollowBotSettings.Instance.MaxLootDistance}]");
+                GlobalLog.Warn($"[LootItemTask] {pos} is now to far away. [{pos.Distance}/{FollowBotSettings.Instance.Follow.MaxLootDistance}]");
                 //_item.Ignored = true;
                 _item = null;
                 return true;
@@ -131,6 +130,23 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             PlayerMoverManager.MoveTowards(LokiPoe.MyPosition);
 
             WorldItem itemObj = _item.Object;
+            if (itemObj == null)
+            {
+                CombatAreaCache.Current.RemoveItemFromCache(_item);
+                _item = null;
+                return true;
+            }
+
+            var allocatedPlayer = itemObj.AllocatedToPlayer;
+            if (allocatedPlayer != null)
+            {
+                GlobalLog.Debug($"[LootItemTask] Item '{itemObj.Item.Name}' is allocated to '{allocatedPlayer.Name}'.");
+            }
+            else
+            {
+                GlobalLog.Debug($"[LootItemTask] Item '{itemObj.Item.Name}' is not allocated.");
+            }
+
             if (itemObj == null)
             {
                 CombatAreaCache.Current.RemoveItemFromCache(_item);
@@ -310,7 +326,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
         private static bool IsBlacklisted(CachedWorldItem item)
         {
-            var blacklist = FollowBotSettings.Instance.LootBlacklist;
+            var blacklist = FollowBotSettings.Instance.Loot.LootBlacklist;
             if (blacklist == null || blacklist.Count == 0)
                 return false;
 

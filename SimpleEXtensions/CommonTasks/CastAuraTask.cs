@@ -5,6 +5,7 @@ using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using DreamPoeBot.Loki.RemoteMemoryObjects;
+using FollowBot.Settings;
 using FollowBot.SimpleEXtensions;
 using SkillBar = DreamPoeBot.Loki.Game.LokiPoe.InGameState.SkillBarHud;
 
@@ -24,7 +25,7 @@ namespace FollowBot
 
             await Coroutines.CloseBlockingWindows();
 
-            if (FollowBotSettings.Instance.UseStalkerSentinel)
+            if (FollowBotSettings.Instance.Combat.UseStalkerSentinel)
             {
                 if (!LokiPoe.InGameState.SentinelSkillUi.StalkerSentinel.IsActive && LokiPoe.InGameState.SentinelSkillUi.StalkerSentinel.CanUse)
                     LokiPoe.InGameState.SentinelSkillUi.StalkerSentinel.Activate();
@@ -69,15 +70,33 @@ namespace FollowBot
 
         private static async Task CastAuras(IEnumerable<Skill> auras)
         {
-            int slotForHidden = AllAuras.First(a => a.IsOnSkillBar).Slot;
+            var auraOnBar = AllAuras.FirstOrDefault(a => a.IsOnSkillBar);
+            int slotForHidden = auraOnBar?.Slot ?? 4;
+
+            // Save the original skill in the slot we'll use for hidden auras
+            Skill originalSkillInSlot = null;
+            if (auraOnBar == null)
+                originalSkillInSlot = SkillBar.Slot(slotForHidden);
+
             foreach (var aura in auras.OrderByDescending(a => a.Slot))
             {
                 if (LokiPoe.Me.IsDead) break;
+                if (!aura.CanUse())
+                {
+                    _temporaryBlacklistedAuras.Add(aura.Id);
+                    continue;
+                }
                 if (aura.Slot == -1)
                 {
                     await SetAuraToSlot(aura, slotForHidden);
                 }
                 await ApplyAura(aura);
+            }
+
+            // Restore the original skill if we displaced one
+            if (originalSkillInSlot != null && originalSkillInSlot.Id != SkillBar.Slot(slotForHidden)?.Id)
+            {
+                await SetAuraToSlot(originalSkillInSlot, slotForHidden);
             }
         }
 
@@ -148,10 +167,15 @@ namespace FollowBot
             var auras = new List<Skill>();
             foreach (var aura in AllWhitelistedAuras)
             {
-                if (FollowBotSettings.Instance.IgnoreHiddenAuras && !aura.IsOnSkillBar)
+                if (FollowBotSettings.Instance.Auras.IgnoreHiddenAuras && !aura.IsOnSkillBar)
                     continue;
 
                 if (PlayerHasAura(aura))
+                    continue;
+
+                // Skip auras linked with Guardian's Blessing Support (handled by CustomSkills)
+                var display = aura.LinkedDisplayString;
+                if (!string.IsNullOrEmpty(display) && display.Contains("Guardian's Blessing Support"))
                     continue;
 
                 auras.Add(aura);
@@ -173,11 +197,12 @@ namespace FollowBot
                 return SkillBar.Skills.Where(skill => !skill.IsVaalSkill &&
                     _temporaryBlacklistedAuras.All(x => x != skill.Id) &&
                 !SkillBlacklist.IsBlacklisted(skill) &&
-                (AuraNames.Contains(skill.Name) || AuraInternalId.Contains(skill.InternalId) || skill.IsAurifiedCurse ||
-                 (FollowBotSettings.Instance.EnableAspectsOfTheAvian && skill.Name == "Aspect of the Avian") ||
-                 (FollowBotSettings.Instance.EnableAspectsOfTheCat && skill.Name == "Aspect of the Cat") ||
-                 (FollowBotSettings.Instance.EnableAspectsOfTheCrab && skill.Name == "Aspect of the Crab") ||
-                 (FollowBotSettings.Instance.EnableAspectsOfTheSpider && skill.Name == "Aspect of the Spider")
+                (AuraNames.Contains(skill.Name) || AuraInternalId.Contains(skill.InternalId) ||
+                 (FollowBotSettings.Instance.Auras.EnableBlasphemyCurses && skill.IsAurifiedCurse) ||
+                 (FollowBotSettings.Instance.Auras.EnableAspectsOfTheAvian && skill.Name == "Aspect of the Avian") ||
+                 (FollowBotSettings.Instance.Auras.EnableAspectsOfTheCat && skill.Name == "Aspect of the Cat") ||
+                 (FollowBotSettings.Instance.Auras.EnableAspectsOfTheCrab && skill.Name == "Aspect of the Crab") ||
+                 (FollowBotSettings.Instance.Auras.EnableAspectsOfTheSpider && skill.Name == "Aspect of the Spider")
                 ));
             }
         }
@@ -187,9 +212,9 @@ namespace FollowBot
             //BloodAndSand Hack
             if (aura.InternalId == "blood_sand_armour")
             {
-                if (FollowBotSettings.Instance.BloorOrSand == FollowBotSettings.BloodAndSand.Blood)
+                if (FollowBotSettings.Instance.Auras.BloodOrSand == AuraSettings.BloodAndSand.Blood)
                     return LokiPoe.Me.Auras.Any(x => x.InternalName == "blood_armour");
-                if (FollowBotSettings.Instance.BloorOrSand == FollowBotSettings.BloodAndSand.Sand)
+                if (FollowBotSettings.Instance.Auras.BloodOrSand == AuraSettings.BloodAndSand.Sand)
                     return LokiPoe.Me.Auras.Any(x => x.InternalName == "sand_armour");
             }
             if (PlayerHasAura(aura.Name))
@@ -211,7 +236,7 @@ namespace FollowBot
 
         private static readonly HashSet<string> AuraNames = new HashSet<string>
         {
-            /* auras
+            // auras
             "Anger",
             "Clarity",
             "Determination",
@@ -228,7 +253,7 @@ namespace FollowBot
             "Purity of Lightning",
             "Vitality",
             "Wrath",
-            "Zealotry",         */
+            "Zealotry",
 
             // heralds
             "Herald of Agony",
@@ -253,7 +278,7 @@ namespace FollowBot
         };
         private static readonly HashSet<string> AuraInternalId = new HashSet<string>
         {
-            /* auras
+            // auras
             "anger",
             "clarity",
             "determination",
@@ -270,7 +295,7 @@ namespace FollowBot
             "lightning_resist_aura",//Purity of Lightning
             "vitality",
             "wrath",
-            "spell_damage_aura",//Zealotry */
+            "spell_damage_aura",//Zealotry
 
             // heralds
             "herald_of_agony",

@@ -2,7 +2,7 @@
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using FollowBot.Helpers;
-using log4net;
+using FollowBot.SimpleEXtensions;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -11,7 +11,6 @@ namespace FollowBot.Tasks
 {
     class JoinPartyTask : ITask
     {
-        private readonly ILog Log = Logger.GetLoggerInstanceForType();
 
         public string Name { get { return "JoinPartyTask"; } }
         public string Description { get { return "This task will ask for party."; } }
@@ -21,7 +20,7 @@ namespace FollowBot.Tasks
 
         public void Start()
         {
-            Log.InfoFormat("[{0}] Task Loaded.", Name);
+            GlobalLog.Info($"[{Name}] Task Loaded.");
         }
         public void Stop()
         {

@@ -16,7 +16,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
         public async Task<bool> Run()
         {
-            if (!FollowBotSettings.Instance.ShouldKill) return false;
+            if (!FollowBotSettings.Instance.Combat.ShouldKill) return false;
             if (!World.CurrentArea.IsCombatArea) return false;
 
             var leader = FollowBot.Leader;
@@ -25,7 +25,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             {
                 if (!LokiPoe.InGameState.PartyHud.IsInSameZone(leader.Name) || FollowBot.Leader.HasBuff("Smite Aura"))
                 {
-                    if (!TravelToPartyZoneTask.PortOutStopwatch.IsRunning || TravelToPartyZoneTask.PortOutStopwatch.ElapsedMilliseconds > (FollowBotSettings.Instance.PortOutThreshold * 1000))
+                    if (!TravelToPartyZoneTask.PortOutStopwatch.IsRunning || TravelToPartyZoneTask.PortOutStopwatch.ElapsedMilliseconds > (FollowBotSettings.Instance.Follow.PortOutThreshold * 1000))
                     {
                         return false;
                     }

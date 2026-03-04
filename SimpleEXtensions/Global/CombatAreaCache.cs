@@ -158,9 +158,57 @@ namespace FollowBot.SimpleEXtensions.Global
         {
             //Current.Explorer.Tick();
 
-            if (FollowBotSettings.Instance.ShouldLoot && ItemScanInterval.Elapsed)
+            if (FollowBotSettings.Instance.Loot.ShouldLoot && ItemScanInterval.Elapsed)
             {
                 WorldItemScan();
+            }
+
+            if (ScanInterval.Elapsed)
+            {
+                foreach (var obj in LokiPoe.ObjectManager.Objects)
+                {
+                    var chest = obj as Chest;
+                    if (chest != null)
+                    {
+                        if (chest.IsStrongBox)
+                        {
+                            ProcessStrongbox(chest);
+                            continue;
+                        }
+
+                        if (IsSpecialChest(chest))
+                        {
+                            ProcessSpeacialChest(chest);
+                            continue;
+                        }
+
+                        ProcessChest(chest);
+                        continue;
+                    }
+
+                    var shrine = obj as Shrine;
+                    if (shrine != null)
+                    {
+                        ProcessShrine(shrine);
+                        continue;
+                    }
+
+                    var transition = obj as AreaTransition;
+                    if (transition != null)
+                    {
+                        ProcessTransition(transition);
+                    }
+
+                    if (obj.Metadata.Contains("Metadata/Terrain/Missions/CraftingUnlocks/"))
+                    {
+                        var recipe = obj as CraftingRecipe;
+                        if (recipe != null)
+                        {
+                            ProcessRecipe(recipe);
+                            continue;
+                        }
+                    }
+                }
             }
 
             //if (ScanInterval.Elapsed)
@@ -430,7 +478,7 @@ namespace FollowBot.SimpleEXtensions.Global
             else if (t.Name == "Syndicate Laboratory")
             {
                 type = TransitionType.Syndicate;
-                try { new SoundPlayer("beep-debug.wav").Play(); } catch { }
+
             }
             else if (ConquerorAreas.Contains(t.Name))
             {
@@ -556,11 +604,6 @@ namespace FollowBot.SimpleEXtensions.Global
                     if (metadata == "Metadata/QuestObjects/Act9/HarvestFinalBossTransition")
                     {
                         GlobalLog.Debug($"[CombatAreaCache] Skipping \"{name}\" area transition because it is unlocked by a quest.");
-                        return true;
-                    }
-                    if (metadata.Contains("BellyArenaTransition"))
-                    {
-                        GlobalLog.Debug($"[CombatAreaCache] Skipping \"{name}\" area transition because it is not a pathfinding obstacle.");
                         return true;
                     }
                 }

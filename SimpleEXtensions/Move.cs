@@ -12,8 +12,8 @@ namespace FollowBot.SimpleEXtensions
 
         public static bool Towards(Vector2i pos, string destination)
         {
-            if (LogInterval.Elapsed)
-                GlobalLog.Debug($"[MoveTowards] Moving towards {destination} at {pos} (distance: {LokiPoe.MyPosition.Distance(pos)})");
+            //if (LogInterval.Elapsed)
+                //GlobalLog.Debug($"[MoveTowards] Moving towards {destination} at {pos} (distance: {LokiPoe.MyPosition.Distance(pos)})");
 
             if (!PlayerMoverManager.MoveTowards(pos))
             {

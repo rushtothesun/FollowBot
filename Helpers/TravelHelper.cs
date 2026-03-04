@@ -16,7 +16,7 @@ namespace FollowBot.Helpers
             
                 if (LokiPoe.InstanceInfo.AvailableWaypoints.Any(x => x.Value.Id == datWorldAreaWrapper.Id ))
                 {
-                    FollowBot.Log.DebugFormat("[FollowBot] Found Waypoint for {0}", datWorldAreaWrapper.Name);
+                    GlobalLog.Debug($"[FollowBot] Found Waypoint for {datWorldAreaWrapper.Name}");
 
                     await PlayerAction.TakeWaypoint(datWorldAreaWrapper);
                     ret = true;
@@ -29,7 +29,7 @@ namespace FollowBot.Helpers
                             .FirstOrDefault(x => x.Name == datWorldAreaWrapper.Name);
                     if (zone != null)
                     {
-                        FollowBot.Log.DebugFormat("[FollowBot] Found Areatransation for {0}", datWorldAreaWrapper.Name);
+                        GlobalLog.Debug($"[FollowBot] Found Areatransation for {datWorldAreaWrapper.Name}");
                         await Move.AtOnce(zone.Position, "Move to area transition");
                         await Coroutines.ReactionWait();
                     var result = await PlayerAction.TakeTransition(zone);

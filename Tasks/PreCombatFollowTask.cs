@@ -5,7 +5,6 @@ using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
 using FollowBot.Class;
-using log4net;
 using System.Threading.Tasks;
 using static DreamPoeBot.Loki.Game.LokiPoe;
 
@@ -13,7 +12,6 @@ namespace FollowBot.Tasks
 {
     class PreCombatFollowTask : ITask
     {
-        private readonly ILog Log = Logger.GetLoggerInstanceForType();
         private int FollowFailCounter = 0;
 
         public string Name { get { return "PreCombatFollowTask"; } }
@@ -24,7 +22,7 @@ namespace FollowBot.Tasks
 
         public void Start()
         {
-            Log.InfoFormat("[{0}] Task Loaded.", Name);
+            GlobalLog.Info($"[{Name}] Task Loaded.");
         }
         public void Stop()
         {
@@ -37,8 +35,8 @@ namespace FollowBot.Tasks
 
         public Task<bool> Run()
         {
-            if (!FollowBotSettings.Instance.ShouldKill) return Task.FromResult(false);
-            if (!FollowBotSettings.Instance.ShouldFollow) return Task.FromResult(false);
+            if (!FollowBotSettings.Instance.Combat.ShouldKill) return Task.FromResult(false);
+            if (!FollowBotSettings.Instance.Follow.ShouldFollow) return Task.FromResult(false);
             if (!LokiPoe.IsInGame || LokiPoe.Me.IsDead || LokiPoe.Me.IsInTown || LokiPoe.Me.IsInHideout)
             {
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
@@ -63,12 +61,12 @@ namespace FollowBot.Tasks
 
             var distance = leaderPos.Distance(mypos);
 
-            if (distance > FollowBotSettings.Instance.MaxCombatDistance)
+            if (distance > FollowBotSettings.Instance.Follow.MaxCombatDistance)
             {
                 var pos = ExilePather.FastWalkablePositionFor(mypos.GetPointAtDistanceBeforeEnd(
                     leaderPos,
-                    LokiPoe.Random.Next(FollowBotSettings.Instance.FollowDistance,
-                        FollowBotSettings.Instance.MaxFollowDistance)));
+                    LokiPoe.Random.Next(FollowBotSettings.Instance.Follow.FollowDistance,
+                        FollowBotSettings.Instance.Follow.MaxFollowDistance)));
                 if (pos == Vector2i.Zero || !ExilePather.PathExistsBetween(mypos, pos))
                 {
                     ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);

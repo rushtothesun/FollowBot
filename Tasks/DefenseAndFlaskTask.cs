@@ -264,7 +264,7 @@ namespace FollowBot.Tasks
             var manaPct = LokiPoe.Me.ManaPercent;
 
             #region Flasks
-            foreach (var flask in FollowBotSettings.Instance.Flasks)
+            foreach (var flask in FollowBotSettings.Instance.Combat.Flasks)
             {
                 if (!flask.Enabled) continue;
                 var postUseDelay = flask.PostUseDelay.ElapsedMilliseconds;
@@ -288,7 +288,7 @@ namespace FollowBot.Tasks
             #endregion
 
             #region Defense
-            foreach (var skill in FollowBotSettings.Instance.DefensiveSkills)
+            foreach (var skill in FollowBotSettings.Instance.Combat.DefensiveSkills)
             {
                 if (!skill.Enabled) continue;
                 if (!skill.IsReadyToCast) continue;

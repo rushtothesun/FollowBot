@@ -4,10 +4,12 @@ using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
+using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
-using log4net;
+using FollowBot.SimpleEXtensions.Global;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,21 +20,26 @@ namespace FollowBot.Tasks
 {
     class FollowTask : ITask
     {
-        private readonly ILog Log = Logger.GetLoggerInstanceForType();
 
         public string Name { get { return "FollowTask"; } }
         public string Description { get { return "This task will Follow a Leader."; } }
         public string Author { get { return "NotYourFriend, origial code from Unknown"; } }
         public string Version { get { return "0.0.0.1"; } }
+        private const int MaxInteractionAttempts = 4;
+        private const int InteractionDistance = 40;
         private Vector2i _lastSeenMasterPosition;
         private Stopwatch _leaderzoningSw;
+        private HashSet<int> _failedObjectIds = new HashSet<int>();
+        public static bool ShouldCreateNewInstance = false;
+        public static Stopwatch NewInstanceWaitSw = new Stopwatch();
 
         public void Start()
         {
-            Log.InfoFormat("[{0}] Task Loaded.", Name);
+            GlobalLog.Info($"[{Name}] Task Loaded.");
             FollowBot.Leader = null;
             _lastSeenMasterPosition = Vector2i.Zero;
             _leaderzoningSw = new Stopwatch();
+            NewInstanceWaitSw = new Stopwatch();
         }
         public void Stop()
         {
@@ -45,7 +52,52 @@ namespace FollowBot.Tasks
 
         public async Task<bool> Run()
         {
-            if (!FollowBotSettings.Instance.ShouldFollow)
+            if (ShouldCreateNewInstance)
+            {
+                var transition = ObjectManager.GetObjectsByType<AreaTransition>()
+                    .OrderBy(t => t.Distance)
+                    .FirstOrDefault(t => t.Distance <= 30);
+
+                if (transition != null)
+                {
+                    var pos = transition.WalkablePosition();
+                    if (pos.Distance > 10)
+                    {
+                        await pos.ComeAtOnce();
+                    }
+                    
+                    if (await PlayerAction.CreateNewInstance(transition))
+                    {
+                        NewInstanceWaitSw.Restart();
+                    }
+                }
+                
+                ShouldCreateNewInstance = false;
+                return true;
+            }
+
+            if (NewInstanceWaitSw.IsRunning)
+            {
+                if (NewInstanceWaitSw.ElapsedMilliseconds < 5000)
+                {
+                    if (FollowBot.Leader != null && LokiPoe.InGameState.PartyHud.IsInSameZone(FollowBot.Leader.Name))
+                    {
+                        GlobalLog.Debug($"[{Name}] Leader is in the same zone, stopping wait.");
+                        NewInstanceWaitSw.Reset();
+                    }
+                    else
+                    {
+                        GlobalLog.Debug($"[{Name}] Waiting for leader after creating new instance...");
+                        return true;
+                    }
+                }
+                else
+                {
+                    NewInstanceWaitSw.Reset();
+                }
+            }
+
+            if (!FollowBotSettings.Instance.Follow.ShouldFollow)
             {
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
@@ -55,17 +107,17 @@ namespace FollowBot.Tasks
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
             }
-            if (Me.IsInTown && !FollowBotSettings.Instance.FollowInTown)
+            if (Me.IsInTown && !FollowBotSettings.Instance.Follow.FollowInTown)
             {
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
             }
-            if (Me.IsInHideout && !FollowBotSettings.Instance.FollowInHideout)
+            if (Me.IsInHideout && !FollowBotSettings.Instance.Follow.FollowInHideout)
             {
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
             }
-            if (World.CurrentArea.Id == "HeistHub" && !FollowBotSettings.Instance.FollowInHeistHub)
+            if (World.CurrentArea.Id == "HeistHub" && !FollowBotSettings.Instance.Follow.FollowInHeistHub)
             {
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
@@ -94,14 +146,29 @@ namespace FollowBot.Tasks
             if (ExilePather.PathExistsBetween(mypos, ExilePather.FastWalkablePositionFor(leaderPos)))
                 _lastSeenMasterPosition = leaderPos;
 
+            // Handle specific area transitions when leader is far away
+            if (await TryUseAreaSpecificTransition(distance))
+                return true;
 
-            if (distance > FollowBotSettings.Instance.MaxFollowDistance || leader?.HasCurrentAction == true && leader?.CurrentAction?.Skill?.InternalId == "Move")
+            // Try to interact with nearby crafting recipes (always enabled, no setting needed)
+            if (await TryInteractWithNearbyRecipe())
+                return true;
+
+            // Try to click nearby shrines
+            if (FollowBotSettings.Instance.Follow.ClickShrines && await TryClickNearbyShrine())
+                return true;
+
+            // Try to open nearby chests (only if leader is close)
+            if (FollowBotSettings.Instance.Loot.ShouldOpenChests && distance <= 60 && await TryOpenNearbyChest())
+                return true;
+
+            if (distance > FollowBotSettings.Instance.Follow.MaxFollowDistance || leader?.HasCurrentAction == true && leader?.CurrentAction?.Skill?.InternalId == "Move")
             {
 
                 var pos = ExilePather.FastWalkablePositionFor(mypos.GetPointAtDistanceBeforeEnd(
                     leaderPos,
-                    Random.Next(FollowBotSettings.Instance.FollowDistance,
-                        FollowBotSettings.Instance.MaxFollowDistance)));
+                    Random.Next(FollowBotSettings.Instance.Follow.FollowDistance,
+                        FollowBotSettings.Instance.Follow.MaxFollowDistance)));
                 if (pos == Vector2i.Zero || !ExilePather.PathExistsBetween(mypos, pos))
                 {
                     KeyManager.ClearAllKeyStates();
@@ -110,7 +177,7 @@ namespace FollowBot.Tasks
                     {
                         if (!_leaderzoningSw.IsRunning)
                         {
-                            Log.DebugFormat($"Grace period detected, this mean we just zoned and are waiting for the leader to finish loading.");
+                            GlobalLog.Debug($"Grace period detected, this mean we just zoned and are waiting for the leader to finish loading.");
                             _leaderzoningSw.Start();
                         }
                         if (_leaderzoningSw.IsRunning && _leaderzoningSw.ElapsedMilliseconds < 10000)
@@ -121,7 +188,7 @@ namespace FollowBot.Tasks
                     var delveportal = ObjectManager.GetObjectsByType<AreaTransition>().FirstOrDefault(x => x.Name == "Azurite Mine" && x.Metadata == "Metadata/MiscellaneousObject/PortalTransition");
                     if (delveportal != null)
                     {
-                        Log.DebugFormat("[{0}] Found walkable delve portal.", Name);
+                        GlobalLog.Debug($"[{Name}] Found walkable delve portal.");
                     RepeatBehavior1:
                         if (Me.Position.Distance(delveportal.Position) > 20)
                         {
@@ -140,7 +207,7 @@ namespace FollowBot.Tasks
 
                         if (!tele)
                         {
-                            Log.DebugFormat("[{0}] delve portal error.", Name);
+                            GlobalLog.Debug($"[{Name}] delve portal error.");
                         }
 
                         FollowBot.Leader = null;
@@ -155,7 +222,7 @@ namespace FollowBot.Tasks
                         var teleport = ObjectManager.GetObjectsByName("Portal").OrderBy(x => x.Position.Distance(_lastSeenMasterPosition)).FirstOrDefault(x => ExilePather.PathExistsBetween(Me.Position, ExilePather.FastWalkablePositionFor(x.Position, 20)));
                         if (teleport == null)
                             return false;
-                        Log.DebugFormat("[{0}] Found walkable Teleport.", Name);
+                        GlobalLog.Debug($"[{Name}] Found walkable Teleport.");
                     RepeatBehavior2:
                         if (Me.Position.Distance(teleport.Position) > 20)
                         {
@@ -183,14 +250,14 @@ namespace FollowBot.Tasks
 
                         if (!tele)
                         {
-                            Log.DebugFormat("[{0}] Teleport error.", Name);
+                            GlobalLog.Debug($"[{Name}] Teleport error.");
                         }
 
                         FollowBot.Leader = null;
                         return true;
                     }
 
-                    Log.DebugFormat("[{0}] Found walkable Area Transition [{1}].", Name, areatransition.Name);
+                    GlobalLog.Debug($"[{Name}] Found walkable Area Transition [{areatransition.Name}].");
 
                     if (Me.Position.Distance(areatransition.Position) > 20)
                     {
@@ -208,7 +275,7 @@ namespace FollowBot.Tasks
 
                     if (!trans)
                     {
-                        Log.DebugFormat("[{0}] Areatransition error.", Name);
+                        GlobalLog.Debug($"[{Name}] Areatransition error.");
                     }
 
                     //FollowBot.Leader = null;
@@ -218,18 +285,166 @@ namespace FollowBot.Tasks
                 // Cast Phase run if we have it.
                 CustomSkills.PhaseRun();
 
-                if (ExilePather.PathDistance(mypos, pos) < 45)
+                /*if (ExilePather.PathDistance(mypos, pos) < 45) //effects skillplayermover
                 {
                     InGameState.SkillBarHud.UseAt(FollowBot.LastBoundMoveSkillSlot, false, pos, false);
                 }
-                else
-                    Move.Towards(pos, $"{leader.Name}");
+                else*/
+                Move.Towards(pos, $"{leader.Name}");
                 return true;
             }
             // Clear the move key
             ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
             //KeyManager.ClearAllKeyStates();
             return false;
+        }
+
+        private async Task<bool> TryOpenNearbyChest()
+        {
+            var cache = CombatAreaCache.Current;
+
+            // Combine regular chests, special chests, and unique strongboxes from cache
+            var cachedObjects = cache.Chests
+                .Concat(cache.SpecialChests)
+                .Concat(cache.Strongboxes.Where(s => s.Rarity == Rarity.Unique));
+
+            return await TryInteractWithNearbyObject(
+                cachedObjects,
+                obj => {
+                    var chest = obj.Object as Chest;
+                    return chest != null && !chest.IsOpened && chest.IsTargetable;
+                },
+                obj => {
+                    cache.Chests.Remove(obj);
+                    cache.SpecialChests.Remove(obj);
+                    if (obj is CachedStrongbox)
+                        cache.Strongboxes.Remove(obj as CachedStrongbox);
+                },
+                obj => $"Opening chest: {obj.Object.Name}"
+            );
+        }
+
+        private async Task<bool> TryInteractWithNearbyRecipe()
+        {
+            var cache = CombatAreaCache.Current;
+
+            return await TryInteractWithNearbyObject(
+                cache.CraftingRecipe,
+                obj => {
+                    var recipe = obj.Object as CraftingRecipe;
+                    return recipe != null && !recipe.IsOpened && recipe.IsTargetable;
+                },
+                obj => cache.CraftingRecipe.Remove(obj),
+                obj => "Interacting with crafting recipe"
+            );
+        }
+
+        private async Task<bool> TryClickNearbyShrine()
+        {
+            var cache = CombatAreaCache.Current;
+
+            return await TryInteractWithNearbyObject(
+                cache.Shrines,
+                obj => {
+                    var shrine = obj.Object as Shrine;
+                    return shrine != null && !shrine.IsDeactivated && shrine.IsTargetable;
+                },
+                obj => cache.Shrines.Remove(obj),
+                obj => $"Clicking shrine: {obj.Object.Name}"
+            );
+        }
+
+        private async Task<bool> TryUseAreaSpecificTransition(double leaderDistance)
+        {
+            var areaId = World.CurrentArea.Id;
+
+            // Define transition requirements per area: (transitionNames[], maxTransitionDistance, minLeaderDistance)
+            string[] transitionNames;
+            int maxTransitionDistance;
+            int minLeaderDistance;
+
+            switch (areaId)
+            {
+                case "1_4_6_2": // The Belly of the Beast Level 2
+                    transitionNames = new[] { "The Bowels of the Beast" };
+                    maxTransitionDistance = 30;
+                    minLeaderDistance = 100;
+                    break;
+
+                case "1_4_6_3": // The Bowels of the Beast
+                case "2_9_10_2": // The Bowels of the Beast (Act 9)
+                    transitionNames = new[] { "Shavronne's Arena", "Maligaro's Arena", "Doedre's Arena" };
+                    maxTransitionDistance = 30;
+                    minLeaderDistance = 100;
+                    break;
+
+                default:
+                    return false;
+            }
+
+            if (leaderDistance <= minLeaderDistance)
+                return false;
+
+            var cache = CombatAreaCache.Current;
+            var transition = cache.AreaTransitions
+                .FirstOrDefault(t => transitionNames.Contains(t.Name) && t.Position.Distance < maxTransitionDistance);
+
+            if (transition == null)
+                return false;
+
+            var areaTransition = transition.Object;
+            if (areaTransition == null || !areaTransition.IsTargetable)
+                return false;
+
+            GlobalLog.Debug($"[FollowTask] Leader is far ({leaderDistance}), using transition: {transition.Name}");
+            await Coroutines.InteractWith(areaTransition);
+            cache.AreaTransitions.Remove(transition);
+            return true;
+        }
+
+        private async Task<bool> TryInteractWithNearbyObject(
+            IEnumerable<CachedObject> objects,
+            System.Func<CachedObject, bool> isValidFunc,
+            System.Action<CachedObject> removeFromCacheAction,
+            System.Func<CachedObject, string> logMessageFunc)
+        {
+            var cachedObject = objects
+                .Where(o => !_failedObjectIds.Contains(o.Id))
+                .OrderBy(o => o.Position.Distance)
+                .FirstOrDefault(o => o.Position.Distance < InteractionDistance);
+
+            if (cachedObject == null)
+                return false;
+
+            if (!isValidFunc(cachedObject))
+            {
+                removeFromCacheAction(cachedObject);
+                return false;
+            }
+
+            var obj = cachedObject.Object;
+            var pos = obj.WalkablePosition();
+            
+            // Move close to the object if needed
+            if (pos.Distance > 20)
+            {
+                await pos.ComeAtOnce();
+            }
+
+            GlobalLog.Debug($"[FollowTask] {logMessageFunc(cachedObject)}");
+            var success = await PlayerAction.InteractWithoutDelay(obj, MaxInteractionAttempts);
+            
+            if (success)
+            {
+                removeFromCacheAction(cachedObject);
+            }
+            else
+            {
+                // Mark as failed to prevent retry
+                _failedObjectIds.Add(cachedObject.Id);
+            }
+            
+            return success;
         }
 
         private AreaTransition GetRottingCoreTransition(Player leaderPlayerEntry)
@@ -271,6 +486,7 @@ namespace FollowBot.Tasks
             if (message.Id == Events.Messages.AreaChanged)
             {
                 _leaderzoningSw.Reset();
+                _failedObjectIds.Clear();
             }
             return MessageResult.Unprocessed;
         }
