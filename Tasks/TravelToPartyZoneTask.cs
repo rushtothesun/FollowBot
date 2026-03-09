@@ -29,6 +29,7 @@ namespace FollowBot.Tasks
         private const int LabTrialMaxDistance = 50;
         private const int MaligaroMaxDistance = 70;
         private const int NearbyTransitionMaxDistance = 100;
+        private const int MirageReturnMaxDistance = 120;
 
         // State management
         private bool _enabled = true;
@@ -125,7 +126,7 @@ namespace FollowBot.Tasks
                     }
                 }
             }
-            
+
             //First check the DontPortOutofMap
             var whereAmI = World.CurrentArea;
             if (!whereAmI.IsTown && !whereAmI.IsHideoutArea && FollowBotSettings.Instance.Follow.DontPortOutofMap) return false;
@@ -139,7 +140,7 @@ namespace FollowBot.Tasks
             if (await TryInteractWithPortal(delveportal, "delve"))
                 return true;
             #endregion
-            
+
             #region Heist Portals
             var heistportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Terrain/Leagues/Heist/Objects/MissionEntryPortal");
             if (heistportal == null)
@@ -148,7 +149,7 @@ namespace FollowBot.Tasks
             if (await TryInteractWithPortal(heistportal, "heist"))
                 return true;
             #endregion
-            
+
             #region Affliction
             var kingportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalToggleable");
             if (await TryInteractWithPortal(kingportal, "king of the mist"))
@@ -162,7 +163,7 @@ namespace FollowBot.Tasks
             if (await TryInteractWithPortal(afflictiontransition, "affliction transition", StandardMaxDistance))
                 return true;
             #endregion
-            
+
             #region Lab Trial Portals
             var labportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/QuestObjects/Labyrinth/LabyrinthTrialPortal");
             if (await TryInteractWithPortal(labportal, "lab", LabTrialMaxDistance))
@@ -172,13 +173,13 @@ namespace FollowBot.Tasks
             if (await TryInteractWithPortal(labreturnportal, "lab return"))
                 return true;
             #endregion
-            
+
             #region Abyss Portals
             var abyssportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Abyss/AbyssSubAreaTransition");
             if (await TryInteractWithPortal(abyssportal, "abyss", StandardMaxDistance))
                 return true;
             #endregion
-            
+
             #region Vaal Side Areas
             var corruptportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/PortalTransition");
             if (corruptportal != null && corruptportal.Components.AreaTransitionComponent.TransitionType.ToString() == "NormalToCorrupted")
@@ -213,7 +214,17 @@ namespace FollowBot.Tasks
             if (await TryInteractWithPortal(sanctumtransition, "sanctum transition"))
                 return true;
             #endregion
-            
+
+            #region Mirage Portals
+            var mirageEntry = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Faridun/DjinnPortal");
+            if (await TryInteractWithPortal(mirageEntry, "mirage entry", StandardMaxDistance))
+                return true;
+
+            var mirageReturn = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal");
+            if (await TryInteractWithPortal(mirageReturn, "mirage return", MirageReturnMaxDistance))
+                return true;
+            #endregion
+
             #region Maligaro's Sanctum Portal
             if (LokiPoe.CurrentWorldArea.Id == "2_7_5_1")
             {
@@ -259,7 +270,7 @@ namespace FollowBot.Tasks
                 }
             }
             #endregion
-                        
+
             #region Hideout Portal
             // portal
             /*var hoportal = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/MultiplexPortal");
@@ -364,7 +375,7 @@ namespace FollowBot.Tasks
                 GlobalLog.Warn($"[TravelToPartyZoneTask] Cant follow the leader in the Labyrinth when the lab is already started.");
                 return false;
             }
-			var curZone = World.CurrentArea;
+            var curZone = World.CurrentArea;
             if (curZone.IsCombatArea && FollowBotSettings.Instance.Follow.PortOutThreshold > 0)
             {
                 if (!PortOutStopwatch.IsRunning)
@@ -392,7 +403,7 @@ namespace FollowBot.Tasks
             }
             else
             {
-				GlobalLog.Warn($"Trying to tp");
+                GlobalLog.Warn($"Trying to tp");
 
                 // Try to use nearby area transition first
                 if (!await TryUseNearbyTransitionToLeader(leaderArea.Id))

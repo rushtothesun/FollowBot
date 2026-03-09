@@ -25,6 +25,7 @@ namespace FollowBot
             Lab = Lab ?? new LabSettings();
             UI = UI ?? new UISettings();
             Stash = Stash ?? new StashSettings();
+            Login = Login ?? new LoginSettings();
         }
 
         // Nested settings properties
@@ -40,5 +41,6 @@ namespace FollowBot
         public LabSettings Lab { get; set; } = new LabSettings();
         public UISettings UI { get; set; } = new UISettings();
         public StashSettings Stash { get; set; } = new StashSettings();
+        public LoginSettings Login { get; set; } = new LoginSettings();
     }
 }

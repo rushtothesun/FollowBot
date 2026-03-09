@@ -51,8 +51,10 @@
     "Settings\\StashSettings.cs",
     "Settings\\TradeSettings.cs",
     "Settings\\UISettings.cs",
+    "Settings\\LoginSettings.cs",
     "Properties\\AssemblyInfo.cs",
     "Tasks\\AsyncCustomSkillsTask.cs",
+    "Tasks\\AutoLoginTask.cs",
     "Tasks\\CustomSkillsTask.cs",
     "Tasks\\DefenseAndFlaskTask.cs",
     "Tasks\\DivineFontTask.cs",
@@ -122,5 +124,7 @@
     "SharpDX.Direct2D1.dll",
     "GameOverlay.dll"
   ],
-  "References": []
+  "References": [
+    "System.Security.dll"
+  ]
 }

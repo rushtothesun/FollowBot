@@ -17,6 +17,50 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Auto">
         <StackPanel>
+            <!-- Auto-Login Settings -->
+            <Expander Header="Auto-Login Settings" IsExpanded="False" Margin="5">
+                <StackPanel Margin="5">
+                    <CheckBox Content="Enable Auto-Login"
+                              IsChecked="{Binding Login.AutoLoginEnabled, Mode=TwoWay}"
+                              Margin="5"
+                              ToolTip="Automatically log in and select a character when the bot starts at the login screen."/>
+
+                    <Grid Margin="5">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="200"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Character Name:" VerticalAlignment="Center"
+                               ToolTip="Leave empty for smart selection (auto-picks current league character). Set to use a specific character, including private leagues."/>
+                        <TextBox Grid.Row="0" Grid.Column="1"
+                                 Text="{Binding Login.CharacterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="3" VerticalAlignment="Center"
+                                 ToolTip="Leave empty for smart selection (auto-picks current league character). Set to use a specific character, including private leagues."/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Content="Email:" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="1"
+                                 Text="{Binding Login.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="3" VerticalAlignment="Center"
+                                 ToolTip="Your PoE account email. Used if 'remember me' credentials are not available."/>
+
+                        <Label Grid.Row="2" Grid.Column="0" Content="Password:" VerticalAlignment="Center"/>
+                        <PasswordBox x:Name="LoginPasswordBox" Grid.Row="2" Grid.Column="1"
+                                     Margin="3" VerticalAlignment="Center"
+                                     PasswordChanged="LoginPasswordBox_PasswordChanged"
+                                     ToolTip="Your PoE password. Encrypted with Windows DPAPI and stored securely. Only used if 'remember me' credentials fail."/>
+                    </Grid>
+
+                    <TextBlock Text="Credentials are only needed if PoE's 'remember me' isn't active. Password is encrypted with Windows DPAPI."
+                               Margin="5,5,5,0" FontSize="10" FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Expander>
+
             <!-- Follower Settings -->
             <Expander Header="Follower Settings" IsExpanded="False" Margin="5">
                 <StackPanel>
@@ -594,7 +638,9 @@
                     </StackPanel>
 
                     <TextBlock Text="Note: With stash affinities enabled, currency and maps will automatically go to their designated tabs."
-                               Margin="5,10,5,5" FontSize="10" FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap"/>
+                               Margin="5,10,5,0" FontSize="10" FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap"/>
+                    <TextBlock Text="You MUST check 'Enable Tab Affinities' and UNCHECK 'Affinity Auto-navigation' in the game's Stash Options (Gear Icon), or the bot will fail to stash items correctly!"
+                               Margin="5,5,5,5" FontSize="11" FontWeight="Bold" Foreground="IndianRed" TextWrapping="Wrap"/>
                 </StackPanel>
             </Expander>
       </StackPanel>

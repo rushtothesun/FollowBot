@@ -44,6 +44,22 @@ namespace FollowBot.Helpers
             }
 
             var tabControl = GetStashTabControl(stashType);
+
+            // Fast path: Check if we are already on the correct tab
+            if (tabControl.CurrentTabName == tabName)
+            {
+                GlobalLog.Debug($"[StashHelper] Already on {stashType} stash tab: {tabName}");
+                return true;
+            }
+
+            // Sanity check: Ensure the requested tab actually exists
+            var allTabs = tabControl.TabNames;
+            if (allTabs != null && !allTabs.Contains(tabName))
+            {
+                GlobalLog.Error($"[StashHelper] Fatal Error: Cannot switch to tab '{tabName}'. It does not exist in your {stashType} stash!");
+                return false;
+            }
+
             var result = tabControl.SwitchToTabMouse(tabName);
 
             // SwitchToTabResult.None = SUCCESS (counter-intuitive but verified)
@@ -77,6 +93,22 @@ namespace FollowBot.Helpers
             }
 
             var tabControl = GetStashTabControl(stashType);
+
+            // Fast path: Check if we are already on the correct tab index
+            if (tabControl.CurrentTabIndex == displayIndex)
+            {
+                GlobalLog.Debug($"[StashHelper] Already on {stashType} stash tab index: {displayIndex}");
+                return true;
+            }
+
+            // Sanity check: Ensure index is within bounds
+            var allTabs = tabControl.TabNames;
+            if (allTabs != null && (displayIndex < 0 || displayIndex >= allTabs.Count))
+            {
+                GlobalLog.Error($"[StashHelper] Fatal Error: Cannot switch to tab index {displayIndex}. Valid indices are 0 to {allTabs.Count - 1}.");
+                return false;
+            }
+
             var result = tabControl.SwitchToTabMouse(displayIndex);
 
             bool success = result == SwitchToTabResult.None;

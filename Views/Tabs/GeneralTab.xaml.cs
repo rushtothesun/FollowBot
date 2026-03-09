@@ -19,6 +19,32 @@ namespace FollowBot.Views.Tabs
 
             // Check initial state to show/hide button
             UpdateSmartButtonVisibility();
+
+            // Initialize login password box placeholder
+            if (FollowBotSettings.Instance.Login.HasPassword)
+            {
+                LoginPasswordBox.Password = "********";
+                LoginPasswordBox.Tag = "placeholder"; // sentinel to avoid re-encrypting placeholder
+            }
+        }
+
+        private void LoginPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            var passwordBox = sender as PasswordBox;
+            if (passwordBox == null) return;
+
+            // Skip if this is the initial placeholder load
+            if (passwordBox.Tag as string == "placeholder")
+            {
+                passwordBox.Tag = null;
+                return;
+            }
+
+            var plaintext = passwordBox.Password;
+            if (string.IsNullOrEmpty(plaintext) || plaintext == "********")
+                return;
+
+            FollowBotSettings.Instance.Login.SetAndEncryptPassword(plaintext);
         }
 
         private void InitializeTradeSlotGrid()

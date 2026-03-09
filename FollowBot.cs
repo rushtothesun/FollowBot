@@ -30,6 +30,7 @@ namespace FollowBot
         private Coroutine _coroutine;
 
         private readonly TaskManager _taskManager = new TaskManager();
+        private readonly AutoLoginTask _autoLoginTask = new AutoLoginTask();
         internal static bool IsOnRun;
         public static Stopwatch RequestPartySw = Stopwatch.StartNew();
         private OverlayWindow _overlay = new OverlayWindow(LokiPoe.ClientWindowHandle);
@@ -125,23 +126,26 @@ namespace FollowBot
             ComplexExplorer.ResetSettingsProviders();
             ComplexExplorer.AddSettingsProvider("FollowBot", MapBotExploration, ProviderPriority.Low);
 
-            // Cache all bound keys.
-            LokiPoe.Input.Binding.Update();
-
-            // Reset the default MsBetweenTicks on start.
-            GlobalLog.Debug($"[Start] MsBetweenTicks: {BotManager.MsBetweenTicks}.");
-            GlobalLog.Debug($"[Start] PlayerMover.Instance: {PlayerMoverManager.Current.GetType()}.");
-
             // Since this bot will be performing client actions, we need to enable the process hook manager.
             LokiPoe.ProcessHookManager.Enable();
 
             _coroutine = null;
 
-            ExilePather.BlockLockedDoors = FeatureEnum.Disabled;
-            ExilePather.BlockLockedTempleDoors = FeatureEnum.Disabled;
-            ExilePather.BlockTrialOfAscendancy = FeatureEnum.Disabled;
+            // These require in-game state — defer if starting from login screen
+            if (LokiPoe.IsInGame)
+            {
+                // Cache all bound keys.
+                LokiPoe.Input.Binding.Update();
 
-            ExilePather.Reload();
+                ExilePather.BlockLockedDoors = FeatureEnum.Disabled;
+                ExilePather.BlockLockedTempleDoors = FeatureEnum.Disabled;
+                ExilePather.BlockTrialOfAscendancy = FeatureEnum.Disabled;
+
+                ExilePather.Reload();
+            }
+
+            // Reset the default MsBetweenTicks on start.
+            GlobalLog.Debug($"[Start] MsBetweenTicks: {BotManager.MsBetweenTicks}.");
 
             _taskManager.Reset();
 
@@ -173,7 +177,8 @@ namespace FollowBot
                 _coroutine = new Coroutine(() => MainCoroutine());
             }
 
-            ExilePather.Reload();
+            if (LokiPoe.IsInGame)
+                ExilePather.Reload();
 
             Events.Tick();
             CombatAreaCache.Tick();
@@ -229,24 +234,25 @@ namespace FollowBot
         {
             while (true)
             {
-                if (LokiPoe.IsInLoginScreen)
+                if (LokiPoe.IsInLoginScreen || LokiPoe.IsInCharacterSelectionScreen)
                 {
-                    // Offload auto login logic to a plugin.
-                    var logic = new Logic("hook_login_screen", this);
+                    // Try plugin hooks first
+                    var hookName = LokiPoe.IsInLoginScreen ? "hook_login_screen" : "hook_character_selection";
+                    var logic = new Logic(hookName, this);
+                    var handled = false;
                     foreach (var plugin in PluginManager.EnabledPlugins)
                     {
                         if (await plugin.Logic(logic) == LogicResult.Provided)
+                        {
+                            handled = true;
                             break;
+                        }
                     }
-                }
-                else if (LokiPoe.IsInCharacterSelectionScreen)
-                {
-                    // Offload character selection logic to a plugin.
-                    var logic = new Logic("hook_character_selection", this);
-                    foreach (var plugin in PluginManager.EnabledPlugins)
+
+                    // If no plugin handled it, use built-in auto-login
+                    if (!handled)
                     {
-                        if (await plugin.Logic(logic) == LogicResult.Provided)
-                            break;
+                        await _autoLoginTask.Run();
                     }
                 }
                 else if (LokiPoe.IsInGame)
@@ -327,6 +333,11 @@ namespace FollowBot
                 UpdatePathfinderSettings();
                 handled = true;
             }
+            // === RemoteControl message handlers ===
+            else
+            {
+                handled = HandleRemoteControlMessage(id, message) || handled;
+            }
 
             Events.FireEventsFromMessage(message);
 
@@ -371,7 +382,7 @@ namespace FollowBot
         {
 
             _taskManager.Add(new ClearCursorTask());
-			_taskManager.Add(new JoinPartyTask());
+            _taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new TradeTask());
             _taskManager.Add(new StashTask());
             _taskManager.Add(new QuestInteractionTask());
@@ -389,7 +400,7 @@ namespace FollowBot
             _taskManager.Add(new CastAuraTask());
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
-			_taskManager.Add(new TrialPickerTask());
+            _taskManager.Add(new TrialPickerTask());
             // _taskManager.Add(new OpenWaypointTask());
             //_taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new FallbackTask());
@@ -450,6 +461,160 @@ namespace FollowBot
             public const string MapTrialEntered = "MB_map_trial_entered_event";
             public const string GetIsOnRun = "MB_get_is_on_run";
             public const string SetIsOnRun = "MB_set_is_on_run";
+
+            // RemoteControl plugin message IDs
+            public const string RcStartFollow = "RC_start_follow";
+            public const string RcStopFollow = "RC_stop_follow";
+            public const string RcStartAttack = "RC_start_attack";
+            public const string RcStopAttack = "RC_stop_attack";
+            public const string RcStartLoot = "RC_start_loot";
+            public const string RcStopLoot = "RC_stop_loot";
+            public const string RcStartPortal = "RC_start_portal";
+            public const string RcStopPortal = "RC_stop_portal";
+            public const string RcTeleport = "RC_teleport";
+            public const string RcOpenPortal = "RC_open_portal";
+            public const string RcEnterPortal = "RC_enter_portal";
+            public const string RcStash = "RC_stash";
+            public const string RcNewInstance = "RC_new_instance";
+            public const string RcFollowTownOn = "RC_follow_town_on";
+            public const string RcFollowTownOff = "RC_follow_town_off";
+            public const string RcFollowHideoutOn = "RC_follow_hideout_on";
+            public const string RcFollowHideoutOff = "RC_follow_hideout_off";
+            public const string RcFollowHeistOn = "RC_follow_heist_on";
+            public const string RcFollowHeistOff = "RC_follow_heist_off";
+            public const string RcAutoDepositOn = "RC_auto_deposit_on";
+            public const string RcAutoDepositOff = "RC_auto_deposit_off";
+            public const string RcUseGuildStash = "RC_use_guild_stash";
+            public const string RcUseRegularStash = "RC_use_regular_stash";
+            public const string RcUltPortalOn = "RC_ult_portal_on";
+            public const string RcUltPortalOff = "RC_ult_portal_off";
+            public const string RcSetUltTimer = "RC_set_ult_timer";
+        }
+
+        /// <summary>
+        /// Handles RemoteControl plugin commands by flipping the same static flags as ChatParser.
+        /// Returns true if the message was handled.
+        /// </summary>
+        private bool HandleRemoteControlMessage(string id, Message message)
+        {
+            var follow = FollowBotSettings.Instance.Follow;
+            var combat = FollowBotSettings.Instance.Combat;
+            var loot = FollowBotSettings.Instance.Loot;
+            var stash = FollowBotSettings.Instance.Stash;
+
+            switch (id)
+            {
+                case Messages.RcStartFollow:
+                    follow.ShouldFollow = true;
+                    GlobalLog.Info("[FollowBot] RC: StartFollow");
+                    return true;
+                case Messages.RcStopFollow:
+                    follow.ShouldFollow = false;
+                    GlobalLog.Info("[FollowBot] RC: StopFollow");
+                    return true;
+                case Messages.RcStartAttack:
+                    combat.ShouldKill = true;
+                    GlobalLog.Info("[FollowBot] RC: StartAttack");
+                    return true;
+                case Messages.RcStopAttack:
+                    combat.ShouldKill = false;
+                    GlobalLog.Info("[FollowBot] RC: StopAttack");
+                    return true;
+                case Messages.RcStartLoot:
+                    loot.ShouldLoot = true;
+                    GlobalLog.Info("[FollowBot] RC: StartLoot");
+                    return true;
+                case Messages.RcStopLoot:
+                    loot.ShouldLoot = false;
+                    GlobalLog.Info("[FollowBot] RC: StopLoot");
+                    return true;
+                case Messages.RcStartPortal:
+                    follow.DontPortOutofMap = false;
+                    GlobalLog.Info("[FollowBot] RC: StartPortal (auto-TP enabled)");
+                    return true;
+                case Messages.RcStopPortal:
+                    follow.DontPortOutofMap = true;
+                    GlobalLog.Info("[FollowBot] RC: StopPortal (auto-TP disabled)");
+                    return true;
+                case Messages.RcTeleport:
+                    Tasks.DefenseAndFlaskTask.ShouldTeleport = true;
+                    GlobalLog.Info("[FollowBot] RC: Teleport");
+                    return true;
+                case Messages.RcOpenPortal:
+                    Tasks.DefenseAndFlaskTask.ShouldOpenPortal = true;
+                    GlobalLog.Info("[FollowBot] RC: OpenPortal");
+                    return true;
+                case Messages.RcEnterPortal:
+                    Tasks.UltimatumTask.ShouldEnterPortal = true;
+                    GlobalLog.Info("[FollowBot] RC: EnterPortal");
+                    return true;
+                case Messages.RcStash:
+                    Tasks.StashTask.ShouldDepositFromChat = true;
+                    GlobalLog.Info("[FollowBot] RC: Stash");
+                    return true;
+                case Messages.RcNewInstance:
+                    Tasks.FollowTask.ShouldCreateNewInstance = true;
+                    GlobalLog.Info("[FollowBot] RC: NewInstance");
+                    return true;
+                case Messages.RcFollowTownOn:
+                    follow.FollowInTown = true;
+                    GlobalLog.Info("[FollowBot] RC: FollowInTown ON");
+                    return true;
+                case Messages.RcFollowTownOff:
+                    follow.FollowInTown = false;
+                    GlobalLog.Info("[FollowBot] RC: FollowInTown OFF");
+                    return true;
+                case Messages.RcFollowHideoutOn:
+                    follow.FollowInHideout = true;
+                    GlobalLog.Info("[FollowBot] RC: FollowInHideout ON");
+                    return true;
+                case Messages.RcFollowHideoutOff:
+                    follow.FollowInHideout = false;
+                    GlobalLog.Info("[FollowBot] RC: FollowInHideout OFF");
+                    return true;
+                case Messages.RcFollowHeistOn:
+                    follow.FollowInHeistHub = true;
+                    GlobalLog.Info("[FollowBot] RC: FollowInHeistHub ON");
+                    return true;
+                case Messages.RcFollowHeistOff:
+                    follow.FollowInHeistHub = false;
+                    GlobalLog.Info("[FollowBot] RC: FollowInHeistHub OFF");
+                    return true;
+                case Messages.RcAutoDepositOn:
+                    stash.AutoDepositOnMapExit = true;
+                    GlobalLog.Info("[FollowBot] RC: AutoDeposit ON");
+                    return true;
+                case Messages.RcAutoDepositOff:
+                    stash.AutoDepositOnMapExit = false;
+                    GlobalLog.Info("[FollowBot] RC: AutoDeposit OFF");
+                    return true;
+                case Messages.RcUseGuildStash:
+                    stash.UseGuildStash = true;
+                    GlobalLog.Info("[FollowBot] RC: UseGuildStash");
+                    return true;
+                case Messages.RcUseRegularStash:
+                    stash.UseGuildStash = false;
+                    GlobalLog.Info("[FollowBot] RC: UseRegularStash");
+                    return true;
+                case Messages.RcUltPortalOn:
+                    loot.ShouldLootUltimatum = true;
+                    GlobalLog.Info("[FollowBot] RC: Portal After Ultimatum ON");
+                    return true;
+                case Messages.RcUltPortalOff:
+                    loot.ShouldLootUltimatum = false;
+                    GlobalLog.Info("[FollowBot] RC: Portal After Ultimatum OFF");
+                    return true;
+                case Messages.RcSetUltTimer:
+                    int timerVal;
+                    if (message.TryGetInput<int>("value", out timerVal))
+                    {
+                        loot.UltimatumLootTimer = timerVal;
+                        GlobalLog.Info($"[FollowBot] RC: UltimatumLootTimer = {timerVal}");
+                    }
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         public string Name => "FollowBot";

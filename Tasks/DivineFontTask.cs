@@ -419,7 +419,7 @@ namespace FollowBot.Tasks
         private List<DivineFontOptionType> ReadAvailableOptionsFromUi()
         {
             var available = new List<DivineFontOptionType>();
-            var optionsContainer = GetElementByPath(70, 0, 2, 2);
+            var optionsContainer = GetElementByPath(68, 0, 2, 2);
 
             if (optionsContainer == null || optionsContainer.Children == null)
                 return available;
@@ -518,7 +518,7 @@ namespace FollowBot.Tasks
                 using (var client = new WebClient())
                 {
                     client.Encoding = System.Text.Encoding.UTF8;
-                    string url = "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Keepers&type=SkillGem";
+                    string url = "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Mirage&type=SkillGem";
                     string json = await Coroutine.ExternalTask(client.DownloadStringTaskAsync(new Uri(url)));
                     var response = JsonConvert.DeserializeObject<PoeNinjaResponse>(json);
 
@@ -598,7 +598,7 @@ namespace FollowBot.Tasks
 
         private async Task<bool> SelectTransformOption(DivineFontOptionType targetType)
         {
-            var optionsContainer = GetElementByPath(70, 0, 2, 2);
+            var optionsContainer = GetElementByPath(68, 0, 2, 2);
             if (optionsContainer == null || optionsContainer.Children == null)
             {
                 GlobalLog.Error("[DivineFontTask] Options container not found");
@@ -646,8 +646,8 @@ namespace FollowBot.Tasks
 
         private async Task<bool> ClickCraftButton()
         {
-            // Path: root.Children[1].Children[70].Children[0].Children[3].Children[0]
-            var craftButton = GetElementByPath(70, 0, 3, 0);
+            // Path: root.Children[1].Children[68].Children[0].Children[3].Children[0]
+            var craftButton = GetElementByPath(68, 0, 3, 0);
 
             if (craftButton == null || !craftButton.IsVisible)
             {
@@ -668,8 +668,8 @@ namespace FollowBot.Tasks
         {
             try
             {
-                // Navigate to gems container parent: root[1][70][4][0][0]
-                var gemsParent = GetElementByPath(70, 4, 0, 0);
+                // Navigate to gems container parent: root[1][68][4][0][0]
+                var gemsParent = GetElementByPath(68, 4, 0, 0);
                 if (gemsParent == null || gemsParent.Children == null || gemsParent.Children.Count == 0)
                 {
                     GlobalLog.Error($"[DivineFontTask] Gems parent not found or has no children");
@@ -733,8 +733,8 @@ namespace FollowBot.Tasks
         {
             try
             {
-                // Navigate to gems container: root[1][70][4][0][0]
-                var gemsParent = GetElementByPath(70, 4, 0, 0);
+                // Navigate to gems container: root[1][68][4][0][0]
+                var gemsParent = GetElementByPath(68, 4, 0, 0);
                 if (gemsParent == null || gemsParent.Children == null || gemsParent.Children.Count == 0)
                 {
                     GlobalLog.Error("[DivineFontTask] Gems parent not found for clicking");
@@ -770,8 +770,8 @@ namespace FollowBot.Tasks
 
         private async Task<bool> ClickConfirmButton()
         {
-            // Path: root.Children[1].Children[70].Children[4].Children[0].Children[1].Children[0]
-            var confirmButton = GetElementByPath(70, 4, 0, 1, 0);
+            // Path: root.Children[1].Children[68].Children[4].Children[0].Children[1].Children[0]
+            var confirmButton = GetElementByPath(68, 4, 0, 1, 0);
 
             if (confirmButton == null || !confirmButton.IsVisible)
             {
@@ -796,9 +796,9 @@ namespace FollowBot.Tasks
         private Element GetGemInputSlot()
         {
             // Based on findgeminput.cs dump:
-            // Gem container is at [70][0][3][3]
+            // Gem container is at [68][0][3][3]
             // Within that container, child[1] has the tooltip (the gem)
-            var container = GetElementByPath(70, 0, 3, 3);
+            var container = GetElementByPath(68, 0, 3, 3);
 
             if (container == null)
             {
@@ -817,9 +817,9 @@ namespace FollowBot.Tasks
 
         private bool IsGemInSlot()
         {
-            // If there's a gem in the slot, the container at [70][0][3][3] will have 2 children
+            // If there's a gem in the slot, the container at [68][0][3][3] will have 2 children
             // If empty, it only has 1 child ([0])
-            var container = GetElementByPath(70, 0, 3, 3);
+            var container = GetElementByPath(68, 0, 3, 3);
 
             if (container == null)
             {
@@ -1426,7 +1426,7 @@ namespace FollowBot.Tasks
 
         private int GetRemainingCrafts()
         {
-            var craftsElement = GetElementByPath(70, 0, 3, 1, 0);
+            var craftsElement = GetElementByPath(68, 0, 3, 1, 0);
             if (craftsElement == null)
             {
                 GlobalLog.Error("[DivineFontTask] Could not find crafts remaining element.");
@@ -1462,7 +1462,7 @@ namespace FollowBot.Tasks
                 return;
             }
 
-            var optionsContainer = GetElementByPath(70, 0, 2, 2);
+            var optionsContainer = GetElementByPath(68, 0, 2, 2);
             if (optionsContainer == null)
             {
                 GlobalLog.Error("[DivineFontTask] Could not find options container.");

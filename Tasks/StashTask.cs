@@ -339,6 +339,59 @@ namespace FollowBot.Tasks
             int depositedCount = 0;
             int skippedCount = 0;
 
+            // Step 1: Filter out items we don't want to deposit (Quests & Excluded Slots)
+            var itemsToDeposit = mainInventoryItems.Where(item =>
+            {
+                // Filter: Skip quest items
+                if (item.Class == ItemClasses.QuestItem)
+                {
+                    GlobalLog.Info($"[StashTask] Skipping quest item: {item.Name}");
+                    skippedCount++;
+                    return false;
+                }
+
+                // Filter: Skip excluded slots (from UI settings)
+                if (FollowBotSettings.Instance.Trade.IsSlotExcluded(item.LocationTopLeft.X, item.LocationTopLeft.Y))
+                {
+                    GlobalLog.Info($"[StashTask] Skipping excluded slot ({item.LocationTopLeft.X}, {item.LocationTopLeft.Y}): {item.Name}");
+                    skippedCount++;
+                    return false;
+                }
+
+                return true;
+            }).ToList();
+
+            // Step 2: Iterate and deposit the filtered items
+            foreach (var item in itemsToDeposit)
+            {
+                // Human-like pause (10% chance, 100-200ms) - from TradeTask pattern
+                if (LokiPoe.Random.Next(1, 100) > 90)
+                {
+                    int pauseDuration = LokiPoe.Random.Next(100, 200);
+                    await Wait.SleepSafe(pauseDuration);
+                }
+
+                // Deposit item (affinity will auto-route to correct tabs)
+                bool success = StashHelper.DepositItem(item.LocalId, stashType);
+
+                if (success)
+                {
+                    depositedCount++;
+                }
+                else
+                {
+                    GlobalLog.Warn($"[StashTask] Failed to deposit: {item.Name}");
+                }
+
+                // Small random delay between items (30-70ms) - from TradeTask pattern
+                await Wait.SleepSafe(LokiPoe.Random.Next(30, 70));
+            }
+
+            // =========================================================================================
+            /* [LEGACY X/Y GRID LOOP] 
+             * Preserved strictly for easy reversion if the LINQ method above encounters edge cases.
+             * To revert: Delete the logic from Step 1 & 2 above, and uncomment this block.
+             *
             // Iterate through inventory grid (12 columns x 5 rows)
             for (int y = 0; y < 5; y++)
             {
@@ -390,6 +443,8 @@ namespace FollowBot.Tasks
                     await Wait.SleepSafe(LokiPoe.Random.Next(30, 70));
                 }
             }
+            */
+            // =========================================================================================
 
             GlobalLog.Info($"[StashTask] Deposit complete. Deposited: {depositedCount}, Skipped: {skippedCount}");
         }
