@@ -125,6 +125,7 @@
     "GameOverlay.dll"
   ],
   "References": [
-    "System.Security.dll"
+    "System.Security.dll",
+    "SharpDX.Mathematics.dll"
   ]
 }

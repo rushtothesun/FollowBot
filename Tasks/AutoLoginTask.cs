@@ -8,6 +8,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using DreamPoeBot.BotFramework;
+
 using Message = DreamPoeBot.Loki.Bot.Message;
 
 namespace FollowBot.Tasks
@@ -52,6 +54,12 @@ namespace FollowBot.Tasks
             }
 
             // Handle login screen
+            if (LokiPoe.IsInLoginScreen || LokiPoe.IsInCharacterSelectionScreen)
+            {
+                if (!LokiPoe.ProcessHookManager.IsEnabled)
+                    LokiPoe.ProcessHookManager.Enable();
+            }
+
             if (LokiPoe.IsInLoginScreen)
             {
                 return await HandleLoginScreen(settings);
@@ -102,23 +110,32 @@ namespace FollowBot.Tasks
             var gateway = LokiPoe.LoginState.CurrentSelectedGateway;
             GlobalLog.Debug($"[{Name}] Attempting login with gateway: {gateway} (attempt {_loginRetryCount + 1}/{MaxLoginRetries})");
 
-            //Login() crashes with ArgumentOutOfRangeException at AcceptTermOfUse()
+            _loginRetryCount++;
+            _loginAttemptTimer.Restart();
+
+            //Login() crashes with ArgumentOutOfRangeException at AcceptTermOfUse() if pregamestate hasn't been updated
             LokiPoe.LoginState.LoginError loginResult;
             try
             {
                 loginResult = LokiPoe.LoginState.Login(gateway);
             }
-            catch (ArgumentOutOfRangeException)
+            catch (ArgumentOutOfRangeException) //Fallback logic
             {
                 GlobalLog.Warn($"[{Name}] Popup Detected, Handling.");
-                _loginRetryCount++;
                 _passwordEntryRequired = true;
                 await DismissPopup();
                 return true;
             }
 
-            _loginRetryCount++;
-            _loginAttemptTimer.Restart();
+            // Primary popup detection: check PreGameState
+            if (LokiPoe.PreGameState.IsMessageBoxActive)
+            {
+                var popupText = LokiPoe.PreGameState.MessageBoxText;
+                GlobalLog.Warn($"[{Name}] Login popup detected: {popupText}");
+                _passwordEntryRequired = true;
+                await DismissPopup();
+                return true;
+            }
 
             if (loginResult == LokiPoe.LoginState.LoginError.None)
             {
@@ -173,7 +190,6 @@ namespace FollowBot.Tasks
 
             var gateway = LokiPoe.LoginState.CurrentSelectedGateway;
             var loginResult = LokiPoe.LoginState.Login(gateway);
-            _loginRetryCount++;
 
             if (loginResult == LokiPoe.LoginState.LoginError.None)
             {
@@ -190,9 +206,52 @@ namespace FollowBot.Tasks
 
         private async Task DismissPopup()
         {
-            // Key down to dismiss popup
+            // Try ClickConfirm
+            if (LokiPoe.PreGameState.IsMessageBoxActive)
+            {
+                LokiPoe.PreGameState.ClickConfirm();
+                await Coroutine.Sleep(LokiPoe.Random.Next(400, 700));
+                if (!LokiPoe.PreGameState.IsMessageBoxActive)
+                    return;
+            }
+
+            // Fallback: blind key press
             LokiPoe.Input.SimulateKeyEvent(Keys.Return, true, false, false, Keys.None);
             await Coroutine.Sleep(LokiPoe.Random.Next(800, 1200));
+        }
+
+        private DreamPoeBot.Loki.Element FindFilterComboBox(DreamPoeBot.Loki.Element el)
+        {
+            if (el == null) return null;
+
+            if (el.Text == "Filter Characters:")
+            {
+                var parent = el.Parent;
+                if (parent != null && parent.Children.Count >= 2)
+                {
+                    return parent.Children[1];
+                }
+            }
+
+            foreach (var child in el.Children)
+            {
+                var result = FindFilterComboBox(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private DreamPoeBot.Loki.Element FindFilterLabel(DreamPoeBot.Loki.Element el)
+        {
+            if (el == null) return null;
+            if (el.Text == "Filter Characters:") return el;
+
+            foreach (var child in el.Children)
+            {
+                var result = FindFilterLabel(child);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         private async Task<bool> HandleCharacterSelection(Settings.LoginSettings settings)
@@ -244,17 +303,142 @@ namespace FollowBot.Tasks
                     GlobalLog.Warn($"[{Name}] Multiple current league characters found: {names}. Using first alphabetically. Consider setting a CharacterName in settings.");
                 }
 
-                targetName = filtered.First().Name;
+                // Sort alphabetically to match the physical UI list
+                targetName = filtered.OrderBy(c => c.Name).First().Name;
                 GlobalLog.Info($"[{Name}] Smart selection chose: {targetName}");
+            }
+
+            // Give the UI a little extra time on slower machines or fresh client launches to completely render the character screen.
+            await Coroutine.Sleep(LokiPoe.Random.Next(1000, 1500));
+
+            // Figure out where the character is physically in the UI list to scroll to it
+            var allSortedNames = characters.Select(c => c.Name).OrderBy(n => n).ToList();
+            int targetIndex = allSortedNames.IndexOf(targetName);
+
+
+
+            if (targetIndex != -1)
+            {
+                GlobalLog.Info($"[{Name}] Scrolling to character '{targetName}' at index {targetIndex}.");
+                try
+                {
+                    // 0. Force the Filter ComboBox to [Show All] so our visual index matches our total list index
+                    try
+                    {
+                        var el = LokiPoe.SelectCharacterState.SelectCharacterElement;
+                        var comboBox = FindFilterComboBox(el);
+                        if (comboBox != null)
+                        {
+                            var clickPos = comboBox.CenterClickLocation();
+                            if (clickPos.IsZero)
+                            {
+                                GlobalLog.Warn($"[{Name}] ComboBox CenterClickLocation returned zero. Retrying next tick...");
+                                return true;
+                            }
+
+                            MouseManager.SetMousePosition(clickPos.X, clickPos.Y, true);
+                            await Coroutine.Sleep(LokiPoe.Random.Next(200, 300));
+                            MouseManager.ClickLMB(clickPos.X, clickPos.Y);
+                            await Coroutine.Sleep(LokiPoe.Random.Next(250, 350));
+
+                            for (int i = 0; i < 5; i++)
+                            {
+                                LokiPoe.Input.SimulateKeyEvent(Keys.Up, true, false, false, Keys.None);
+                                await Coroutine.Sleep(LokiPoe.Random.Next(90, 250));
+                            }
+                            await Coroutine.Sleep(LokiPoe.Random.Next(90, 250));
+
+                            LokiPoe.Input.SimulateKeyEvent(Keys.Enter, true, false, false, Keys.None);
+                            await Coroutine.Sleep(LokiPoe.Random.Next(250, 350));
+
+                            // Verify we didn't accidentally leave character selection (Enter can trigger Play)
+                            if (!LokiPoe.IsInCharacterSelectionScreen)
+                            {
+                                GlobalLog.Warn($"[{Name}] Left character selection screen during ComboBox reset. Aborting scroll.");
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            GlobalLog.Error($"[{Name}] Could not find the Filter ComboBox. Stopping bot to prevent blind UI scrolling.");
+                            BotManager.Stop(new DreamPoeBot.Loki.Bot.StopReasonData("filter_combobox_not_found", "FollowBot UI navigation failed."));
+                            return true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        GlobalLog.Error($"[{Name}] Exception attempting to reset Filter ComboBox: {ex.Message}");
+                        return true;
+                    }
+
+                    // 0.5. Shift UI Focus back to the Character List
+                    DreamPoeBot.Loki.Element label = null;
+                    for (int retry = 0; retry < 5; retry++)
+                    {
+                        label = FindFilterLabel(LokiPoe.SelectCharacterState.SelectCharacterElement);
+                        if (label != null)
+                            break;
+                        await Coroutine.Sleep(200);
+                    }
+
+                    if (label != null)
+                    {
+                        var labelPos = label.CenterClickLocation();
+                        MouseManager.SetMousePosition(labelPos.X, labelPos.Y, true);
+                        await Coroutine.Sleep(LokiPoe.Random.Next(40, 70));
+                        MouseManager.ClickLMB(labelPos.X, labelPos.Y);
+                        await Coroutine.Sleep(LokiPoe.Random.Next(150, 250));
+                    }
+                    else
+                    {
+                        GlobalLog.Error($"[{Name}] Could not find the 'Filter Characters:' label. Stopping bot to prevent UI focus locks.");
+                        BotManager.Stop(new DreamPoeBot.Loki.Bot.StopReasonData("filter_label_not_found", "FollowBot UI focus failed."));
+                        return true;
+                    }
+
+                    // 1. Reset list to top
+                    int totalChars = characters.Count();
+                    for (int i = 0; i < totalChars; i++)
+                    {
+                        LokiPoe.Input.SimulateKeyEvent(Keys.Up, true, false, false, Keys.None);
+                        await Coroutine.Sleep(LokiPoe.Random.Next(150, 300));
+                    }
+                    await Coroutine.Sleep(LokiPoe.Random.Next(200, 300));
+
+                    // 2. Scroll down to the target character
+                    for (int i = 0; i < targetIndex; i++)
+                    {
+                        LokiPoe.Input.SimulateKeyEvent(Keys.Down, true, false, false, Keys.None);
+                        await Coroutine.Sleep(LokiPoe.Random.Next(200, 400));
+                    }
+                    await Coroutine.Sleep(LokiPoe.Random.Next(200, 400));
+                }
+                catch (Exception ex)
+                {
+                    GlobalLog.Error($"[{Name}] Exception during character selection scrolling: {ex.Message}");
+                    return true;
+                }
+            }
+            else
+            {
+                GlobalLog.Warn($"[{Name}] '{targetName}' not found in the character list, skipping scroll logic.");
             }
 
             // Select the character
             var result = LokiPoe.SelectCharacterState.SelectCharacter(targetName);
+
             if (result == LokiPoe.SelectCharacterState.SelectCharacterError.None)
             {
                 GlobalLog.Info($"[{Name}] Successfully selected character: {targetName}. Entering game...");
                 ResetState();
-                await Coroutine.Sleep(LokiPoe.Random.Next(4900, 5300)); // Wait for game load
+
+                // Poll for game load
+                for (int i = 0; i < 75; i++)
+                {
+                    if (LokiPoe.IsInGame)
+                        break;
+                    await Coroutine.Sleep(300);
+                }
                 return true;
             }
 
