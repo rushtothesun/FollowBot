@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using DreamPoeBot.Common;
@@ -8,6 +8,8 @@ using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.SimpleEXtensions.Positions;
 using JetBrains.Annotations;
+using DreamPoeBot.Loki;
+using System.Linq;
 
 namespace FollowBot.SimpleEXtensions
 {
@@ -193,7 +195,6 @@ namespace FollowBot.SimpleEXtensions
         [CanBeNull]
         public static T Random<T>(this IEnumerable collection, Func<T, bool> match) where T : NetworkObject
         {
-            T closest = null;
             List<T> list = new List<T>();
             foreach (var element in collection)
             {
@@ -297,6 +298,26 @@ namespace FollowBot.SimpleEXtensions
                 }
             }
             return closest;
+        }
+
+        public static Element GetElementByPath(params int[] childIndices)
+        {
+            var allElements = LokiPoe.GetGuiElements();
+            var root = Enumerable.FirstOrDefault(allElements, e => e.IdLabel == "root");
+
+            if (root == null || root.Children == null || root.Children.Count < 2)
+                return null;
+
+            Element current = root.Children[1];
+
+            foreach (var index in childIndices)
+            {
+                if (current.Children == null || current.Children.Count <= index)
+                    return null;
+                current = current.Children[index];
+            }
+
+            return current;
         }
     }
 }

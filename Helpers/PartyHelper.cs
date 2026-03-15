@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
 using System;
@@ -28,27 +28,28 @@ namespace FollowBot.Helpers
 
         public static async Task<bool> HandlePartyInvite()
         {
-      bool hasVisiblePartyNotification = NotificationHud.NotificationList
-       .Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Party);
-            if (hasVisiblePartyNotification && LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count > 0)
+            var visibleNotifications = NotificationHud.NotificationList.Where(n => n.IsVisible).ToList();
+            bool hasVisiblePartyNotification = visibleNotifications.Any(n => n.NotificationTypeEnum == NotificationType.Party);
+
+            if (hasVisiblePartyNotification)
             {
-                GlobalLog.Warn($"[FollowBot] Visible Notifications: {LokiPoe.InGameState.NotificationHud.NotificationList.Where(x => x.IsVisible).ToList().Count}");
+                GlobalLog.Warn($"[FollowBot] Visible Notifications: {visibleNotifications.Count}");
+                
                 LokiPoe.InGameState.ProcessNotificationEx isPartyRequestToBeAccepted = (x, y) =>
                 {
-                    var res = y == LokiPoe.InGameState.NotificationType.Party && IsNameInWhiteList(x.CharacterName, x.AccountName);
-                    GlobalLog.Warn($"[FollowBot] Detected {y.ToString()} request from char: {x.CharacterName} [AccountName: {x.AccountName}] Accepting? {res}");
+                    var res = y == NotificationType.Party && IsNameInWhiteList(x.CharacterName, x.AccountName);
+                    GlobalLog.Warn($"[FollowBot] Detected {y} request from char: {x.CharacterName} [AccountName: {x.AccountName}] Accepting? {res}");
                     return res;
                 };
 
-                var anyVis = LokiPoe.InGameState.NotificationHud.NotificationList.Any(x => x.IsVisible);
-                if (anyVis)
-                {
-                    await Wait.Sleep(500);
-                }
-                var ret = LokiPoe.InGameState.NotificationHud.HandleNotificationEx(isPartyRequestToBeAccepted);
+                // Human-like delay
+                await Wait.SleepSafe(400, 600);
+
+                var ret = NotificationHud.HandleNotificationEx(isPartyRequestToBeAccepted);
                 GlobalLog.Warn($"[HandlePartyInvite] Result: {ret}");
+                
                 await Coroutines.LatencyWait();
-                if (ret == LokiPoe.InGameState.HandleNotificationResult.Accepted) return true;
+                return ret == HandleNotificationResult.Accepted;
             }
             return false;
         }
@@ -110,7 +111,7 @@ namespace FollowBot.Helpers
         public static bool IsNameInWhiteList(string characterName, string accountName)
         {
             var whiteListCollection = FollowBotSettings.Instance.Follow.PartyAndTradeWhitelist;
-            
+
             // If whitelist is empty, allow all
             if (whiteListCollection == null || whiteListCollection.Count == 0)
                 return true;
@@ -133,7 +134,7 @@ namespace FollowBot.Helpers
                         return true;
                 }
             }
-            
+
             return false;
         }
     }

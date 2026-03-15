@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -15,7 +15,6 @@ namespace FollowBot.SimpleEXtensions.Global
 {
     public class CombatAreaCache
     {
-        private static bool IgnoreSyndicateArea = true;
         private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(15);
         private static readonly Interval ScanInterval = new Interval(200);
         private static readonly Interval ItemScanInterval = new Interval(500);
@@ -70,6 +69,7 @@ namespace FollowBot.SimpleEXtensions.Global
         public readonly List<CachedObject> SpecialChests = new List<CachedObject>();
         public readonly List<CachedStrongbox> Strongboxes = new List<CachedStrongbox>();
         public readonly List<CachedObject> Shrines = new List<CachedObject>();
+        public readonly List<CachedObject> MirageSpawners = new List<CachedObject>();
         public readonly List<CachedObject> Monsters = new List<CachedObject>();
         public readonly List<CachedTransition> AreaTransitions = new List<CachedTransition>();
         public readonly ObjectDictionary Storage = new ObjectDictionary();
@@ -207,6 +207,12 @@ namespace FollowBot.SimpleEXtensions.Global
                             ProcessRecipe(recipe);
                             continue;
                         }
+                    }
+
+                    if (obj.Metadata == "Metadata/MiscellaneousObjects/Faridun/ZarokhSpawner")
+                    {
+                        ProcessSpawner(obj);
+                        continue;
                     }
                 }
             }
@@ -435,6 +441,17 @@ namespace FollowBot.SimpleEXtensions.Global
             Shrines.Add(new CachedObject(id, pos));
             _processedObjects.Add(id);
             GlobalLog.Warn($"[CombatAreaCache] Registering {pos}");
+        }
+
+        private void ProcessSpawner(NetworkObject s)
+        {
+            var id = s.Id;
+            if (_processedObjects.Contains(id))
+                return;
+
+            var pos = s.WalkablePosition();
+            MirageSpawners.Add(new CachedObject(id, pos));
+            _processedObjects.Add(id);
         }
 
         private void ProcessTransition(AreaTransition t)
@@ -698,6 +715,10 @@ namespace FollowBot.SimpleEXtensions.Global
             foreach (var shrine in cache.Shrines)
             {
                 shrine.Unwalkable = false;
+            }
+            foreach (var spawner in cache.MirageSpawners)
+            {
+                spawner.Unwalkable = false;
             }
             foreach (var transition in cache.AreaTransitions)
             {

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using DreamPoeBot.Common;
 using DreamPoeBot.Loki.Bot;
@@ -52,7 +52,7 @@ namespace FollowBot.SimpleEXtensions
                 return false;
 
             await Wait.SleepSafe(LokiPoe.Random.Next(200, 400));
-            await Wait.Sleep(100);
+            await Wait.SleepSafe(100);
             return true;
         }
 
@@ -69,7 +69,7 @@ namespace FollowBot.SimpleEXtensions
                 return false;
 
             await Wait.ArtificialDelay();
-            await Wait.Sleep(20);
+            await Wait.SleepSafe(20);
             return true;
         }
 

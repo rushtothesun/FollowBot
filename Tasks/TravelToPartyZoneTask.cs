@@ -1,7 +1,10 @@
-﻿using DreamPoeBot.Common;
+using DreamPoeBot.BotFramework;
+using DreamPoeBot.Common;
+using DreamPoeBot.Loki;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
+using DreamPoeBot.Loki.Coroutine;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
@@ -29,10 +32,9 @@ namespace FollowBot.Tasks
         private const int LabTrialMaxDistance = 50;
         private const int MaligaroMaxDistance = 70;
         private const int NearbyTransitionMaxDistance = 100;
-        private const int MirageReturnMaxDistance = 120;
+        private const int MirageReturnMaxDistance = 50;
 
         // State management
-        private bool _enabled = true;
         private Stopwatch _portalRequestStopwatch = Stopwatch.StartNew();
         private static int _zoneCheckRetry = 0;
         private static int _maligaroPortalRetry = 0;
@@ -74,9 +76,9 @@ namespace FollowBot.Tasks
                 return false;
             }
 
-            if (FollowTask.NewInstanceWaitSw.IsRunning)
+            if (FollowTask.WaitingForNewInstance || FollowTask.NewInstanceWaitSw.IsRunning)
             {
-                if (FollowTask.NewInstanceWaitSw.ElapsedMilliseconds < 5000)
+                if (FollowTask.NewInstanceWaitSw.ElapsedMilliseconds < FollowTask.NewInstanceWaitMs)
                 {
                     GlobalLog.Debug($"[{Name}] Waiting for leader after creating new instance...");
                     return false;
@@ -216,13 +218,35 @@ namespace FollowBot.Tasks
             #endregion
 
             #region Mirage Portals
-            var mirageEntry = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Faridun/DjinnPortal");
-            if (await TryInteractWithPortal(mirageEntry, "mirage entry", StandardMaxDistance))
-                return true;
+            if (leaderArea.Id == LokiPoe.CurrentWorldArea.Id)
+            {
+                // 1. Entry Portal (We are OUTSIDE the Mirage, button is not visible)
+                var mirageEntry = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Faridun/DjinnPortal");
+                if (await TryInteractWithPortal(mirageEntry, "mirage entry", StandardMaxDistance))
+                    return true;
 
-            var mirageReturn = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal");
-            if (await TryInteractWithPortal(mirageReturn, "mirage return", MirageReturnMaxDistance))
-                return true;
+                // 2. Return Portal / Button (We are INSIDE the Mirage)
+                // The presence of the Mirage return UI button is the only 100% guarantee we are actually inside a Mirage instance,
+                // and prevents the bot from clicking a player's Sekhema Portal MTX in a regular map.
+                var mirageButton = FindMirageReturnButton();
+                if (mirageButton != null)
+                {
+                    var mirageReturn = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal");
+
+                    if (mirageReturn != null && LokiPoe.Me.Position.Distance(mirageReturn.Position) <= MirageReturnMaxDistance)
+                    {
+                        // Portal is visible and close enough to walk to
+                        if (await TryInteractWithPortal(mirageReturn, "mirage return", MirageReturnMaxDistance))
+                            return true;
+                    }
+                    else
+                    {
+                        // Portal is too far or not visible yet — click the UI button to teleport to it
+                        if (await ClickMirageReturnButton(mirageButton))
+                            return true;
+                    }
+                }
+            }
             #endregion
 
             #region Maligaro's Sanctum Portal
@@ -458,6 +482,95 @@ namespace FollowBot.Tasks
 
         #endregion
 
+        #region Mirage Return Button
+
+        private const string MirageButtonTooltip = "Teleports you back to the entrance of this Mirage.";
+
+        /// <summary>
+        /// Finds the mirage return button by searching the action button container for the
+        /// element whose tooltip matches. Resilient to index shifts from other mechanic buttons.
+        /// </summary>
+        private Element FindMirageReturnButton()
+        {
+            var container = ClassExtensions.GetElementByPath(142, 7, 17);
+            if (container?.Children == null)
+                return null;
+
+            foreach (var child in container.Children)
+            {
+                if (child == null || !child.IsVisible)
+                    continue;
+
+                try
+                {
+                    var tooltip = child.Tooltip;
+                    if (tooltip?.Text?.Contains(MirageButtonTooltip) == true)
+                        return child;
+
+                    // Some tooltips have text in children
+                    if (tooltip?.Children != null && tooltip.Children.Count > 0)
+                    {
+                        var text = tooltip.Children[0]?.Text;
+                        if (text != null && text.Contains(MirageButtonTooltip))
+                            return child;
+                    }
+                }
+                catch
+                {
+                    // Tooltip access can throw on stale elements
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Clicks the in-game "Return to Mirage Portal" UI button to teleport near the exit portal.
+        /// Uses a position guard to verify the teleport actually occurred.
+        /// </summary>
+        private async Task<bool> ClickMirageReturnButton(Element mirageButton)
+        {
+            if (mirageButton == null)
+                return false;
+
+            GlobalLog.Debug($"[{Name}] Clicking mirage return button to teleport to exit portal.");
+
+            // Record position before click
+            var posBefore = LokiPoe.Me.Position;
+
+            // Click the button
+            var clickPos = mirageButton.CenterClickLocation();
+            MouseManager.SetMousePosition(clickPos, useRandomPos: false);
+            await Wait.SleepSafe(25, 55);
+            MouseManager.ClickLMB();
+
+            // Poll for teleport completion — the teleport animation can take a while
+            for (int i = 0; i < 20; i++)
+            {
+                await Wait.SleepSafe(70, 100);
+
+                var posNow = LokiPoe.Me.Position;
+                var distanceMoved = posBefore.Distance(posNow);
+
+                if (distanceMoved > 30)
+                {
+                    GlobalLog.Debug($"[{Name}] Mirage return teleport successful, moved {(int)distanceMoved} units.");
+                    FollowBot.Leader = null;
+                    return true;
+                }
+            }
+
+            // Final check
+            var posAfter = LokiPoe.Me.Position;
+            var finalDistance = posBefore.Distance(posAfter);
+            GlobalLog.Warn($"[{Name}] Mirage return button click did not teleport after 2s (moved {(int)finalDistance} units), falling through.");
+            return false;
+        }
+
+
+
+        #endregion
+
         #region Helper Methods
 
         private async Task<bool> GoToPartyLeaderZone()
@@ -532,7 +645,15 @@ namespace FollowBot.Tasks
 
             if (nearbyTransition.Position.Distance > PortalMoveDistance)
             {
-                await Move.AtOnce(transition.Position, "moving to area transition");
+                // Snap to a walkable position first — the raw transition position may be off-navmesh,
+                // which would cause Move.AtOnce to loop on pathfinding failures and crash the bot.
+                var walkablePos = ExilePather.FastWalkablePositionFor(transition.Position, PortalWalkableDistance);
+                if (!ExilePather.PathExistsBetween(LokiPoe.Me.Position, walkablePos))
+                {
+                    GlobalLog.Warn($"[{Name}] No walkable path to transition {transition.Name}, falling back to teleport.");
+                    return false;
+                }
+                await Move.AtOnce(walkablePos, "moving to area transition");
             }
 
             var success = await PlayerAction.TakeTransition(transition);
@@ -560,16 +681,6 @@ namespace FollowBot.Tasks
             {
                 _zoneCheckRetry = 0;
                 PortOutStopwatch.Reset();
-                return MessageResult.Processed;
-            }
-            if (message.Id == "Enable")
-            {
-                _enabled = true;
-                return MessageResult.Processed;
-            }
-            if (message.Id == "Disable")
-            {
-                _enabled = false;
                 return MessageResult.Processed;
             }
             return MessageResult.Unprocessed;

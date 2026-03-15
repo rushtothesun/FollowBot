@@ -186,6 +186,22 @@
                     IsChecked="{Binding Path=Follow.ClickShrines, Mode=TwoWay}"
                     ToolTip="Click nearby shrines while following."/>
                 <CheckBox
+                    Grid.Row="5"
+                    Grid.Column="1"
+                    Margin="10,0,10,0"
+                    Content="Activate Mirage Spawners"
+                    VerticalAlignment="Center"
+                    IsChecked="{Binding Path=Follow.ActivateMirageSpawners, Mode=TwoWay}"
+                    ToolTip="Run through nearby Mirage spawners to trigger monster packs."/>
+                <TextBox Grid.Row="5"
+                    Grid.Column="2"
+                    Text="{Binding Path=Follow.MirageSpawnerDistance, Mode=TwoWay}"
+                    MinWidth="25"
+                    MaxWidth="50"
+                    VerticalAlignment="Center"
+                    ToolTip="Max distance to detour for a Mirage spawner."/>
+
+                <CheckBox
                     Grid.Row="6"
                     Grid.Column="0"
                     Margin="10,0,10,0"
@@ -258,6 +274,69 @@
                         <Label Content="Seconds."
                                 ToolTip="If the Leader Leave the zone for some reason, the bot will wait this numbr of seconds before to leave the map."/>
                     </WrapPanel>
+                </StackPanel>
+            </Expander>
+
+            <!-- Passive Tree Settings (EXPERIMENTAL) -->
+            <Expander Header="Passive Tree Settings (EXPERIMENTAL)" IsExpanded="False" Margin="5">
+                <StackPanel Margin="5">
+                    <CheckBox Content="Automatically Allocate Nodes"
+                              IsChecked="{Binding PassiveTree.EnableAutoAllocation, Mode=TwoWay}"
+                              Margin="5"
+                              ToolTip="Automatically spend available passive points based on the provided URLs."/>
+                    
+                    <StackPanel Margin="25,0,0,0">
+                        <CheckBox Content="Allocate only in Town/Hideout"
+                                  IsChecked="{Binding PassiveTree.OnlyInSafeZone, Mode=TwoWay}"
+                                  Margin="5"
+                                  IsEnabled="{Binding PassiveTree.EnableAutoAllocation}"
+                                  ToolTip="If enabled, the bot will only interact with the passive tree when in a safe zone."/>
+
+                        <CheckBox Content="Wait for Leader to be Stationary"
+                                  IsChecked="{Binding PassiveTree.CheckLeaderStationary, Mode=TwoWay}"
+                                  Margin="5"
+                                  IsEnabled="{Binding PassiveTree.EnableAutoAllocation}"
+                                  ToolTip="If enabled, the bot will wait until the leader is not moving before opening the passive tree in a map."/>
+                        
+                        <StackPanel Orientation="Horizontal" Margin="5">
+                            <Label Content="Safe Monster Distance:" VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding PassiveTree.SafeMonsterDistance, Mode=TwoWay}"
+                                     Width="50" Margin="5,0,0,0" VerticalAlignment="Center"
+                                     ToolTip="Minimum distance to the nearest monster before the bot considers it safe to open the tree."/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Label Content="Passive Tree URLs (Sequenced):" FontWeight="Bold" Margin="0,10,0,5"/>
+                    <ItemsControl ItemsSource="{Binding PassiveTree.PassiveTreeUrls}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding Path=Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,5,0"
+                                             ToolTip="Enter Official PoE or PoePlanner URL."/>
+                                    <Button Grid.Column="1" Content="Remove"
+                                            Click="RemovePassiveTreeUrl_Click"
+                                            Padding="5,2"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    
+                    <Button Content="Add New URL"
+                            Click="AddPassiveTreeUrl_Click"
+                            Margin="0,5,0,0" HorizontalAlignment="Left"
+                            Padding="10,5"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                        <Label Content="Allocation Chat Command:" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding ChatCommands.AllocateChatCommand, Mode=TwoWay}"
+                                 Width="120" Margin="5,0,0,0" VerticalAlignment="Center"
+                                 ToolTip="Command to manually trigger allocation (ignoring safe zone/stationary checks)."/>
+                    </StackPanel>
                 </StackPanel>
             </Expander>
 
@@ -643,6 +722,7 @@
                                Margin="5,5,5,5" FontSize="11" FontWeight="Bold" Foreground="IndianRed" TextWrapping="Wrap"/>
                 </StackPanel>
             </Expander>
+
       </StackPanel>
     </ScrollViewer>
 

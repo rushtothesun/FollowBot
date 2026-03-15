@@ -162,6 +162,7 @@ namespace FollowBot.Tasks
             return LokiPoe.ObjectManager.GetObjectsByType<Portal>().FirstOrDefault(x =>
                 x.IsTargetable &&
                 x.Distance <= MaxPortalSearchDistance &&
+                x.PathDistance() <= MaxPortalSearchDistance &&
                 (TownNames.Contains(x.Name) || x.Name.Contains("Hideout"))
             );
         }

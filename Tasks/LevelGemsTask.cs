@@ -19,7 +19,7 @@ namespace FollowBot.Tasks
 
         public string Name { get { return "LevelGemsTask"; } }
         public string Description { get { return "This task will Level gems."; } }
-        public string Author { get { return "Alcor75"; } }
+        public string Author { get { return "Alcor75, Rushtothesun"; } }
         public string Version { get { return "0.0.0.1"; } }
 
 
@@ -106,7 +106,7 @@ namespace FollowBot.Tasks
                             hasActionableGem = true;
                             break;
                         }
-                        
+
                         // Gem needs to be dismissed (in ignore list)
                         if (ContainsHelper(gem.Item.Name, gem.Item.SkillGemLevel))
                         {
@@ -165,11 +165,10 @@ namespace FollowBot.Tasks
                             {
                                 var buttonElement = element.Children[1];
                                 var clickPos = buttonElement.CenterClickLocation();
-                                
-                                MouseManager.SetMousePosition(clickPos, useRandomPos: false);
-                                Thread.Sleep(LokiPoe.Random.Next(25, 100));
+
+                                await Wait.SleepSafe(25, 100);
                                 MouseManager.ClickRMB();
-                                Thread.Sleep(LokiPoe.Random.Next(25, 100));
+                                await Wait.SleepSafe(25, 100);
 
                                 if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                                 {
@@ -244,21 +243,21 @@ namespace FollowBot.Tasks
                         if (firstLevelableIndex >= 0 && firstLevelableIndex < pendingElements.Count)
                         {
                             var element = pendingElements[firstLevelableIndex];
-                            
+
                             if (element.Children != null && element.Children.Count > 1)
                             {
                                 var buttonElement = element.Children[1];
                                 var clickPos = buttonElement.CenterClickLocation();
-                                
+
                                 if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                                 {
                                     GlobalLog.Debug($"[LevelGemsTask] Leveling single gem at index {firstLevelableIndex}");
                                 }
 
                                 MouseManager.SetMousePosition(clickPos, useRandomPos: false);
-                                Thread.Sleep(LokiPoe.Random.Next(90, 150));
+                                await Wait.SleepSafe(90, 150);
                                 MouseManager.ClickLMB();
-                                Thread.Sleep(LokiPoe.Random.Next(90, 150));
+                                await Wait.SleepSafe(90, 150);
 
                                 GlobalLog.Info($"[LevelGemsTask] Leveled gem at position {clickPos}");
                             }

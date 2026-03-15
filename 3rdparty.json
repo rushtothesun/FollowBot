@@ -52,8 +52,10 @@
     "Settings\\TradeSettings.cs",
     "Settings\\UISettings.cs",
     "Settings\\LoginSettings.cs",
+    "Settings\\PassiveSkillTreeSettings.cs",
     "Properties\\AssemblyInfo.cs",
     "Tasks\\AsyncCustomSkillsTask.cs",
+    "Tasks\\AutoAllocatePassiveTask.cs",
     "Tasks\\AutoLoginTask.cs",
     "Tasks\\CustomSkillsTask.cs",
     "Tasks\\DefenseAndFlaskTask.cs",
@@ -76,6 +78,7 @@
     "Class\\Flasks.cs",
     "Class\\FlasksClass.cs",
     "Class\\OverlayWindow.cs",
+    "Helpers\\PassiveTreeHelper.cs",
     "Helpers\\NpcHelper.cs",
     "Helpers\\PartyHelper.cs",
     "Helpers\\StashHelper.cs",
@@ -126,6 +129,7 @@
   ],
   "References": [
     "System.Security.dll",
+    "System.Windows.Forms.dll",
     "SharpDX.Mathematics.dll"
   ]
 }

@@ -1,7 +1,8 @@
-﻿using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.SimpleEXtensions;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static DreamPoeBot.Loki.Game.LokiPoe;
@@ -52,7 +53,7 @@ namespace FollowBot.Helpers
             return true;
         }
 
-        public static bool SelectDialog(string dialogName)
+        public static async Task<bool> SelectDialog(string dialogName)
         {
             if (!NpcDialogUi.IsOpened) return false;
             var dialog = NpcDialogUi.DialogEntries.Find((x) => x.Text.ContainsIgnorecase(dialogName));
@@ -62,12 +63,46 @@ namespace FollowBot.Helpers
                 return false;
             }
 
-            if (NpcDialogUi.Converse(dialog.Text) != ConverseResult.None)
-            {
-                GlobalLog.Error($"[NpcHelper]: cannot converse with dialog : [{dialog.Text}]");
-                return false;
+            // --- Old Converse approach (fails for off-screen entries behind the NPC dialog scrollbar) ---
+            // if (NpcDialogUi.Converse(dialog.Text) != ConverseResult.None)
+            // {
+            //     GlobalLog.Error($"[NpcHelper]: cannot converse with dialog : [{dialog.Text}]");
+            //     return false;
+            // }
+            // return true;
 
+            // --- Keyboard navigation approach (works for both visible and off-screen entries) ---
+            // Get right-side dialog choices ordered by Y position (top to bottom)
+            var rightChoices = NpcDialogUi.DialogEntries
+                .Where(e => e.IsDialogChoice && e.Position.X > 400)
+                .OrderBy(e => e.Position.Y)
+                .ToList();
+
+            int targetIndex = rightChoices.FindIndex(e => e.Text.ContainsIgnorecase(dialogName));
+            if (targetIndex < 0)
+            {
+                GlobalLog.Error($"[NpcHelper]: cannot find dialog [{dialogName}] in right-side choices");
+                return false;
             }
+
+            GlobalLog.Debug($"[NpcHelper]: Selecting [{dialogName}] via keyboard nav (index {targetIndex} of {rightChoices.Count})");
+
+            // Right arrow enters the right-side list, highlighting the first entry (index 0)
+            Input.SimulateKeyEvent(Keys.Right, true, false, true, Keys.None);
+            await Wait.SleepSafe(LokiPoe.Random.Next(100, 250));
+
+            // Down arrow to navigate to the target entry
+            for (int i = 0; i < targetIndex; i++)
+            {
+                Input.SimulateKeyEvent(Keys.Down, true, false, true, Keys.None);
+                await Wait.SleepSafe(LokiPoe.Random.Next(100, 250));
+            }
+
+            // Enter to select the highlighted entry
+            Input.SimulateKeyEvent(Keys.Return, true, false, true, Keys.None);
+            await Wait.SleepSafe(LokiPoe.Random.Next(100, 250));
+
+            GlobalLog.Debug($"[NpcHelper]: Keyboard nav completed for [{dialogName}]");
             return true;
         }
 
@@ -110,7 +145,7 @@ namespace FollowBot.Helpers
             }
 
             await SkipDialog(bandit);
-            
+
             await Wait.SleepSafe(100, 200); // Brief wait for UI to update.
 
             // Final confirmation that the panel is still open.
@@ -124,11 +159,11 @@ namespace FollowBot.Helpers
             }
             if (!await SkipDialog(obj)) return false;
 
-            if (!SelectDialog(dialogName))
+            if (!await SelectDialog(dialogName))
             {
                 return false;
             }
-            await Wait.Sleep(250);
+            await Wait.SleepSafe(200, 400);
 
             if (!RewardUi.IsOpened) return false;
 
@@ -147,7 +182,7 @@ namespace FollowBot.Helpers
                 GlobalLog.Error($"[NpcHelper][TakeReward]  cannot take reward [{reward.FullName}]\n ERROR: {result}");
                 return false;
             }
-            await Wait.Sleep(500);
+            await Wait.SleepSafe(400, 600);
             if (Inventories.InventoryItems.Count != expectedItemCount)
             {
                 GlobalLog.Error("[NpcHelper][TakeReward] some error try more");
@@ -164,7 +199,7 @@ namespace FollowBot.Helpers
 
             var rewardInventoryControls = RewardUi.InventoryControls;
             GlobalLog.Debug($"[NpcHelper][TakeReward] RewardUi has {rewardInventoryControls.Count} inventory control(s)");
-            
+
             if (rewardInventoryControls.Count == 0)
             {
                 GlobalLog.Error("[NpcHelper][TakeReward] Reward inventory control count is 0.");
@@ -194,14 +229,14 @@ namespace FollowBot.Helpers
         {
             if (!await MoveToAndTalk(obj))
                 return false;
-            
+
             if (!await SkipDialog(obj))
                 return false;
 
-            if (!SelectDialog(dialogName))
+            if (!await SelectDialog(dialogName))
                 return false;
 
-            await Wait.Sleep(250);
+            await Wait.SleepSafe(200, 300);
 
             if (!RewardUi.IsOpened)
             {
@@ -221,7 +256,7 @@ namespace FollowBot.Helpers
                 {
                     if (graphItem == null)
                         continue;
-                    
+
                     if (graphItem.Name == itemName || graphItem.FullName == itemName)
                     {
                         GlobalLog.Debug($"[NpcHelper][FindRewardControl] Found '{graphItem.FullName}' (LocalId: {graphItem.LocalId}) in PlacementGraph");
@@ -235,26 +270,26 @@ namespace FollowBot.Helpers
         private static async Task<bool> TakeRewardItem(InventoryControlWrapper control, Item item)
         {
             GlobalLog.Debug($"[NpcHelper][TakeRewardItem] Using FastMove for '{item.FullName}' (LocalId: {item.LocalId})");
-            
+
             int expectedItemCount = Inventories.InventoryItems.Count + 1;
             var result = control.FastMove(item.LocalId, true, false);
-            
+
             GlobalLog.Debug($"[NpcHelper][TakeRewardItem] FastMove returned: {result}");
-            
+
             if (result != FastMoveResult.None)
             {
                 GlobalLog.Error($"[NpcHelper][TakeRewardItem] FastMove failed for [{item.FullName}]\n ERROR: {result}");
                 return false;
             }
-            
-            await Wait.Sleep(500);
-            
+
+            await Wait.SleepSafe(400, 600);
+
             if (Inventories.InventoryItems.Count != expectedItemCount)
             {
                 GlobalLog.Error("[NpcHelper][TakeRewardItem] Inventory count did not increase as expected");
                 return false;
             }
-            
+
             GlobalLog.Debug($"[NpcHelper][TakeRewardItem] Successfully taken [{item.FullName}]");
             return true;
         }
@@ -267,11 +302,11 @@ namespace FollowBot.Helpers
             }
 
             // Wait a moment for the item to appear in inventory
-            await Wait.Sleep(300);
+            await Wait.SleepSafe(280, 350);
 
             // Find ALL Books of Skill and Books of Regrets
             var books = Inventories.InventoryItems.FindAll(x => x.Name == "Book of Skill" || x.Name == "Book of Regrets");
-            
+
             if (books == null || books.Count == 0)
             {
                 GlobalLog.Warn("[NpcHelper][TakeRewardAndUseBook] No books found in inventory after taking reward");
@@ -287,33 +322,33 @@ namespace FollowBot.Helpers
                 return false;
             }
 
-            await Wait.Sleep(200);
+            await Wait.SleepSafe(190, 300);
 
             // Use all books in inventory
             int usedCount = 0;
             foreach (var book in books)
             {
                 GlobalLog.Debug($"[NpcHelper][TakeRewardAndUseBook] Using {book.Name} (ID: {book.LocalId})");
-                
+
                 var err = LokiPoe.InGameState.InventoryUi.InventoryControl_Main.UseItem(book.LocalId);
                 if (err != UseItemResult.None)
                 {
                     GlobalLog.Error($"[NpcHelper][TakeRewardAndUseBook] Failed to use {book.Name}. Error: {err}");
                     continue; // Continue to try using other books
                 }
-                
+
                 usedCount++;
-                await Wait.Sleep(300); // Wait between using each book
+                await Wait.SleepSafe(290, 400); // Wait between using each book
             }
 
             GlobalLog.Debug($"[NpcHelper][TakeRewardAndUseBook] Successfully used {usedCount} out of {books.Count} book(s)");
-            
+
             // Wait for the last book to be consumed
-            await Wait.Sleep(300);
-            
+            await Wait.SleepSafe(300, 400);
+
             // Close inventory
             await Coroutines.CloseBlockingWindows();
-            
+
             return usedCount > 0; // Return true if at least one book was used
         }
     }

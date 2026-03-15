@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki;
+using DreamPoeBot.Loki;
 using DreamPoeBot.Loki.Common;
 using FollowBot.Settings;
 
@@ -26,6 +26,7 @@ namespace FollowBot
             UI = UI ?? new UISettings();
             Stash = Stash ?? new StashSettings();
             Login = Login ?? new LoginSettings();
+            PassiveTree = PassiveTree ?? new PassiveSkillTreeSettings();
         }
 
         // Nested settings properties
@@ -42,5 +43,6 @@ namespace FollowBot
         public UISettings UI { get; set; } = new UISettings();
         public StashSettings Stash { get; set; } = new StashSettings();
         public LoginSettings Login { get; set; } = new LoginSettings();
+        public PassiveSkillTreeSettings PassiveTree { get; set; } = new PassiveSkillTreeSettings();
     }
 }

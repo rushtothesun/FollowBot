@@ -16,14 +16,13 @@ namespace FollowBot.Tasks
 {
     public class AutoLoginTask : ITask
     {
-        // Volatile state — NOT stored in settings
         private static readonly Stopwatch _loginAttemptTimer = new Stopwatch();
         private static int _loginRetryCount;
         private static bool _passwordEntryRequired;
         private const int MaxLoginRetries = 5;
         private const int PopupDetectionTimeoutMs = 5000;
 
-        public string Author => "FollowBot";
+        public string Author => "Rushtothesun";
         public string Description => "Automatically logs in and selects a character.";
         public string Name => "AutoLogin";
         public string Version => "1.0.0.0";

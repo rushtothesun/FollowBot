@@ -190,7 +190,7 @@ namespace FollowBot.Tasks
             bool tabSwitched = false;
             for (int attempt = 1; attempt <= MaxRetries; attempt++)
             {
-                if (StashHelper.SwitchToTab(tabName, stashType))
+                if (await StashHelper.SwitchToTab(tabName, stashType))
                 {
                     tabSwitched = true;
                     break;
@@ -300,7 +300,7 @@ namespace FollowBot.Tasks
                 }
 
                 // Wait for UI with random variance (750-900ms)
-                await Wait.Sleep(LokiPoe.Random.Next(200, 700));
+                await Wait.SleepSafe(200, 700);
 
                 // Verify correct stash UI opened
                 bool isOpened = stashType == StashHelper.StashType.Guild
@@ -372,7 +372,7 @@ namespace FollowBot.Tasks
                 }
 
                 // Deposit item (affinity will auto-route to correct tabs)
-                bool success = StashHelper.DepositItem(item.LocalId, stashType);
+                bool success = await StashHelper.DepositItem(item.LocalId, stashType);
 
                 if (success)
                 {

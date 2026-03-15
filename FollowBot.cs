@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Coroutine;
@@ -155,6 +155,7 @@ namespace FollowBot
             PluginManager.Start();
             RoutineManager.Start();
             _taskManager.Start();
+            _autoLoginTask.Start();
 
             foreach (var plugin in PluginManager.EnabledPlugins)
             {
@@ -216,6 +217,7 @@ namespace FollowBot
         {
             FollowBotSettings.Instance.PropertyChanged -= OnSettingsPropertyChanged;
             _taskManager.Stop();
+            _autoLoginTask.Stop();
             PluginManager.Stop();
             RoutineManager.Stop();
 
@@ -295,7 +297,7 @@ namespace FollowBot
                 {
                     // Most likely in a loading screen, which will cause us to block on the executor, 
                     // but just in case we hit something else that would cause us to execute...
-                    await Coroutine.Sleep(1000);
+                    await Wait.SleepSafe(1000);
                     continue;
                 }
 
@@ -383,12 +385,13 @@ namespace FollowBot
 
             _taskManager.Add(new ClearCursorTask());
             _taskManager.Add(new JoinPartyTask());
+            _taskManager.Add(new DivineFontTask());
+            _taskManager.Add(new TrialPickerTask());
             _taskManager.Add(new TradeTask());
             _taskManager.Add(new StashTask());
+            _taskManager.Add(new UltimatumTask());
             _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
-            _taskManager.Add(new UltimatumTask());
-            _taskManager.Add(new DivineFontTask());
             _taskManager.Add(new CustomSkillsTask());
             _taskManager.Add(new AsyncCustomSkillsTask());
             _taskManager.Add(new LootItemTask());
@@ -396,13 +399,11 @@ namespace FollowBot
             _taskManager.Add(new CombatTask(50));
             _taskManager.Add(new PostCombatHookTask());
             _taskManager.Add(new LevelGemsTask());
+            _taskManager.Add(new AutoAllocatePassiveTask());
             _taskManager.Add(new CombatTask(-1));
             _taskManager.Add(new CastAuraTask());
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
-            _taskManager.Add(new TrialPickerTask());
-            // _taskManager.Add(new OpenWaypointTask());
-            //_taskManager.Add(new JoinPartyTask());
             _taskManager.Add(new FallbackTask());
         }
 
@@ -612,13 +613,17 @@ namespace FollowBot
                         GlobalLog.Info($"[FollowBot] RC: UltimatumLootTimer = {timerVal}");
                     }
                     return true;
+                case "RC_allocate": // Adding a standard ID for allocation as well
+                    Tasks.AutoAllocatePassiveTask.ForceTrigger();
+                    GlobalLog.Info("[FollowBot] RC: Allocate");
+                    return true;
                 default:
                     return false;
             }
         }
 
         public string Name => "FollowBot";
-        public string Author => "NotYourFriend, origial code from Unknown";
+        public string Author => "NotYourFriend, origial code from Unknown, Rushtothesun";
         public string Description => "Bot that follow leader.";
         public string Version => "0.0.7.1";
         public UserControl Control => _gui ?? (_gui = new FollowBotGui());

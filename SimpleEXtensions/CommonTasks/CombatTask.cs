@@ -68,7 +68,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
         public string Description => "This task executes routine logic for combat.";
 
-        public string Author => "NotYourFriend original from EXVault";
+        public string Author => "NotYourFriend original from EXVault, Rushtothesun";
 
         public string Version => "1.0";
 

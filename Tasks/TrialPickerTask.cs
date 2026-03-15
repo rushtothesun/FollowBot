@@ -31,34 +31,41 @@ namespace FollowBot.Tasks
 
         public async Task<bool> Run()
         {
-
-            if (LokiPoe.LabyrinthTrialAreaIds.Contains(LokiPoe.CurrentWorldArea.Id))
+            if (!LokiPoe.LabyrinthTrialAreaIds.Contains(LokiPoe.CurrentWorldArea.Id))
             {
-                var me = LokiPoe.Me;
-                if (me.IsAscendencyTrialCompleted(LokiPoe.CurrentWorldArea.Id)) return true;
+                return false;
+            }
 
-                NetworkObject trial = LokiPoe.ObjectManager.Objects.FirstOrDefault(x => x.Metadata.Contains("LabyrinthTrialPlaque"));
-                if (trial != null && trial.PathExists() && me.Position.Distance(trial.Position) < 30)
+            var me = LokiPoe.Me;
+            if (me.IsAscendencyTrialCompleted(LokiPoe.CurrentWorldArea.Id))
+            {
+                return false;
+            }
+
+            NetworkObject trial = LokiPoe.ObjectManager.Objects.FirstOrDefault(x => x.Metadata.Contains("LabyrinthTrialPlaque"));
+            if (trial != null && trial.PathExists() && me.Position.Distance(trial.Position) < 30)
+            {
+                GlobalLog.Debug($"[{Name}] Find trial : [{trial.Name}]");
+
+                await trial.WalkablePosition().ComeAtOnce();
+                if (await PlayerAction.Interact(trial))
                 {
-                    GlobalLog.Debug($"[{Name}] Find trial : [{trial.Name}]");
+                    await Coroutines.FinishCurrentAction(true);
+                    // Replaced LatencyWait with human-like delay
+                    await Wait.SleepSafe(300, 500);
 
-                    await trial.WalkablePosition().ComeAtOnce();
-                    if(await PlayerAction.Interact(trial))
+                    var portal = LokiPoe.ObjectManager.Objects.FirstOrDefault(x => x.Metadata == "Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
+                    if (portal != null && portal.PathExists() && portal.Position.Distance(me.Position) <= 90)
                     {
-                        await Coroutines.FinishCurrentAction(true);
-                        await Coroutines.LatencyWait();
-                        var portal = LokiPoe.ObjectManager.Objects.FirstOrDefault(x => x.Metadata == "Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
-                        if(portal != null && portal.PathExists() && portal.Position.Distance(me.Position) <= 90)
-                        {
-                            GlobalLog.Debug("[TrialPickerTask] Heading to portal.");
-                            await portal.WalkablePosition().ComeAtOnce();
-                            await PlayerAction.Interact(portal);
-                        }
+                        GlobalLog.Debug("[TrialPickerTask] Heading to portal.");
+                        await portal.WalkablePosition().ComeAtOnce();
+                        await PlayerAction.Interact(portal);
+                        await Wait.SleepSafe(300, 500);
                     }
-
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
 
         public void Start()

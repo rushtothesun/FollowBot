@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.BotFramework;
+using DreamPoeBot.BotFramework;
 using DreamPoeBot.Common;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
@@ -23,14 +23,17 @@ namespace FollowBot.Tasks
 
         public string Name { get { return "FollowTask"; } }
         public string Description { get { return "This task will Follow a Leader."; } }
-        public string Author { get { return "NotYourFriend, origial code from Unknown"; } }
+        public string Author { get { return "NotYourFriend, origial code from Unknown, Rushtothesun"; } }
         public string Version { get { return "0.0.0.1"; } }
         private const int MaxInteractionAttempts = 4;
         private const int InteractionDistance = 40;
+        public const int NewInstanceWaitMs = 7000;
         private Vector2i _lastSeenMasterPosition;
         private Stopwatch _leaderzoningSw;
         private HashSet<int> _failedObjectIds = new HashSet<int>();
+        private HashSet<int> _touchedSpawnerIds = new HashSet<int>();
         public static bool ShouldCreateNewInstance = false;
+        public static bool WaitingForNewInstance = false;
         public static Stopwatch NewInstanceWaitSw = new Stopwatch();
 
         public void Start()
@@ -65,20 +68,20 @@ namespace FollowBot.Tasks
                     {
                         await pos.ComeAtOnce();
                     }
-                    
-                    if (await PlayerAction.CreateNewInstance(transition))
-                    {
-                        NewInstanceWaitSw.Restart();
-                    }
+
+                    // Set flag BEFORE the await — it will survive the loading screen
+                    // and be converted to a running stopwatch in the AreaChanged handler.
+                    WaitingForNewInstance = true;
+                    await PlayerAction.CreateNewInstance(transition);
                 }
-                
+
                 ShouldCreateNewInstance = false;
                 return true;
             }
 
             if (NewInstanceWaitSw.IsRunning)
             {
-                if (NewInstanceWaitSw.ElapsedMilliseconds < 5000)
+                if (NewInstanceWaitSw.ElapsedMilliseconds < NewInstanceWaitMs)
                 {
                     if (FollowBot.Leader != null && LokiPoe.InGameState.PartyHud.IsInSameZone(FollowBot.Leader.Name))
                     {
@@ -138,8 +141,8 @@ namespace FollowBot.Tasks
                 ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
                 return false;
             }
-			
-					
+
+
 
             var distance = leaderPos.Distance(mypos);
 
@@ -160,6 +163,10 @@ namespace FollowBot.Tasks
 
             // Try to open nearby chests (only if leader is close)
             if (FollowBotSettings.Instance.Loot.ShouldOpenChests && distance <= 60 && await TryOpenNearbyChest())
+                return true;
+
+            // Try to activate Mirage spawners
+            if (FollowBotSettings.Instance.Follow.ActivateMirageSpawners && await TryActivateNearbySpawner())
                 return true;
 
             if (distance > FollowBotSettings.Instance.Follow.MaxFollowDistance || leader?.HasCurrentAction == true && leader?.CurrentAction?.Skill?.InternalId == "Move")
@@ -310,11 +317,13 @@ namespace FollowBot.Tasks
 
             return await TryInteractWithNearbyObject(
                 cachedObjects,
-                obj => {
+                obj =>
+                {
                     var chest = obj.Object as Chest;
                     return chest != null && !chest.IsOpened && chest.IsTargetable;
                 },
-                obj => {
+                obj =>
+                {
                     cache.Chests.Remove(obj);
                     cache.SpecialChests.Remove(obj);
                     if (obj is CachedStrongbox)
@@ -330,7 +339,8 @@ namespace FollowBot.Tasks
 
             return await TryInteractWithNearbyObject(
                 cache.CraftingRecipe,
-                obj => {
+                obj =>
+                {
                     var recipe = obj.Object as CraftingRecipe;
                     return recipe != null && !recipe.IsOpened && recipe.IsTargetable;
                 },
@@ -345,13 +355,43 @@ namespace FollowBot.Tasks
 
             return await TryInteractWithNearbyObject(
                 cache.Shrines,
-                obj => {
+                obj =>
+                {
                     var shrine = obj.Object as Shrine;
                     return shrine != null && !shrine.IsDeactivated && shrine.IsTargetable;
                 },
                 obj => cache.Shrines.Remove(obj),
                 obj => $"Clicking shrine: {obj.Object.Name}"
             );
+        }
+
+        private async Task<bool> TryActivateNearbySpawner()
+        {
+            const int TouchRadius = 10;
+            var maxDist = FollowBotSettings.Instance.Follow.MirageSpawnerDistance;
+            var cache = CombatAreaCache.Current;
+
+            var spawner = cache.MirageSpawners
+                .Where(o => !_touchedSpawnerIds.Contains(o.Id) && o.Position.Distance <= maxDist)
+                .OrderBy(o => o.Position.Distance)
+                .FirstOrDefault(o => o.Position.Distance <= maxDist &&
+                                     ExilePather.PathDistance(Me.Position, o.Position, true, true) <= maxDist);
+
+            if (spawner == null)
+                return false;
+
+            // Already close enough — mark as touched and move on
+            if (spawner.Position.Distance <= TouchRadius)
+            {
+                _touchedSpawnerIds.Add(spawner.Id);
+                GlobalLog.Debug($"[FollowTask] Activated Mirage spawner #{spawner.Id} at distance {(int)spawner.Position.Distance}.");
+                return false; // Return false so the bot immediately continues to follow
+            }
+
+            // Move toward the spawner
+            CustomSkills.PhaseRun();
+            Move.Towards(spawner.Position, "activating Mirage spawner");
+            return true;
         }
 
         private async Task<bool> TryUseAreaSpecificTransition(double leaderDistance)
@@ -411,7 +451,8 @@ namespace FollowBot.Tasks
             var cachedObject = objects
                 .Where(o => !_failedObjectIds.Contains(o.Id))
                 .OrderBy(o => o.Position.Distance)
-                .FirstOrDefault(o => o.Position.Distance < InteractionDistance);
+                .FirstOrDefault(o => o.Position.Distance < InteractionDistance &&
+                                     ExilePather.PathDistance(Me.Position, o.Position, true, true) < InteractionDistance);
 
             if (cachedObject == null)
                 return false;
@@ -424,7 +465,7 @@ namespace FollowBot.Tasks
 
             var obj = cachedObject.Object;
             var pos = obj.WalkablePosition();
-            
+
             // Move close to the object if needed
             if (pos.Distance > 20)
             {
@@ -433,7 +474,7 @@ namespace FollowBot.Tasks
 
             GlobalLog.Debug($"[FollowTask] {logMessageFunc(cachedObject)}");
             var success = await PlayerAction.InteractWithoutDelay(obj, MaxInteractionAttempts);
-            
+
             if (success)
             {
                 removeFromCacheAction(cachedObject);
@@ -443,7 +484,7 @@ namespace FollowBot.Tasks
                 // Mark as failed to prevent retry
                 _failedObjectIds.Add(cachedObject.Id);
             }
-            
+
             return success;
         }
 
@@ -487,6 +528,15 @@ namespace FollowBot.Tasks
             {
                 _leaderzoningSw.Reset();
                 _failedObjectIds.Clear();
+                _touchedSpawnerIds.Clear();
+
+                // Convert WaitingForNewInstance flag into a running stopwatch.
+                // This fires AFTER loading completes, so the 5s wait starts in the new zone.
+                if (WaitingForNewInstance)
+                {
+                    WaitingForNewInstance = false;
+                    NewInstanceWaitSw.Restart();
+                }
             }
             return MessageResult.Unprocessed;
         }

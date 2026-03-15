@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 
@@ -11,8 +11,8 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
         {
             if (_notificationSwStopwatch.ElapsedMilliseconds < 2000) return true;
             _notificationSwStopwatch.Restart();
-            GlobalLog.Warn("[FallbackTask] The Fallback task is executing. The bot is IDLE.");
-            await Wait.Sleep(200);
+            //GlobalLog.Warn("[FallbackTask] The Fallback task is executing. The bot is IDLE.");
+            await Wait.SleepSafe(200);
             return true;
         }
 

@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Game;
+using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
 using FollowBot.Tasks;
 using System;
@@ -207,6 +207,7 @@ namespace FollowBot.Class
                 TryCommand(command, chatCommands.StopSentinelChatCommand, () => combat.UseStalkerSentinel = false) ||
                 TryCommand(command, chatCommands.EnterPortalChatCommand, () => UltimatumTask.ShouldEnterPortal = true) ||
                 TryCommand(command, chatCommands.DepositStashChatCommand, () => StashTask.ShouldDepositFromChat = true) ||
+                TryCommand(command, chatCommands.AllocateChatCommand, () => AutoAllocatePassiveTask.ForceTrigger()) ||
                 TryCommand(command, chatCommands.NewInstanceChatCommand, () => FollowTask.ShouldCreateNewInstance = true);
 
             if (commandProcessed)

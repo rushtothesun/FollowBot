@@ -59,12 +59,12 @@ namespace FollowBot.Tasks
             if (TradeUi.IsOpened)
             {
                 var currentArea = World.CurrentArea;
-                
+
                 if (IsReturnModeArea(currentArea))
                 {
                     // Safe area - wait and decide which mode
-                    await Coroutine.Sleep(1500); // Give leader time to add items
-                    
+                    await Wait.SleepSafe(1500); // Give leader time to add items
+
                     // Check if leader is giving items
                     var leaderOffer = TradeUi.TradeControl?.InventoryControl_OtherOffer.Inventory.Items;
                     if (leaderOffer != null && leaderOffer.Any())
@@ -85,7 +85,7 @@ namespace FollowBot.Tasks
                     // Map/other areas - always receive mode
                     await ExecuteReceiveMode();
                 }
-                
+
                 return true;
             }
             return true;
@@ -200,7 +200,7 @@ namespace FollowBot.Tasks
                 }
                 await Coroutines.LatencyWait();
                 int rand = LokiPoe.Random.Next(1000, 2000);
-                await Coroutine.Sleep(rand);
+                await Wait.SleepSafe(rand);
             }
         }
 
@@ -260,12 +260,12 @@ namespace FollowBot.Tasks
 
         private static async Task<bool> HandleTradeRequest()
         {
-            bool hasVisibleTradeNotification = NotificationHud.NotificationList
-                .Any(n => n.IsVisible && n.NotificationTypeEnum == NotificationType.Trade);
+            var visibleNotifications = NotificationHud.NotificationList.Where(n => n.IsVisible).ToList();
+            bool hasVisibleTradeNotification = visibleNotifications.Any(n => n.NotificationTypeEnum == NotificationType.Trade);
 
-            if (hasVisibleTradeNotification && NotificationHud.NotificationList.Any(x => x.IsVisible))
+            if (hasVisibleTradeNotification)
             {
-                GlobalLog.Warn($"[FollowBot] Visible Notifications: {NotificationHud.NotificationList.Count(x => x.IsVisible)}");
+                GlobalLog.Warn($"[FollowBot] Visible Notifications: {visibleNotifications.Count}");
                 ProcessNotificationEx isTradeRequestToBeAccepted = (x, y) =>
                 {
                     var res = y == NotificationType.Trade && PartyHelper.IsNameInWhiteList(x.CharacterName, x.AccountName);
@@ -273,11 +273,14 @@ namespace FollowBot.Tasks
                     return res;
                 };
 
-                await Wait.Sleep(500);
+                // Human-like delay
+                await Wait.SleepSafe(400, 550);
+
                 var ret = NotificationHud.HandleNotificationEx(isTradeRequestToBeAccepted);
                 GlobalLog.Warn($"[HandleTradeRequest] Result: {ret}");
+
                 await Coroutines.LatencyWait();
-                if (ret == HandleNotificationResult.Accepted) return true;
+                return ret == HandleNotificationResult.Accepted;
             }
             return false;
         }

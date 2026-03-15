@@ -19,6 +19,7 @@ namespace FollowBot.Settings
         private string _enterPortalChatCommand = "EnterP";
         private string _depositStashChatCommand = "Stash";
         private string _newInstanceChatCommand = "NewI";
+        private string _allocateChatCommand = "Allocate";
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -189,6 +190,17 @@ namespace FollowBot.Settings
             {
                 _newInstanceChatCommand = value;
                 NotifyPropertyChanged(nameof(NewInstanceChatCommand));
+            }
+        }
+
+        [DefaultValue("Allocate")]
+        public string AllocateChatCommand
+        {
+            get => _allocateChatCommand;
+            set
+            {
+                _allocateChatCommand = value;
+                NotifyPropertyChanged(nameof(AllocateChatCommand));
             }
         }
     }

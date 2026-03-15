@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
@@ -35,7 +36,7 @@ namespace FollowBot.Helpers
         /// <param name="tabName">Tab name (e.g., "Currency")</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if navigation was successful</returns>
-        public static bool SwitchToTab(string tabName, StashType stashType = StashType.Regular)
+        public static async Task<bool> SwitchToTab(string tabName, StashType stashType = StashType.Regular)
         {
             if (!IsStashOpened(stashType))
             {
@@ -67,7 +68,7 @@ namespace FollowBot.Helpers
 
             if (success)
             {
-                Thread.Sleep(TAB_SWITCH_DELAY);
+                await Wait.SleepSafe(TAB_SWITCH_DELAY);
                 GlobalLog.Info($"[StashHelper] Switched to {stashType} stash tab: {tabName}");
             }
             else
@@ -84,7 +85,7 @@ namespace FollowBot.Helpers
         /// <param name="displayIndex">The visual position of the tab (0-based)</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if navigation was successful</returns>
-        public static bool SwitchToTab(int displayIndex, StashType stashType = StashType.Regular)
+        public static async Task<bool> SwitchToTab(int displayIndex, StashType stashType = StashType.Regular)
         {
             if (!IsStashOpened(stashType))
             {
@@ -115,7 +116,7 @@ namespace FollowBot.Helpers
 
             if (success)
             {
-                Thread.Sleep(TAB_SWITCH_DELAY);
+                await Wait.SleepSafe(TAB_SWITCH_DELAY);
                 GlobalLog.Info($"[StashHelper] Switched to {stashType} stash tab index: {displayIndex}");
             }
             else
@@ -167,7 +168,7 @@ namespace FollowBot.Helpers
         /// <param name="itemLocalId">The LocalId of the item in player inventory</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if deposit was successful</returns>
-        public static bool DepositItem(int itemLocalId, StashType stashType = StashType.Regular)
+        public static async Task<bool> DepositItem(int itemLocalId, StashType stashType = StashType.Regular)
         {
             if (!IsStashOpened(stashType))
             {
@@ -190,7 +191,7 @@ namespace FollowBot.Helpers
             if (success)
             {
                 // Wait for item to register in stash
-                Thread.Sleep(LokiPoe.Random.Next(50, 100));
+                await Wait.SleepSafe(50, 100);
             }
             else
             {
@@ -207,12 +208,12 @@ namespace FollowBot.Helpers
         /// <param name="tabName">Target stash tab name</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if deposit was successful</returns>
-        public static bool DepositItemToTab(int itemLocalId, string tabName, StashType stashType = StashType.Regular)
+        public static async Task<bool> DepositItemToTab(int itemLocalId, string tabName, StashType stashType = StashType.Regular)
         {
-            if (!SwitchToTab(tabName, stashType))
+            if (!await SwitchToTab(tabName, stashType))
                 return false;
 
-            return DepositItem(itemLocalId, stashType);
+            return await DepositItem(itemLocalId, stashType);
         }
 
         /// <summary>
@@ -222,12 +223,12 @@ namespace FollowBot.Helpers
         /// <param name="displayIndex">Target stash tab display index</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if deposit was successful</returns>
-        public static bool DepositItemToTab(int itemLocalId, int displayIndex, StashType stashType = StashType.Regular)
+        public static async Task<bool> DepositItemToTab(int itemLocalId, int displayIndex, StashType stashType = StashType.Regular)
         {
-            if (!SwitchToTab(displayIndex, stashType))
+            if (!await SwitchToTab(displayIndex, stashType))
                 return false;
 
-            return DepositItem(itemLocalId, stashType);
+            return await DepositItem(itemLocalId, stashType);
         }
 
         #endregion
@@ -257,7 +258,7 @@ namespace FollowBot.Helpers
         /// <param name="predicate">Function to test each item</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if a matching item was found and withdrawn</returns>
-        public static bool WithdrawItem(Func<Item, bool> predicate, StashType stashType = StashType.Regular)
+        public static async Task<bool> WithdrawItem(Func<Item, bool> predicate, StashType stashType = StashType.Regular)
         {
             var inventory = GetCurrentStashInventory(stashType);
             if (inventory == null)
@@ -277,7 +278,7 @@ namespace FollowBot.Helpers
 
             if (success)
             {
-                Thread.Sleep(200);
+                await Wait.SleepSafe(200);
                 GlobalLog.Info($"[StashHelper] Withdrew item {item.LocalId} from {stashType} stash");
             }
             else
@@ -295,27 +296,27 @@ namespace FollowBot.Helpers
         /// <param name="predicate">Function to test each item</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if the item was found and withdrawn</returns>
-        public static bool WithdrawItemFromTab(string tabName, Func<Item, bool> predicate, StashType stashType = StashType.Regular)
+        public static async Task<bool> WithdrawItemFromTab(string tabName, Func<Item, bool> predicate, StashType stashType = StashType.Regular)
         {
-            if (!SwitchToTab(tabName, stashType))
+            if (!await SwitchToTab(tabName, stashType))
                 return false;
 
-            return WithdrawItem(predicate, stashType);
+            return await WithdrawItem(predicate, stashType);
         }
 
         /// <summary>
         /// Withdraws an item from a specific stash tab by index using a predicate.
         /// </summary>
-        /// <param name="displayIndex">The stash tab display index</param>
+        /// <param name="displayIndex">Target stash tab display index</param>
         /// <param name="predicate">Function to test each item</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if the item was found and withdrawn</returns>
-        public static bool WithdrawItemFromTab(int displayIndex, Func<Item, bool> predicate, StashType stashType = StashType.Regular)
+        public static async Task<bool> WithdrawItemFromTab(int displayIndex, Func<Item, bool> predicate, StashType stashType = StashType.Regular)
         {
-            if (!SwitchToTab(displayIndex, stashType))
+            if (!await SwitchToTab(displayIndex, stashType))
                 return false;
 
-            return WithdrawItem(predicate, stashType);
+            return await WithdrawItem(predicate, stashType);
         }
 
         #endregion

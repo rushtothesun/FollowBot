@@ -278,5 +278,20 @@ namespace FollowBot.Views.Tabs
                 options.Move(index, index + 1);
             }
         }
+
+        private void AddPassiveTreeUrl_Click(object sender, RoutedEventArgs e)
+        {
+            FollowBotSettings.Instance.PassiveTree.PassiveTreeUrls.Add(new PassiveTreeUrlEntry());
+        }
+
+        private void RemovePassiveTreeUrl_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var entry = button?.DataContext as PassiveTreeUrlEntry;
+            if (entry != null)
+            {
+                FollowBotSettings.Instance.PassiveTree.PassiveTreeUrls.Remove(entry);
+            }
+        }
     }
 }

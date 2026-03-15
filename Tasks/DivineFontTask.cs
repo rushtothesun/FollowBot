@@ -351,7 +351,7 @@ namespace FollowBot.Tasks
             }
 
             // Switch to configured tab
-            if (!SwitchToConfiguredStashTab())
+            if (!await SwitchToConfiguredStashTab())
             {
                 GlobalLog.Error("[DivineFontTask] Failed to switch to configured stash tab");
                 await Coroutines.CloseBlockingWindows();
@@ -365,7 +365,7 @@ namespace FollowBot.Tasks
                 if (req.OptionType == DivineFontOptionType.TransformSpecificGem)
                 {
                     // Withdraw specific gem by name (any level/quality, not corrupted)
-                    success = StashHelper.WithdrawItem(i =>
+                    success = await StashHelper.WithdrawItem(i =>
                         (i.Name == req.SpecificGemName || i.FullName == req.SpecificGemName) &&
                         i.Class == "Active Skill Gem" &&
                         !i.IsCorrupted
@@ -389,7 +389,7 @@ namespace FollowBot.Tasks
                         foreach (var color in colorPriority)
                         {
                             GlobalLog.Info($"[DivineFont] Smart Stash: Checking for {color} gems...");
-                            if (TryWithdrawGemByColor(color))
+                            if (await TryWithdrawGemByColor(color))
                             {
                                 success = true;
                                 GlobalLog.Info($"[DivineFont] Withdrew {color} gem (Smart Choice).");
@@ -400,7 +400,7 @@ namespace FollowBot.Tasks
                     else
                     {
                         GlobalLog.Info($"[DivineFont] Checking stash for {req.ColorPreference} gems...");
-                        if (TryWithdrawGemByColor(req.ColorPreference))
+                        if (await TryWithdrawGemByColor(req.ColorPreference))
                         {
                             success = true;
                             GlobalLog.Info($"[DivineFont] Withdrew {req.ColorPreference} gem.");
@@ -419,7 +419,7 @@ namespace FollowBot.Tasks
         private List<DivineFontOptionType> ReadAvailableOptionsFromUi()
         {
             var available = new List<DivineFontOptionType>();
-            var optionsContainer = GetElementByPath(68, 0, 2, 2);
+            var optionsContainer = ClassExtensions.GetElementByPath(68, 0, 2, 2);
 
             if (optionsContainer == null || optionsContainer.Children == null)
                 return available;
@@ -560,25 +560,7 @@ namespace FollowBot.Tasks
                 .FirstOrDefault(o => o.Metadata == "Metadata/Terrain/Labyrinth/Objects/LabyrinthBlessingBench");
         }
 
-        private Element GetElementByPath(params int[] childIndices)
-        {
-            var allElements = LokiPoe.GetGuiElements();
-            var root = allElements.FirstOrDefault(e => e.IdLabel == "root");
 
-            if (root == null || root.Children == null || root.Children.Count < 2)
-                return null;
-
-            Element current = root.Children[1];
-
-            foreach (var index in childIndices)
-            {
-                if (current.Children == null || current.Children.Count <= index)
-                    return null;
-                current = current.Children[index];
-            }
-
-            return current;
-        }
 
         private async Task<bool> ClickElement(Element element)
         {
@@ -598,7 +580,7 @@ namespace FollowBot.Tasks
 
         private async Task<bool> SelectTransformOption(DivineFontOptionType targetType)
         {
-            var optionsContainer = GetElementByPath(68, 0, 2, 2);
+            var optionsContainer = ClassExtensions.GetElementByPath(68, 0, 2, 2);
             if (optionsContainer == null || optionsContainer.Children == null)
             {
                 GlobalLog.Error("[DivineFontTask] Options container not found");
@@ -647,7 +629,7 @@ namespace FollowBot.Tasks
         private async Task<bool> ClickCraftButton()
         {
             // Path: root.Children[1].Children[68].Children[0].Children[3].Children[0]
-            var craftButton = GetElementByPath(68, 0, 3, 0);
+            var craftButton = ClassExtensions.GetElementByPath(68, 0, 3, 0);
 
             if (craftButton == null || !craftButton.IsVisible)
             {
@@ -669,7 +651,7 @@ namespace FollowBot.Tasks
             try
             {
                 // Navigate to gems container parent: root[1][68][4][0][0]
-                var gemsParent = GetElementByPath(68, 4, 0, 0);
+                var gemsParent = ClassExtensions.GetElementByPath(68, 4, 0, 0);
                 if (gemsParent == null || gemsParent.Children == null || gemsParent.Children.Count == 0)
                 {
                     GlobalLog.Error($"[DivineFontTask] Gems parent not found or has no children");
@@ -734,7 +716,7 @@ namespace FollowBot.Tasks
             try
             {
                 // Navigate to gems container: root[1][68][4][0][0]
-                var gemsParent = GetElementByPath(68, 4, 0, 0);
+                var gemsParent = ClassExtensions.GetElementByPath(68, 4, 0, 0);
                 if (gemsParent == null || gemsParent.Children == null || gemsParent.Children.Count == 0)
                 {
                     GlobalLog.Error("[DivineFontTask] Gems parent not found for clicking");
@@ -771,7 +753,7 @@ namespace FollowBot.Tasks
         private async Task<bool> ClickConfirmButton()
         {
             // Path: root.Children[1].Children[68].Children[4].Children[0].Children[1].Children[0]
-            var confirmButton = GetElementByPath(68, 4, 0, 1, 0);
+            var confirmButton = ClassExtensions.GetElementByPath(68, 4, 0, 1, 0);
 
             if (confirmButton == null || !confirmButton.IsVisible)
             {
@@ -798,7 +780,7 @@ namespace FollowBot.Tasks
             // Based on findgeminput.cs dump:
             // Gem container is at [68][0][3][3]
             // Within that container, child[1] has the tooltip (the gem)
-            var container = GetElementByPath(68, 0, 3, 3);
+            var container = ClassExtensions.GetElementByPath(68, 0, 3, 3);
 
             if (container == null)
             {
@@ -819,7 +801,7 @@ namespace FollowBot.Tasks
         {
             // If there's a gem in the slot, the container at [68][0][3][3] will have 2 children
             // If empty, it only has 1 child ([0])
-            var container = GetElementByPath(68, 0, 3, 3);
+            var container = ClassExtensions.GetElementByPath(68, 0, 3, 3);
 
             if (container == null)
             {
@@ -1092,7 +1074,7 @@ namespace FollowBot.Tasks
             var desiredColor = FollowBotSettings.Instance.Lab.Color;
 
             // Switch to configured tab
-            if (!SwitchToConfiguredStashTab())
+            if (!await SwitchToConfiguredStashTab())
             {
                 GlobalLog.Error("[DivineFontTask] Failed to switch to configured stash tab");
                 await Coroutines.CloseBlockingWindows();
@@ -1106,7 +1088,7 @@ namespace FollowBot.Tasks
                 foreach (var color in colorPriority)
                 {
                     GlobalLog.Info($"[DivineFontTask] Checking stash for {color} gems");
-                    if (TryWithdrawGemByColor(color))
+                    if (await TryWithdrawGemByColor(color))
                     {
                         gemWithdrawn = true;
                         GlobalLog.Info($"[DivineFontTask] Successfully withdrew {color} gem from stash");
@@ -1117,7 +1099,7 @@ namespace FollowBot.Tasks
             else
             {
                 // Specific color or Any mode
-                if (TryWithdrawGemByColor(desiredColor))
+                if (await TryWithdrawGemByColor(desiredColor))
                 {
                     gemWithdrawn = true;
                     GlobalLog.Info($"[DivineFontTask] Successfully withdrew gem from stash");
@@ -1131,12 +1113,12 @@ namespace FollowBot.Tasks
             return gemWithdrawn;
         }
 
-        private bool TryWithdrawGemByColor(LabSettings.GemColor color)
+        private async Task<bool> TryWithdrawGemByColor(LabSettings.GemColor color)
         {
             var socketColor = ColorToSocketColor(color);
 
             // Use predicate-based StashHelper to find and withdraw gem
-            return StashHelper.WithdrawItem(i =>
+            return await StashHelper.WithdrawItem(i =>
                 i.SkillGemLevel == 1 &&
                 i.Quality == 0 &&
                 (socketColor == DreamPoeBot.Loki.Game.GameData.SocketColor.None || i.SocketColor == socketColor) &&
@@ -1426,7 +1408,7 @@ namespace FollowBot.Tasks
 
         private int GetRemainingCrafts()
         {
-            var craftsElement = GetElementByPath(68, 0, 3, 1, 0);
+            var craftsElement = ClassExtensions.GetElementByPath(68, 0, 3, 1, 0);
             if (craftsElement == null)
             {
                 GlobalLog.Error("[DivineFontTask] Could not find crafts remaining element.");
@@ -1462,7 +1444,7 @@ namespace FollowBot.Tasks
                 return;
             }
 
-            var optionsContainer = GetElementByPath(68, 0, 2, 2);
+            var optionsContainer = ClassExtensions.GetElementByPath(68, 0, 2, 2);
             if (optionsContainer == null)
             {
                 GlobalLog.Error("[DivineFontTask] Could not find options container.");
@@ -1493,12 +1475,12 @@ namespace FollowBot.Tasks
             }
         }
 
-        private bool SwitchToConfiguredStashTab()
+        private async Task<bool> SwitchToConfiguredStashTab()
         {
             var settings = FollowBotSettings.Instance.Lab;
             if (settings.TabMode == LabSettings.StashTabMode.Index)
             {
-                return StashHelper.SwitchToTab(settings.StashTabIndex);
+                return await StashHelper.SwitchToTab(settings.StashTabIndex);
             }
             else
             {
@@ -1507,7 +1489,7 @@ namespace FollowBot.Tasks
                     GlobalLog.Error("[DivineFontTask] Stash Tab Name is empty but mode is set to Name.");
                     return false;
                 }
-                return StashHelper.SwitchToTab(settings.StashTabName);
+                return await StashHelper.SwitchToTab(settings.StashTabName);
             }
         }
     }

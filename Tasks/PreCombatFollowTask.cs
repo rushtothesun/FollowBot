@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Common;
+using DreamPoeBot.Common;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Bot.Pathfinding;
 using DreamPoeBot.Loki.Common;
@@ -12,7 +12,6 @@ namespace FollowBot.Tasks
 {
     class PreCombatFollowTask : ITask
     {
-        private int FollowFailCounter = 0;
 
         public string Name { get { return "PreCombatFollowTask"; } }
         public string Description { get { return "This task will keep the bot under a specific distance from the leader, in combat situation."; } }

@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using DreamPoeBot.Common;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
@@ -54,7 +54,7 @@ namespace FollowBot.SimpleEXtensions
                     continue;
                 }
                 TowardsWalkable(pos, destination);
-                await Wait.Sleep(50);
+                await Wait.SleepSafe(50);
             }
             await Coroutines.FinishCurrentAction();
         }
@@ -75,7 +75,7 @@ namespace FollowBot.SimpleEXtensions
         }
         private static bool IsClosedDoor(TriggerableBlockage d)
         {
-            return d.IsTargetable && !d.IsOpened && d.Distance <= 25 &&
+            return d.IsTargetable && !d.IsOpened && d.Distance <= 25 && d.PathDistance() <= 25 &&
                    (d.Name == "Door" || d.Metadata == "Metadata/MiscellaneousObjects/Smashable" || d.Metadata.Contains("LabyrinthSmashableDoor"));
         }
     }

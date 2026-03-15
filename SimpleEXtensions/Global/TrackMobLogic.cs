@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game.Objects;
@@ -77,7 +77,7 @@ namespace FollowBot.SimpleEXtensions.Global
                     return true;
                 }
                 GlobalLog.Debug($"[TrackMobTask] Alive monster is nearby, this is our {attempts}/{MaxKillAttempts} attempt to kill it.");
-                await DreamPoeBot.Loki.Coroutine.Coroutine.Sleep(200);
+                await Wait.SleepSafe(200);
             }
             return true;
         }

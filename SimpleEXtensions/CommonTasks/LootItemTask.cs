@@ -331,7 +331,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
                 return false;
 
             string itemName = item.Position.Name;
-            
+
             foreach (string entry in blacklist)
             {
                 // Name entries start with [N]
@@ -349,7 +349,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
                         return true;
                 }
             }
-            
+
             return false;
         }
 
@@ -374,7 +374,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
         public string Name => "LootItemTask";
         public string Description => "Task that handles item looting.";
-        public string Author => "Alcor75 Original idea by EXvault";
+        public string Author => "Alcor75 Original idea by EXvault, Rushtothesun";
         public string Version => "3.0";
 
         #endregion
