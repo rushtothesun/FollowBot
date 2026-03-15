@@ -39,6 +39,7 @@ namespace FollowBot.Settings
     public class PassiveSkillTreeSettings : INotifyPropertyChanged
     {
         private bool _enableAutoAllocation;
+        private bool _enableAscendancyAllocation = true;
         private bool _onlyInSafeZone = true;
         private bool _checkLeaderStationary = true;
         private int _safeMonsterDistance = 50;
@@ -60,6 +61,16 @@ namespace FollowBot.Settings
             {
                 _enableAutoAllocation = value;
                 NotifyPropertyChanged(nameof(EnableAutoAllocation));
+            }
+        }
+
+        public bool EnableAscendancyAllocation
+        {
+            get => _enableAscendancyAllocation;
+            set
+            {
+                _enableAscendancyAllocation = value;
+                NotifyPropertyChanged(nameof(EnableAscendancyAllocation));
             }
         }
 

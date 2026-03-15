@@ -200,10 +200,10 @@
                     MaxWidth="50"
                     VerticalAlignment="Center"
                     ToolTip="Max distance to detour for a Mirage spawner."/>
-
-                <CheckBox
-                    Grid.Row="6"
-                    Grid.Column="0"
+    
+                    <CheckBox
+                        Grid.Row="6"
+                        Grid.Column="0"
                     Margin="10,0,10,0"
                     Content="Use Stalker Sentinel"
                     IsChecked="{Binding Path=Combat.UseStalkerSentinel, Mode=TwoWay}"
@@ -284,6 +284,12 @@
                               IsChecked="{Binding PassiveTree.EnableAutoAllocation, Mode=TwoWay}"
                               Margin="5"
                               ToolTip="Automatically spend available passive points based on the provided URLs."/>
+
+                    <CheckBox Content="Include Ascendancy Allocation"
+                              IsChecked="{Binding PassiveTree.EnableAscendancyAllocation, Mode=TwoWay}"
+                              Margin="25,0,5,5"
+                              IsEnabled="{Binding PassiveTree.EnableAutoAllocation}"
+                              ToolTip="If enabled, the bot will also allocate Ascendancy points when available."/>
                     
                     <StackPanel Margin="25,0,0,0">
                         <CheckBox Content="Allocate only in Town/Hideout"
@@ -317,6 +323,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding Path=Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                              Margin="0,0,5,0"
+                                             MaxWidth="300" HorizontalAlignment="Left"
                                              ToolTip="Enter Official PoE or PoePlanner URL."/>
                                     <Button Grid.Column="1" Content="Remove"
                                             Click="RemovePassiveTreeUrl_Click"

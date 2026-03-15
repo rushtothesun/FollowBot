@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 
 namespace FollowBot.SimpleEXtensions
@@ -6,7 +6,7 @@ namespace FollowBot.SimpleEXtensions
     public class Interval
     {
         private readonly Stopwatch _stopwatch;
-        private readonly int _msInterval;
+        private int _msInterval;
 
         public Interval(int milliseconds)
         {
@@ -30,6 +30,12 @@ namespace FollowBot.SimpleEXtensions
                 }
                 return false;
             }
+        }
+
+        public void Restart(int newMsInterval)
+        {
+            _msInterval = newMsInterval;
+            _stopwatch.Restart();
         }
     }
 }

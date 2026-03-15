@@ -11,10 +11,10 @@ namespace FollowBot.Helpers
 {
     public struct TargetPassiveNode
     {
-        public ushort Id;
+        public int Id;
         public ushort MasteryHash;
 
-        public TargetPassiveNode(ushort id, ushort hash = 0)
+        public TargetPassiveNode(int id, ushort hash = 0)
         {
             Id = id;
             MasteryHash = hash;
@@ -66,11 +66,9 @@ namespace FollowBot.Helpers
             // Bytes 0-3: Version (usually 6)
             // Bytes 4: Class
             // Bytes 5: Ascendancy
-            // Bytes 6: Node Count (N)  <-- FIXED from 7
-            // Bytes 7+: Every 2 bytes is a big-endian ushort node ID. <-- FIXED from 8
-            // After N nodes: 2-byte Mastery Count (M)
-            // Following: Every 4 bytes is (ushort hash, ushort nodeID)
-
+            // Bytes 6: Node Count (N)
+            // Bytes 7+: Every 2 bytes is a big-endian ushort node ID.
+            
             var nodes = new List<TargetPassiveNode>();
             int version = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
 
@@ -78,30 +76,44 @@ namespace FollowBot.Helpers
             {
                 int nodeCount = data[6];
                 int offset = 7;
+                
+                // 1. Regular/Ascendancy Nodes
                 for (int i = 0; i < nodeCount; i++)
                 {
                     if (offset + 1 >= data.Length) break;
-                    ushort id = (ushort)((data[offset] << 8) | data[offset + 1]);
+                    int id = (data[offset] << 8) | data[offset + 1];
                     nodes.Add(new TargetPassiveNode(id));
                     offset += 2;
                 }
 
-                if (offset + 1 < data.Length)
+                // 2. Cluster Jewels
+                if (offset < data.Length)
                 {
-                    ushort masteryCount = (ushort)((data[offset] << 8) | data[offset + 1]);
-                    offset += 2;
+                    int clusterCount = data[offset];
+                    offset++;
+                    for (int i = 0; i < clusterCount; i++)
+                    {
+                        if (offset + 1 >= data.Length) break;
+                        int id = ((data[offset] << 8) | data[offset + 1]) + 65536;
+                        nodes.Add(new TargetPassiveNode(id));
+                        offset += 2;
+                    }
+                }
+
+                // 3. Masteries
+                if (offset < data.Length)
+                {
+                    int masteryCount = data[offset];
+                    offset++;
                     for (int i = 0; i < masteryCount; i++)
                     {
                         if (offset + 3 < data.Length)
                         {
                             ushort hash = (ushort)((data[offset] << 8) | data[offset + 1]);
-                            ushort id = (ushort)((data[offset + 2] << 8) | data[offset + 3]);
+                            int id = (data[offset + 2] << 8) | data[offset + 3];
 
-                            var existing = nodes.FirstOrDefault(n => n.Id == id);
-                            if (existing.Id != 0)
-                            {
-                                nodes.Remove(existing);
-                            }
+                            // Remove existing node if it was already added without a hash
+                            nodes.RemoveAll(n => n.Id == id);
                             nodes.Add(new TargetPassiveNode(id, hash));
                             offset += 4;
                         }
@@ -116,7 +128,7 @@ namespace FollowBot.Helpers
                 for (int i = 0; i < nodeCount; i++)
                 {
                     if (offset + 1 >= data.Length) break;
-                    ushort id = (ushort)((data[offset] << 8) | data[offset + 1]);
+                    int id = (data[offset] << 8) | data[offset + 1];
                     nodes.Add(new TargetPassiveNode(id));
                     offset += 2;
                 }
@@ -198,19 +210,29 @@ namespace FollowBot.Helpers
         /// <summary>
         /// Returns a list of nodes that are reachable (neighbors of allocated nodes) and are in the target list.
         /// </summary>
-        public static List<TargetPassiveNode> GetReachableTargetNodes(IEnumerable<TargetPassiveNode> targetNodes)
+        public static List<TargetPassiveNode> GetReachableTargetNodes(IEnumerable<TargetPassiveNode> targetNodes, HashSet<int> allocatedIds = null)
         {
             if (!LokiPoe.IsInGame) return new List<TargetPassiveNode>();
 
-            var allocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.ToHashSet();
+            if (allocatedIds == null)
+                allocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.Select(id => (int)id).ToHashSet();
             var reachableTargets = new List<TargetPassiveNode>();
+
+            // Get dictionaries to check existence before calling CanBeAllocate (avoids log spam)
+            var passiveDict = LokiPoe.InGameState.SkillsUi.Dictionary_Passive;
+            var ascendDict = LokiPoe.InGameState.SkillsUi.Dictionary_Ascend;
 
             foreach (var target in targetNodes)
             {
                 if (allocatedIds.Contains(target.Id)) continue;
 
-                // Check if this node is allowed to be allocated by the game API (reachable neighbor)
-                if (LokiPoe.InGameState.SkillsUi.CanBeAllocate((int)target.Id))
+                // Only check if it's in the UI dictionary to avoid "Unable to find id" errors
+                bool inUi = (passiveDict != null && passiveDict.ContainsKey(target.Id)) || 
+                             (ascendDict != null && ascendDict.ContainsKey(target.Id));
+                
+                if (!inUi) continue;
+
+                if (LokiPoe.InGameState.SkillsUi.CanBeAllocate(target.Id))
                 {
                     reachableTargets.Add(target);
                 }

@@ -34,7 +34,6 @@ namespace FollowBot.Tasks
         public void Start()
         {
             _urlCache.Clear();
-            GlobalLog.Debug("[AutoAllocatePassiveTask] Cache cleared on start.");
         }
         public void Stop() { }
         public void Tick() { }
@@ -42,14 +41,24 @@ namespace FollowBot.Tasks
         public async Task<bool> Run()
         {
             if (!FollowBotSettings.Instance.PassiveTree.EnableAutoAllocation && !_forceRunOnce)
+            {
+                // Silent, no log needed for disabled
                 return false;
+            }
 
             if (!LokiPoe.IsInGame)
+            {
                 return false;
+            }
 
-            // 1. Points Available?
-            int points = LokiPoe.InstanceInfo.PassiveSkillPointsAvailable;
-            if (points <= 0)
+            var dictP = LokiPoe.InGameState.SkillsUi.Dictionary_Passive;
+            var dictA = LokiPoe.InGameState.SkillsUi.Dictionary_Ascend;
+
+            // 1. Points Available? (Regular or Ascendancy)
+            int regularPoints = LokiPoe.InstanceInfo.PassiveSkillPointsAvailable;
+            int ascendancyPoints = LokiPoe.InstanceInfo.AscendencySkillPointsAvailable;
+
+            if (regularPoints <= 0 && ascendancyPoints <= 0)
             {
                 _forceRunOnce = false;
                 return false;
@@ -59,29 +68,41 @@ namespace FollowBot.Tasks
             if (!_forceRunOnce)
             {
                 if (!_runCooldown.Elapsed)
+                {
                     return false;
+                }
+
+                // Randomize next cooldown (4s - 5.5s)
+                _runCooldown.Restart(LokiPoe.Random.Next(4000, 5500));
 
                 // Safe Zone Check
                 if (FollowBotSettings.Instance.PassiveTree.OnlyInSafeZone && !LokiPoe.Me.IsInTown && !LokiPoe.Me.IsInHideout)
+                {
                     return false;
+                }
 
                 // Combat Check
                 if (PassiveTreeHelper.IsInCombat(FollowBotSettings.Instance.PassiveTree.SafeMonsterDistance))
+                {
                     return false;
+                }
 
                 // Leader Stationary Check
                 if (FollowBotSettings.Instance.PassiveTree.CheckLeaderStationary && !LokiPoe.Me.IsInTown && !LokiPoe.Me.IsInHideout)
                 {
                     var leader = FollowBot.Leader;
                     if (leader != null && leader.IsMoving)
+                    {
                         return false;
+                    }
                 }
             }
 
-            // 3. Pre-check: Do any URLs actually need allocation? (Avoid opening tree if not needed)
-            var allocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.ToHashSet();
+            // 3. Pre-check: Do any URLs actually need allocation OR have reachable nodes?
+            var allocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.Select(id => (int)id).ToHashSet();
             var urlList = FollowBotSettings.Instance.PassiveTree.PassiveTreeUrls;
-            bool needsAny = false;
+            bool anyUnallocatedFound = false;
+            bool anyReachableFound = false;
 
             if (urlList != null)
             {
@@ -95,23 +116,47 @@ namespace FollowBot.Tasks
                         _urlCache[urlEntry.Url] = targetNodes;
                     }
 
-                    if (targetNodes.Any(n => !allocatedIds.Contains(n.Id)))
+                    var unallocated = targetNodes.Where(n => !allocatedIds.Contains(n.Id) && (dictP.ContainsKey(n.Id) || dictA.ContainsKey(n.Id))).ToList();
+                    if (unallocated.Any())
                     {
-                        needsAny = true;
+                        anyUnallocatedFound = true;
+                        // Check if any of these are reachable WITHOUT opening the tree
+                        var reachable = PassiveTreeHelper.GetReachableTargetNodes(unallocated);
+                        if (reachable.Any())
+                        {
+                            // Point-Type Awareness: Only open if we have the right points for these specific reachable nodes
+                            bool canSpendOnRegular = regularPoints > 0 && reachable.Any(n => !LokiPoe.InGameState.SkillsUi.IsAscendPassive(n.Id));
+                            bool canSpendOnAscend = ascendancyPoints > 0 && reachable.Any(n => LokiPoe.InGameState.SkillsUi.IsAscendPassive(n.Id)) && FollowBotSettings.Instance.PassiveTree.EnableAscendancyAllocation;
+
+                            if (canSpendOnRegular || canSpendOnAscend)
+                            {
+                                anyReachableFound = true;
+                            }
+                        }
+                        // URL Pathing: This URL is not finished. We stop here and don't check subsequent URLs.
                         break;
                     }
                 }
             }
 
-            if (!needsAny && !_forceRunOnce)
+            if (!anyUnallocatedFound && !_forceRunOnce)
             {
-                return false; // All nodes in all URLs are already allocated
+                return false;
             }
 
-            GlobalLog.Info($"[AutoAllocatePassiveTask] Starting Passives allocation. Character has {points} points available.");
+            if (!anyReachableFound && !_forceRunOnce)
+            {
+                return false;
+            }
+
+            GlobalLog.Info($"[AutoAllocatePassiveTask] Starting Passives allocation. Regular points: {regularPoints}, Ascendancy points: {ascendancyPoints}.");
             _forceRunOnce = false;
 
             // 4. Execution (Atomic)
+            bool foundAnyReachableThisRun = false;
+            // Virtual Allocation List to track clicks in this session for pathfinding
+            var sessionAllocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.Select(id => (int)id).ToHashSet();
+
             try
             {
                 // Close other windows first to avoid conflicts
@@ -124,87 +169,120 @@ namespace FollowBot.Tasks
                     return true;
                 }
 
-                bool allocatedAny = false;
-                int pointsSpent = 0;
-
-                // Iterate through the URLs in order
-                if (urlList == null)
+                bool everAllocated = false;
+                // Main Allocation Loop - stay in here until we are actually stuck or done
+                while (true)
                 {
-                    GlobalLog.Warn("[AutoAllocatePassiveTask] PassiveTreeUrls collection is null.");
-                    return true;
-                }
+                    bool allocatedSomethingInThisPass = false;
+                    var currentAllocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.Select(id => (int)id).ToHashSet();
+                    sessionAllocatedIds = new HashSet<int>(currentAllocatedIds);
 
-                foreach (var urlEntry in urlList)
-                {
-                    if (urlEntry == null || string.IsNullOrWhiteSpace(urlEntry.Url)) continue;
-
-                    if (!_urlCache.TryGetValue(urlEntry.Url, out var targetNodes))
+                    // Iterate through the URLs in order
+                    if (urlList == null) break;
+                    foreach (var urlEntry in urlList)
                     {
-                        targetNodes = PassiveTreeHelper.GetTargetNodesFromUrl(urlEntry.Url);
-                        _urlCache[urlEntry.Url] = targetNodes;
-                    }
+                        bool urlAllocatedAny = false;
+                        if (urlEntry == null || string.IsNullOrWhiteSpace(urlEntry.Url)) continue;
 
-                    if (!targetNodes.Any()) continue;
-
-                    // Calculate how many of these are NOT yet allocated using the robust InstanceInfo check
-                    var unallocatedTargets = targetNodes.Where(n => !allocatedIds.Contains(n.Id)).ToList();
-                    if (!unallocatedTargets.Any())
-                    {
-                        GlobalLog.Debug($"[AutoAllocatePassiveTask] All {targetNodes.Count} nodes from URL are already allocated.");
-                        continue;
-                    }
-
-                    GlobalLog.Info($"[AutoAllocatePassiveTask] Parsed {targetNodes.Count} nodes from URL. {unallocatedTargets.Count} require allocation. Points available: {points - pointsSpent}.");
-
-                    // Keep allocating until this URL's targets are exhausted or we run out of points
-                    while (pointsSpent < points)
-                    {
-                        var reachableTargets = PassiveTreeHelper.GetReachableTargetNodes(unallocatedTargets);
-                        if (!reachableTargets.Any()) break;
-
-                        var nextNode = reachableTargets.First();
-
-                        LokiPoe.InGameState.ChoosePassiveError result;
-                        if (LokiPoe.InGameState.SkillsUi.IsMastery((int)nextNode.Id) && nextNode.MasteryHash != 0)
+                        if (!_urlCache.TryGetValue(urlEntry.Url, out var targetNodes))
                         {
-                            GlobalLog.Info($"[AutoAllocatePassiveTask] Allocating Mastery node {nextNode.Id} with hash {nextNode.MasteryHash}.");
-                            result = LokiPoe.InGameState.SkillsUi.ChoosePassiveMastery((int)nextNode.Id, new List<int> { (int)nextNode.MasteryHash });
+                            targetNodes = PassiveTreeHelper.GetTargetNodesFromUrl(urlEntry.Url);
+                            _urlCache[urlEntry.Url] = targetNodes;
                         }
-                        else
+                        if (!targetNodes.Any()) continue;
+
+                        // Keep allocating until this URL's targets are exhausted or we run out of all points
+                        while (true)
                         {
-                            GlobalLog.Info($"[AutoAllocatePassiveTask] Allocating node {nextNode.Id}.");
-                            result = LokiPoe.InGameState.SkillsUi.ChoosePassive((int)nextNode.Id);
+                            var unallocatedTargets = targetNodes.Where(n => !sessionAllocatedIds.Contains(n.Id) && (dictP.ContainsKey(n.Id) || dictA.ContainsKey(n.Id))).ToList();
+
+                            if (!unallocatedTargets.Any()) break;
+
+                            // Use virtual list for reachability check
+                            var reachableTargets = PassiveTreeHelper.GetReachableTargetNodes(unallocatedTargets, sessionAllocatedIds);
+                            if (!reachableTargets.Any()) break;
+
+                            foundAnyReachableThisRun = true;
+                            var nextNode = reachableTargets.First();
+
+                            // Check point availability for this specific node type
+                            bool isAscendancy = LokiPoe.InGameState.SkillsUi.IsAscendPassive(nextNode.Id);
+                            if (isAscendancy)
+                            {
+                                if (!FollowBotSettings.Instance.PassiveTree.EnableAscendancyAllocation) break;
+                                if (LokiPoe.InstanceInfo.AscendencySkillPointsAvailable <= 0) break;
+
+                                if (!LokiPoe.InGameState.SkillsUi.AscendencyUi.IsOpened)
+                                {
+                                    GlobalLog.Info("[AutoAllocatePassiveTask] Opening Ascendancy panel.");
+                                    LokiPoe.InGameState.SkillsUi.AscendencyUi.Toggle();
+                                    await Wait.SleepSafe(LokiPoe.Random.Next(600, 900));
+                                }
+                            }
+                            else
+                            {
+                                if (LokiPoe.InstanceInfo.PassiveSkillPointsAvailable <= 0) break;
+                            }
+
+                            LokiPoe.InGameState.ChoosePassiveError result;
+                            if (LokiPoe.InGameState.SkillsUi.IsMastery(nextNode.Id) && nextNode.MasteryHash != 0)
+                            {
+                                GlobalLog.Info($"[AutoAllocatePassiveTask] Allocating Mastery node {nextNode.Id} with hash {nextNode.MasteryHash}.");
+                                result = LokiPoe.InGameState.SkillsUi.ChoosePassiveMastery(nextNode.Id, new List<int> { (int)nextNode.MasteryHash });
+                            }
+                            else if (isAscendancy)
+                            {
+                                GlobalLog.Info($"[AutoAllocatePassiveTask] Allocating Ascendancy node {nextNode.Id}.");
+                                result = LokiPoe.InGameState.SkillsUi.AscendencyUi.ChooseAscendancyPassive(nextNode.Id);
+                            }
+                            else
+                            {
+                                GlobalLog.Info($"[AutoAllocatePassiveTask] Allocating node {nextNode.Id}.");
+                                result = LokiPoe.InGameState.SkillsUi.ChoosePassive(nextNode.Id);
+                            }
+
+                            if (result == LokiPoe.InGameState.ChoosePassiveError.None)
+                            {
+                                urlAllocatedAny = true;
+                                everAllocated = true;
+                                allocatedSomethingInThisPass = true;
+                                sessionAllocatedIds.Add(nextNode.Id);
+                                await Wait.SleepSafe(LokiPoe.Random.Next(200, 500));
+                            }
+                            else
+                            {
+                                GlobalLog.Error($"[AutoAllocatePassiveTask] Failed to choose passive {nextNode.Id}: {result}");
+                                break;
+                            }
                         }
 
-                        if (result == LokiPoe.InGameState.ChoosePassiveError.None)
+                        if (urlAllocatedAny)
                         {
-                            allocatedAny = true;
-                            pointsSpent++;
-                            unallocatedTargets.Remove(nextNode);
-                            await Wait.SleepSafe(LokiPoe.Random.Next(200, 500));
+                            GlobalLog.Info("[AutoAllocatePassiveTask] Confirming allocation for current URL.");
+                            LokiPoe.InGameState.SkillsUi.ConfirmOperation();
+
+                            // Wait for server to sync so the next pass/URL can see the new reachable path
+                            await Wait.SleepSafe(LokiPoe.Random.Next(1200, 1800));
                         }
-                        else
+
+                        var remainingUnallocated = targetNodes.Where(n => !sessionAllocatedIds.Contains(n.Id) && (dictP.ContainsKey(n.Id) || dictA.ContainsKey(n.Id))).ToList();
+                        if (remainingUnallocated.Any())
                         {
-                            GlobalLog.Error($"[AutoAllocatePassiveTask] Failed to choose passive {nextNode.Id}: {result}");
                             break;
                         }
                     }
 
-                    // Strict termination: if we finished this URL and still have points, but no targets left in this URL, we stop or move to next URL.
-                    // The 'while' loop already handles pointsSpent < points.
-                    if (unallocatedTargets.Any())
-                    {
-                        GlobalLog.Warn($"[AutoAllocatePassiveTask] Stop reached for this URL. {unallocatedTargets.Count} targets remains but none are reachable or points exhausted.");
-                        break;
-                    }
+                    if (!allocatedSomethingInThisPass) break;
+
+                    if (LokiPoe.InstanceInfo.PassiveSkillPointsAvailable <= 0 && LokiPoe.InstanceInfo.AscendencySkillPointsAvailable <= 0) break;
+
+                    GlobalLog.Debug("[AutoAllocatePassiveTask] Points remaining, starting another allocation pass.");
                 }
 
-                if (allocatedAny)
+                /*if (!everAllocated && !foundAnyReachableThisRun)
                 {
-                    GlobalLog.Info("[AutoAllocatePassiveTask] Confirming allocation.");
-                    LokiPoe.InGameState.SkillsUi.ConfirmOperation();
-                    await Wait.SleepSafe(LokiPoe.Random.Next(700, 1000));
-                }
+                    GlobalLog.Debug("[AutoAllocatePassiveTask] No reachable nodes found for current URLs.");
+                }*/
             }
             catch (Exception ex)
             {
@@ -212,11 +290,10 @@ namespace FollowBot.Tasks
             }
             finally
             {
-                // Close tree when done via Simulation
                 await EnsureTreeClosed();
             }
 
-            return true; // We handled the tick
+            return true;
         }
 
         private async Task<bool> EnsureTreeOpened()
