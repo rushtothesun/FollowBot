@@ -143,6 +143,7 @@ namespace FollowBot.Settings
             }
         }
 
+
         [DefaultValue(false)]
         public bool ActivateMirageSpawners
         {

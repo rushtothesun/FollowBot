@@ -71,6 +71,7 @@
     "Tasks\\TravelToPartyZoneTask.cs",
     "Tasks\\TrialPickerTask.cs",
     "Tasks\\UltimatumTask.cs",
+    "Tasks\\UltimatumUnloaderTask.cs",
     "Class\\AsyncCustomSkills.cs",
     "Class\\ChatParser.cs",
     "Class\\CustomSkills.cs",

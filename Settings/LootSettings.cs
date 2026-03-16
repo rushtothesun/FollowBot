@@ -11,6 +11,8 @@ namespace FollowBot.Settings
         private bool _shouldOpenChests = true;
         private bool _shouldLootUltimatum = false;
         private int _ultimatumLootTimer = 5;
+        private bool _useUnloaderForUltimatum = true;
+        private int _ultimatumUnloaderDelay = 2000;
         private ObservableCollection<string> _lootBlacklist;
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -52,7 +54,46 @@ namespace FollowBot.Settings
         public bool ShouldLootUltimatum
         {
             get { return _shouldLootUltimatum; }
-            set { _shouldLootUltimatum = value; NotifyPropertyChanged(nameof(ShouldLootUltimatum)); }
+            set 
+            { 
+                if (_shouldLootUltimatum == value) return;
+                _shouldLootUltimatum = value; 
+                NotifyPropertyChanged(nameof(ShouldLootUltimatum)); 
+                if (value)
+                {
+                    UseUnloaderForUltimatum = false;
+                }
+            }
+        }
+
+        [DefaultValue(true)]
+        public bool UseUnloaderForUltimatum
+        {
+            get { return _useUnloaderForUltimatum; }
+            set
+            {
+                if (_useUnloaderForUltimatum == value) return;
+                _useUnloaderForUltimatum = value; 
+                NotifyPropertyChanged(nameof(UseUnloaderForUltimatum));
+                if (value)
+                {
+                    ShouldLootUltimatum = false;
+                }
+            }
+        }
+
+        [DefaultValue(2000)]
+        public int UltimatumUnloaderDelay
+        {
+            get { return _ultimatumUnloaderDelay; }
+            set
+            {
+                // Clamp to 1500-10000ms range
+                var clamped = value < 1500 ? 1500 : (value > 10000 ? 10000 : value);
+                if (_ultimatumUnloaderDelay == clamped) return;
+                _ultimatumUnloaderDelay = clamped;
+                NotifyPropertyChanged(nameof(UltimatumUnloaderDelay));
+            }
         }
 
         [DefaultValue(5)]

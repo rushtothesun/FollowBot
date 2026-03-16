@@ -82,7 +82,7 @@ namespace FollowBot.Tasks
                 // Return true to ensure the task keeps running and doesn't fall through to other logic.
                 return true;
             }
-            
+
 
             var ultimatum = LokiPoe.ObjectManager.Objects.FirstOrDefault<UltimatumChallengeInteractable>();
             if (ultimatum != null && ultimatum.IsTrialCompleted && !_ultimatumCompletedInThisInstance)
@@ -214,7 +214,17 @@ namespace FollowBot.Tasks
             _lastMapHash = LokiPoe.LocalData.AreaHash;
             GlobalLog.Debug($"[UltimatumTask] Trial completed. Setting _lastMapHash to: {_lastMapHash}");
 
-            if (FollowBotSettings.Instance.Loot.ShouldLootUltimatum)
+            // Unloader and Portal take-out are mutually exclusive
+            if (FollowBotSettings.Instance.Loot.UseUnloaderForUltimatum)
+            {
+                LokiPoe.ProcessHookManager.ClearAllKeyStates();
+                var delay = FollowBotSettings.Instance.Loot.UltimatumUnloaderDelay;
+                GlobalLog.Debug($"[UltimatumTask] Waiting {delay}ms for loot to finish dropping.");
+                System.Threading.Thread.Sleep(delay);
+                GlobalLog.Debug("[UltimatumTask] Unloader is enabled. Triggering Unloader.");
+                UltimatumUnloaderTask.TriggerUnloader();
+            }
+            else if (FollowBotSettings.Instance.Loot.ShouldLootUltimatum)
             {
                 GlobalLog.Debug("[UltimatumTask] Portal After Ultimatum is enabled. Starting portal search.");
                 _portalLootingTimer.Start();

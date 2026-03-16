@@ -474,8 +474,24 @@
             <!-- Ultimatum -->
             <Expander Header="Ultimatum Settings" IsExpanded="False" Margin="5">
                 <StackPanel>
-                    <CheckBox Content="Portal After Ultimatum" IsChecked="{Binding Loot.ShouldLootUltimatum, Mode=TwoWay}" ToolTip="If enabled, the bot will search for a portal for a configurable amount of time after an Ultimatum is completed."/>
-                    <WrapPanel>
+                    <!-- Unloader Options -->
+                    <CheckBox Content="Enable Unloader (Experimental)"
+                              IsChecked="{Binding Loot.UseUnloaderForUltimatum, Mode=TwoWay}" 
+                              Margin="5,5,5,0"
+                              ToolTip="If enabled, the bot will sweep the arena after completing an Ultimatum to pick up and drop items allocated to only you."/>
+                    
+                    <WrapPanel Margin="5">
+                        <Label Content="Unloader Start Delay: "/>
+                        <Slider Name="SlUltimatumUnloaderDelay" Minimum="1500" Maximum="10000" Value="{Binding Loot.UltimatumUnloaderDelay, Mode=TwoWay}" Width="150" TickFrequency="100" IsSnapToTickEnabled="True"/>
+                        <TextBox Text="{Binding ElementName=SlUltimatumUnloaderDelay, Path=Value}" Width="45"/>
+                        <Label Content="ms" Margin="0,0,5,0"/>
+                        <TextBlock Text="Default: 2000ms. Increase if the bot is ignoring items." VerticalAlignment="Center" Foreground="Gray" FontSize="11"/>
+                    </WrapPanel>
+
+                    <Separator Margin="5,5,5,5"/>
+
+                    <CheckBox Content="Portal After Ultimatum" IsChecked="{Binding Loot.ShouldLootUltimatum, Mode=TwoWay}" Margin="5,0,5,0" ToolTip="If enabled, the bot will search for a portal for a configurable amount of time after an Ultimatum is completed."/>
+                    <WrapPanel Margin="5">
                         <Label Content="Portal Search Time: "/>
                         <Slider Name="SlUltimatumLootTimer" Minimum="1" Maximum="60" Value="{Binding Loot.UltimatumLootTimer, Mode=TwoWay}" Width="150" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBox Text="{Binding ElementName=SlUltimatumLootTimer, Path=Value}" Width="30"/>

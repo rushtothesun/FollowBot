@@ -390,6 +390,7 @@ namespace FollowBot
             _taskManager.Add(new TradeTask());
             _taskManager.Add(new StashTask());
             _taskManager.Add(new UltimatumTask());
+            _taskManager.Add(new UltimatumUnloaderTask());
             _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
             _taskManager.Add(new CustomSkillsTask());
