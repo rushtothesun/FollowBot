@@ -149,51 +149,79 @@ namespace FollowBot.Helpers
                 if (mod4 > 0) normalized += new string('=', 4 - mod4);
 
                 byte[] data = Convert.FromBase64String(normalized);
-                if (data.Length < 12) return new List<TargetPassiveNode>();
+                if (data.Length < 13) return new List<TargetPassiveNode>();
 
                 var nodes = new List<TargetPassiveNode>();
 
-                // PoePlanner Layout (Version 4):
-                // Bytes 0-3: Version (usually 4)
-                // Bytes 10-11: Node Count (Big-Endian)
-                // Bytes 12+: Node IDs (ushort, Little-Endian)
+                // PoePlanner format (all multi-byte values are Little-Endian):
+                // Bytes 0-1:  serializationVersion (u16 LE)
+                // Byte  2:    buildType (u8)
+                // Byte  3:    isPoE2 (u8)
+                // Bytes 4-5:  treeSerializationVersion (u16 LE)
+                // Bytes 6-7:  treeVersion (u16 LE)
+                // Byte  8:    class (u8)
+                // Byte  9:    ascendancy (u8)
+                // Byte  10:   bandit (u8)
+                // Bytes 11-12: nodeCount (u16 LE)
+                // Then: nodeCount * u16 LE node hashes
+                // Then: clusterNodeCount (u16 LE) + cluster node hashes (u16 LE each)
+                // Then: ascendancyNodeCount (u16 LE) + ascendancy node hashes (u16 LE each)
+                // Then: masteryEffectCount (u16 LE) + {masteryID u16 LE, effectID u16 LE} each
 
-                int version = BitConverter.ToInt32(data.Take(4).ToArray(), 0);
-                ushort nodeCount = (ushort)((data[10] << 8) | data[11]);
-                int offset = 12;
+                int version = ReadU16LE(data, 0);
+                int offset = 11;
 
+                // 1. Regular nodes
+                int nodeCount = ReadU16LE(data, offset);
+                offset += 2;
                 for (int i = 0; i < nodeCount; i++)
                 {
                     if (offset + 1 >= data.Length) break;
-                    ushort id = (ushort)((data[offset + 1] << 8) | data[offset]);
-                    nodes.Add(new TargetPassiveNode(id));
+                    nodes.Add(new TargetPassiveNode(ReadU16LE(data, offset)));
                     offset += 2;
                 }
 
-                // After nodes, skip 4-byte divider (00 00 00 00)
-                offset += 4;
+                // 2. Cluster nodes
                 if (offset + 1 < data.Length)
                 {
-                    // Mastery Count (ushort, Little-Endian)
-                    ushort masteryCount = (ushort)((data[offset + 1] << 8) | data[offset]);
+                    int clusterCount = ReadU16LE(data, offset);
                     offset += 2;
+                    for (int i = 0; i < clusterCount; i++)
+                    {
+                        if (offset + 1 >= data.Length) break;
+                        nodes.Add(new TargetPassiveNode(ReadU16LE(data, offset)));
+                        offset += 2;
+                    }
+                }
 
+                // 3. Ascendancy nodes (separate section in PoePlanner, unlike official format)
+                if (offset + 1 < data.Length)
+                {
+                    int ascendancyCount = ReadU16LE(data, offset);
+                    offset += 2;
+                    for (int i = 0; i < ascendancyCount; i++)
+                    {
+                        if (offset + 1 >= data.Length) break;
+                        nodes.Add(new TargetPassiveNode(ReadU16LE(data, offset)));
+                        offset += 2;
+                    }
+                }
+
+                // 4. Mastery effects: {masteryID u16 LE, effectID u16 LE}
+                //    NOTE: PoePlanner swaps the order vs GGG — mastery node ID comes first, effect second.
+                if (offset + 1 < data.Length)
+                {
+                    int masteryCount = ReadU16LE(data, offset);
+                    offset += 2;
                     for (int i = 0; i < masteryCount; i++)
                     {
-                        if (offset + 3 < data.Length)
-                        {
-                            // Mastery Entry (ushort id, ushort hash) - Both Little-Endian
-                            ushort id = (ushort)((data[offset + 1] << 8) | data[offset]);
-                            ushort hash = (ushort)((data[offset + 3] << 8) | data[offset + 2]);
+                        if (offset + 3 >= data.Length) break;
+                        int masteryId = ReadU16LE(data, offset);
+                        ushort effectId = (ushort)ReadU16LE(data, offset + 2);
 
-                            var existing = nodes.FirstOrDefault(n => n.Id == id);
-                            if (existing.Id != 0)
-                            {
-                                nodes.Remove(existing);
-                            }
-                            nodes.Add(new TargetPassiveNode(id, hash));
-                            offset += 4;
-                        }
+                        nodes.RemoveAll(n => n.Id == masteryId);
+                        nodes.Add(new TargetPassiveNode(masteryId, effectId));
+                        offset += 4;
                     }
                 }
 
@@ -205,6 +233,11 @@ namespace FollowBot.Helpers
                 GlobalLog.Error($"[PassiveTreeHelper] Error decoding PoePlanner URL: {ex.Message}");
                 return new List<TargetPassiveNode>();
             }
+        }
+
+        private static int ReadU16LE(byte[] data, int offset)
+        {
+            return data[offset] | (data[offset + 1] << 8);
         }
 
         /// <summary>

@@ -27,14 +27,15 @@ namespace FollowBot.Tasks
         private static readonly Stopwatch _delaySw = new Stopwatch();
         private static bool _isEnabled = false;
         private static bool _isInProgress = false;
-        private static HashSet<int> _ignoredItemIds = new HashSet<int>();
+        private static Dictionary<int, int> _itemFailCounts = new Dictionary<int, int>();
+        private const int MaxRetries = 3;
 
         // Backups for task suppression
         private static bool _originalShouldFollow = true;
         private static bool _originalShouldLoot = true;
 
         // Search radii
-        private const float OuterSearchRadius = 250f;
+        private const float UltimatumItemRadius = 50f;
         private const float InnerSearchRadius = 50f;
         private const float InteractionRange = 30f;
 
@@ -58,7 +59,7 @@ namespace FollowBot.Tasks
 
             _isEnabled = true;
             _isInProgress = true;
-            _ignoredItemIds.Clear();
+            _itemFailCounts.Clear();
             _delaySw.Restart();
         }
 
@@ -72,18 +73,46 @@ namespace FollowBot.Tasks
         }
 
         /// <summary>
-        /// Finds the nearest eligible WorldItem within the given radius.
+        /// Records a failure for an item. Returns true if the item has exceeded MaxRetries and is now ignored.
+        /// </summary>
+        private static bool RecordFailure(int itemId, string itemName, string reason)
+        {
+            if (!_itemFailCounts.ContainsKey(itemId))
+                _itemFailCounts[itemId] = 0;
+
+            _itemFailCounts[itemId]++;
+            int count = _itemFailCounts[itemId];
+
+            if (count >= MaxRetries)
+            {
+                GlobalLog.Error($"[UltimatumUnloaderTask] {itemName}: {reason} (attempt {count}/{MaxRetries}). Permanently ignoring.");
+                return true;
+            }
+
+            GlobalLog.Warn($"[UltimatumUnloaderTask] {itemName}: {reason} (attempt {count}/{MaxRetries}). Will retry.");
+            return false;
+        }
+
+        private static bool IsIgnored(int itemId)
+        {
+            return _itemFailCounts.ContainsKey(itemId) && _itemFailCounts[itemId] >= MaxRetries;
+        }
+
+        /// <summary>
+        /// Finds the nearest eligible WorldItem to the bot that is within UltimatumItemRadius of the Ultimatum position.
+        /// Optionally limits to items within maxBotDistance of the bot (for inner loop cluster sweeping).
         /// Excludes Gold, ignored items, and items allocated to other players.
         /// </summary>
-        private static WorldItem FindNearestItem(float radius)
+        private static WorldItem FindNearestItem(Vector2i ultimatumPos, float maxBotDistance = 0f)
         {
             return LokiPoe.ObjectManager.GetObjectsByType<WorldItem>()
-                .Where(i => i.Distance <= radius
-                    && i.HasAllocation
+                .Where(i => i.HasAllocation
                     && !i.IsAllocatedToOther
                     && i.Item != null
                     && i.Item.Name != "Gold"
-                    && !_ignoredItemIds.Contains(i.Id))
+                    && !IsIgnored(i.Id)
+                    && ultimatumPos.Distance(i.Position) <= UltimatumItemRadius
+                    && (maxBotDistance <= 0f || i.Distance <= maxBotDistance))
                 .OrderBy(i => i.Distance)
                 .FirstOrDefault();
         }
@@ -121,8 +150,8 @@ namespace FollowBot.Tasks
 
             if (!hasLabel)
             {
-                GlobalLog.Error($"[UltimatumUnloaderTask] No label for {target.Item?.Name}. Skipping.");
-                _ignoredItemIds.Add(target.Id);
+                RecordFailure(target.Id, target.Item?.Name ?? "Unknown", "No label found");
+                System.Threading.Thread.Sleep(100);
                 return null;
             }
 
@@ -131,7 +160,7 @@ namespace FollowBot.Tasks
             {
                 var point = new Vector2i((int)(coords.X + (size.X / 7) * i), (int)(coords.Y + (size.Y / 2)));
                 MouseManager.SetMousePosition(point, false);
-                System.Threading.Thread.Sleep(150);
+                System.Threading.Thread.Sleep(100);
 
                 if (GameController.Instance.Game.IngameState.FrameUnderCursor == target.Entity.Address)
                 {
@@ -141,8 +170,8 @@ namespace FollowBot.Tasks
                 }
             }
 
-            GlobalLog.Error($"[UltimatumUnloaderTask] Label sweep failed for {target.Item?.Name}. Skipping.");
-            _ignoredItemIds.Add(target.Id);
+            RecordFailure(target.Id, target.Item?.Name ?? "Unknown", "Label sweep failed");
+            System.Threading.Thread.Sleep(100);
             return null;
         }
 
@@ -196,6 +225,23 @@ namespace FollowBot.Tasks
             await Coroutines.FinishCurrentAction(true);
             LokiPoe.ProcessHookManager.ClearAllKeyStates();
 
+            // Locate the Ultimatum object — items must be near it to be eligible
+            var ultimatum = LokiPoe.ObjectManager.Objects
+                .OfType<UltimatumChallengeInteractable>()
+                .FirstOrDefault();
+
+            if (ultimatum == null)
+            {
+                GlobalLog.Error("[UltimatumUnloaderTask] No Ultimatum object found. Aborting.");
+                RestoreSettings();
+                _isInProgress = false;
+                _isEnabled = false;
+                return false;
+            }
+
+            var ultPos = ultimatum.Position;
+            GlobalLog.Info($"[UltimatumUnloaderTask] Ultimatum position: {ultPos}. Filtering items within {UltimatumItemRadius} units.");
+
             // Ensure inventory is closed before we start
             if (LokiPoe.InGameState.InventoryUi.IsOpened)
             {
@@ -206,8 +252,8 @@ namespace FollowBot.Tasks
             // ===== OUTER LOOP: Find clusters and move to them =====
             while (_isEnabled && _isInProgress)
             {
-                // 1. Find nearest item globally
-                var outerTarget = FindNearestItem(OuterSearchRadius);
+                // 1. Find nearest eligible item (must be within UltimatumItemRadius of the Ultimatum)
+                var outerTarget = FindNearestItem(ultPos);
                 if (outerTarget == null)
                 {
                     GlobalLog.Info("[UltimatumUnloaderTask] Sweep complete. No items remaining.");
@@ -221,8 +267,8 @@ namespace FollowBot.Tasks
                 {
                     if (!PlayerMoverManager.MoveTowards(outerTarget.Position))
                     {
-                        GlobalLog.Error($"[UltimatumUnloaderTask] Path blocked to {outerTarget.Item.Name}. Ignoring.");
-                        _ignoredItemIds.Add(outerTarget.Id);
+                        RecordFailure(outerTarget.Id, outerTarget.Item.Name, "Path blocked");
+
                         outerTarget = null;
                         break;
                     }
@@ -244,7 +290,7 @@ namespace FollowBot.Tasks
                 {
                     GlobalLog.Debug("[UltimatumUnloaderTask] Opening inventory for cluster.");
                     await Inventories.OpenInventory();
-                    System.Threading.Thread.Sleep(1500); // Wait for viewport shift
+                    System.Threading.Thread.Sleep(900); // Wait for viewport shift
                     LokiPoe.ProcessHookManager.ClearAllKeyStates();
                 }
 
@@ -258,8 +304,8 @@ namespace FollowBot.Tasks
                 int clusterCount = 0;
                 while (_isEnabled && _isInProgress)
                 {
-                    // Find nearest item within inner radius, reacquire fresh pointers
-                    var subTarget = FindNearestItem(InnerSearchRadius);
+                    // Find nearest eligible item that's also within reach of the bot
+                    var subTarget = FindNearestItem(ultPos, InnerSearchRadius);
                     if (subTarget == null)
                     {
                         GlobalLog.Info($"[UltimatumUnloaderTask] Cluster cleared. {clusterCount} items processed.");
@@ -282,8 +328,7 @@ namespace FollowBot.Tasks
                     // Wait for item to attach to cursor
                     if (!WaitForCursorAttach())
                     {
-                        GlobalLog.Error($"[UltimatumUnloaderTask] {subTarget.Item.Name} failed to reach cursor.");
-                        _ignoredItemIds.Add(subTarget.Id);
+                        RecordFailure(subTarget.Id, subTarget.Item.Name, "Failed to reach cursor");
                         continue;
                     }
 
@@ -320,7 +365,7 @@ namespace FollowBot.Tasks
                 if (!LokiPoe.InGameState.InventoryUi.IsOpened)
                 {
                     await Inventories.OpenInventory();
-                    System.Threading.Thread.Sleep(1500);
+                    System.Threading.Thread.Sleep(900);
                 }
 
                 // Drop at character's screen position as a last resort
@@ -369,7 +414,7 @@ namespace FollowBot.Tasks
                 RestoreSettings();
                 _isEnabled = false;
                 _isInProgress = false;
-                _ignoredItemIds.Clear();
+                _itemFailCounts.Clear();
                 if (_delaySw.IsRunning) _delaySw.Stop();
                 return MessageResult.Processed;
             }

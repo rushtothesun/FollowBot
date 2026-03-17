@@ -293,5 +293,68 @@ namespace FollowBot.Views.Tabs
                 FollowBotSettings.Instance.PassiveTree.PassiveTreeUrls.Remove(entry);
             }
         }
+
+        private void AddWishPriority_Click(object sender, RoutedEventArgs e)
+        {
+            string text = WishPriorityTextBox.Text?.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+
+            var list = FollowBotSettings.Instance.Wish.WishPriority;
+            if (!list.Contains(text))
+            {
+                list.Add(text);
+                FollowBotSettings.Instance.Wish.UpdateWishPriority();
+                WishPriorityTextBox.Text = "";
+            }
+        }
+
+        private void RemoveWishPriority_Click(object sender, RoutedEventArgs e)
+        {
+            if (WishPriorityListBox.SelectedItem == null) return;
+            var selected = WishPriorityListBox.SelectedItem.ToString();
+            FollowBotSettings.Instance.Wish.WishPriority.Remove(selected);
+            FollowBotSettings.Instance.Wish.UpdateWishPriority();
+        }
+
+        private void ResetWishPriority_Click(object sender, RoutedEventArgs e)
+        {
+            FollowBotSettings.Instance.Wish.WishPriority = Settings.WishSettings.SetupDefaultWishPriority();
+        }
+
+        private void MoveWishUp_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var item = button?.DataContext as string;
+            if (item == null) return;
+
+            var list = FollowBotSettings.Instance.Wish.WishPriority;
+            int index = list.IndexOf(item);
+            if (index > 0)
+            {
+                list.Move(index, index - 1);
+            }
+        }
+
+        private void MoveWishDown_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var item = button?.DataContext as string;
+            if (item == null) return;
+
+            var list = FollowBotSettings.Instance.Wish.WishPriority;
+            int index = list.IndexOf(item);
+            if (index < list.Count - 1)
+            {
+                list.Move(index, index + 1);
+            }
+        }
+
+        private void WishPriorityListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e != null && e.AddedItems.Count > 0)
+            {
+                WishPriorityTextBox.Text = e.AddedItems[0].ToString();
+            }
+        }
     }
 }

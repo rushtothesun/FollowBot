@@ -27,6 +27,7 @@ namespace FollowBot
             Stash = Stash ?? new StashSettings();
             Login = Login ?? new LoginSettings();
             PassiveTree = PassiveTree ?? new PassiveSkillTreeSettings();
+            Wish = Wish ?? new WishSettings();
         }
 
         // Nested settings properties
@@ -44,5 +45,6 @@ namespace FollowBot
         public StashSettings Stash { get; set; } = new StashSettings();
         public LoginSettings Login { get; set; } = new LoginSettings();
         public PassiveSkillTreeSettings PassiveTree { get; set; } = new PassiveSkillTreeSettings();
+        public WishSettings Wish { get; set; } = new WishSettings();
     }
 }

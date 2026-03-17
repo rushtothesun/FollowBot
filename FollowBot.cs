@@ -391,6 +391,7 @@ namespace FollowBot
             _taskManager.Add(new StashTask());
             _taskManager.Add(new UltimatumTask());
             _taskManager.Add(new UltimatumUnloaderTask());
+            _taskManager.Add(new VarashtaWishTask());
             _taskManager.Add(new QuestInteractionTask());
             _taskManager.Add(new DefenseAndFlaskTask());
             _taskManager.Add(new CustomSkillsTask());
@@ -618,6 +619,18 @@ namespace FollowBot
                     Tasks.AutoAllocatePassiveTask.ForceTrigger();
                     GlobalLog.Info("[FollowBot] RC: Allocate");
                     return true;
+                case "RC_unloader":
+                    Tasks.UltimatumUnloaderTask.TriggerUnloader();
+                    GlobalLog.Info("[FollowBot] RC: Unloader triggered");
+                    return true;
+                case "RC_set_unloader_delay":
+                    int delayVal;
+                    if (message.TryGetInput<int>("value", out delayVal))
+                    {
+                        loot.UltimatumUnloaderDelay = delayVal;
+                        GlobalLog.Info($"[FollowBot] RC: UltimatumUnloaderDelay = {delayVal}");
+                    }
+                    return true;
                 default:
                     return false;
             }
@@ -626,7 +639,7 @@ namespace FollowBot
         public string Name => "FollowBot";
         public string Author => "NotYourFriend, origial code from Unknown, Rushtothesun";
         public string Description => "Bot that follow leader.";
-        public string Version => "0.0.7.1";
+        public string Version => "1.0.0R";
         public UserControl Control => _gui ?? (_gui = new FollowBotGui());
         public JsonSettings Settings => FollowBotSettings.Instance;
         public override string ToString() => $"{Name}: {Description}";
