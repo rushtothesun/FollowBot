@@ -17,6 +17,7 @@ namespace FollowBot.Tasks
     public class AutoAllocatePassiveTask : ITask
     {
         private static bool _forceRunOnce = false;
+        private static int _lastTreeOpenLevel = 0;
         private static readonly Interval _runCooldown = new Interval(5000);
         private static readonly Dictionary<string, List<TargetPassiveNode>> _urlCache = new Dictionary<string, List<TargetPassiveNode>>();
 
@@ -34,6 +35,7 @@ namespace FollowBot.Tasks
         public void Start()
         {
             _urlCache.Clear();
+            _lastTreeOpenLevel = 0;
         }
         public void Stop() { }
         public void Tick() { }
@@ -62,6 +64,19 @@ namespace FollowBot.Tasks
             {
                 _forceRunOnce = false;
                 return false;
+            }
+
+            // Prime the passive tree cache if the level has changed since last open.
+            // The game only populates CanBeAllocate reachability after the tree panel has been opened at least once,
+            // and this cache invalidates on level-up.
+            int currentLevel = LokiPoe.Me.Level;
+            if (currentLevel != _lastTreeOpenLevel)
+            {
+                GlobalLog.Debug($"[AutoAllocatePassiveTask] Level changed ({_lastTreeOpenLevel} -> {currentLevel}). Opening tree to prime reachability cache.");
+                if (!await EnsureTreeOpened())
+                    return true;
+                await EnsureTreeClosed();
+                _lastTreeOpenLevel = currentLevel;
             }
 
             // 2. Cooldown & Safety Checks (Skip if forced)
