@@ -20,6 +20,7 @@ namespace FollowBot.Tasks
         private static int _lastTreeOpenLevel = 0;
         private static readonly Interval _runCooldown = new Interval(5000);
         private static readonly Dictionary<string, List<TargetPassiveNode>> _urlCache = new Dictionary<string, List<TargetPassiveNode>>();
+        private static readonly Stopwatch _leaderStationarySw = Stopwatch.StartNew();
 
         public string Name => "AutoAllocatePassiveTask";
         public string Description => "Task to automatically allocate passive skill points.";
@@ -107,13 +108,22 @@ namespace FollowBot.Tasks
                     return false;
                 }
 
-                // Leader Stationary Check
+                // Leader Stationary Check — leader must be still for at least 5 seconds
                 if (FollowBotSettings.Instance.PassiveTree.CheckLeaderStationary && !LokiPoe.Me.IsInTown && !LokiPoe.Me.IsInHideout)
                 {
                     var leader = FollowBot.Leader;
-                    if (leader != null && leader.IsMoving)
+                    if (leader != null)
                     {
-                        return false;
+                        if (leader.IsMoving)
+                        {
+                            _leaderStationarySw.Restart();
+                            return false;
+                        }
+
+                        if (_leaderStationarySw.ElapsedMilliseconds < 5000)
+                        {
+                            return false;
+                        }
                     }
                 }
             }

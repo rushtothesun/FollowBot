@@ -498,19 +498,27 @@ namespace FollowBot.Tasks
             }
 
             GlobalLog.Debug($"[FollowTask] {logMessageFunc(cachedObject)}");
-            var success = await PlayerAction.InteractWithoutDelay(obj, MaxInteractionAttempts);
 
-            if (success)
+            for (int i = 1; i <= MaxInteractionAttempts; i++)
             {
-                removeFromCacheAction(cachedObject);
-            }
-            else
-            {
-                // Mark as failed to prevent retry
-                _failedObjectIds.Add(cachedObject.Id);
+                if (!isValidFunc(cachedObject))
+                {
+                    GlobalLog.Debug($"[FollowTask] {obj.Name} is no longer valid, aborting retries.");
+                    removeFromCacheAction(cachedObject);
+                    return false;
+                }
+
+                if (await PlayerAction.Interact(obj))
+                {
+                    removeFromCacheAction(cachedObject);
+                    return true;
+                }
+
+                GlobalLog.Debug($"[FollowTask] Failed to interact with {obj.Name}. Attempt: {i}/{MaxInteractionAttempts}.");
             }
 
-            return success;
+            _failedObjectIds.Add(cachedObject.Id);
+            return false;
         }
 
         private AreaTransition GetRottingCoreTransition(Player leaderPlayerEntry)

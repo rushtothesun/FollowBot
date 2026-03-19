@@ -195,9 +195,9 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("1_2_town", "Eramir", ()=>  CheckQuestStateId("a2q7",new int[] {0,2,10}) && PlayerHasItem(new string[]{"Alira's Amulet","Kraityn's Amulet","Oak's Amulet"}),
                (obj)=>NpcHelper.TakeReward(obj,"Take the Apex")),
             new InteractQuestNpc("1_2_town", "Yeena", () => PlayerHasItem("Golden Hand"), (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Fellshrine Reward")),
-            new InteractQuestNpc("1_2_4", "Kraityn, Scarbearer", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
-            new InteractQuestNpc("1_2_9", "Alira Darktongue", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
-            new InteractQuestNpc("1_2_12", "Oak, Skullbreaker", () => Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
+            new InteractQuestNpc("1_2_4", "Kraityn, Scarbearer", () => !Dat.QuestStates.Any(q => q.Quest.Id == "a2q7") || Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
+            new InteractQuestNpc("1_2_9", "Alira Darktongue", () => !Dat.QuestStates.Any(q => q.Quest.Id == "a2q7") || Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
+            new InteractQuestNpc("1_2_12", "Oak, Skullbreaker", () => !Dat.QuestStates.Any(q => q.Quest.Id == "a2q7") || Dat.QuestStates.Any(q => q.Quest.Id == "a2q7" && q.Id < 100), NpcHelper.BanditKillSelect),
             // Act 3
             new InteractQuestNpc("1_3_town", "Hargan", () => CheckQuestStateId("a3q11", 21) && PlayerHasItem(new string[] { "Bust of Marceus Lioneye", "Bust of Hector Titucius", "Bust of Gaius Sentari" }),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Platinum Bust Reward")),

@@ -27,6 +27,8 @@ namespace FollowBot.Tasks
         private bool _shouldDepositToStash = false;
         // Flag to trigger deposit from chat command
         public static bool ShouldDepositFromChat = false;
+        // Flag to trigger currency+fragments only deposit from remote command
+        public static bool ShouldDepositCurrencyOnly = false;
 
         public string Name { get { return "StashTask"; } }
         public string Description { get { return "This task manages stash operations."; } }
@@ -41,6 +43,7 @@ namespace FollowBot.Tasks
             _wasInMap = false;
             _shouldDepositToStash = false;
             ShouldDepositFromChat = false;
+            ShouldDepositCurrencyOnly = false;
         }
 
         public void Stop()
@@ -48,6 +51,7 @@ namespace FollowBot.Tasks
             _wasInMap = false;
             _shouldDepositToStash = false;
             ShouldDepositFromChat = false;
+            ShouldDepositCurrencyOnly = false;
         }
 
         public void Tick()
@@ -137,6 +141,37 @@ namespace FollowBot.Tasks
                 }
             }
 
+            // Deposit currency+fragments only from remote command
+            if (ShouldDepositCurrencyOnly)
+            {
+                var area = LokiPoe.CurrentWorldArea;
+                if (area.IsHideoutArea || area.IsTown)
+                {
+                    GlobalLog.Info("[StashTask] Remote command received, depositing currency and fragments to stash.");
+                    ShouldDepositCurrencyOnly = false;
+
+                    var stashType = GetConfiguredStashType();
+                    var tabName = FollowBotSettings.Instance.Stash.TargetStashTab;
+
+                    bool success = await DepositInventoryToTab(tabName, stashType, ImportantItemsOnly);
+                    if (success)
+                    {
+                        GlobalLog.Info("[StashTask] Currency deposit completed successfully.");
+                    }
+                    else
+                    {
+                        GlobalLog.Warn("[StashTask] Currency deposit failed.");
+                    }
+
+                    return true;
+                }
+                else
+                {
+                    GlobalLog.Warn("[StashTask] Currency deposit ignored - not in hideout or town.");
+                    ShouldDepositCurrencyOnly = false;
+                }
+            }
+
             // This task is meant to be called by other tasks
             // No automatic logic here
             return false;
@@ -178,7 +213,7 @@ namespace FollowBot.Tasks
         /// <param name="tabName">Target stash tab name</param>
         /// <param name="stashType">Type of stash (Regular or Guild)</param>
         /// <returns>True if operation completed successfully</returns>
-        public async Task<bool> DepositInventoryToTab(string tabName, StashHelper.StashType stashType = StashHelper.StashType.Regular)
+        public async Task<bool> DepositInventoryToTab(string tabName, StashHelper.StashType stashType = StashHelper.StashType.Regular, Func<Item, bool> itemFilter = null)
         {
             GlobalLog.Info($"[StashTask] Starting inventory deposit to {stashType} stash tab: {tabName}");
 
@@ -213,7 +248,7 @@ namespace FollowBot.Tasks
             await Wait.SleepSafe(LokiPoe.Random.Next(100, 200));
 
             // Step 3: Deposit items with filtering
-            await DepositInventoryItems(stashType);
+            await DepositInventoryItems(stashType, itemFilter);
 
             GlobalLog.Info("[StashTask] Inventory deposit completed");
             return true;
@@ -333,7 +368,7 @@ namespace FollowBot.Tasks
         /// Filters out quest items and excluded slots (similar to TradeTask logic).
         /// Uses randomization for human-like behavior.
         /// </summary>
-        private async Task DepositInventoryItems(StashHelper.StashType stashType)
+        private async Task DepositInventoryItems(StashHelper.StashType stashType, Func<Item, bool> itemFilter = null)
         {
             var mainInventoryItems = InventoryUi.InventoryControl_Main.Inventory.Items;
             int depositedCount = 0;
@@ -354,6 +389,13 @@ namespace FollowBot.Tasks
                 if (FollowBotSettings.Instance.Trade.IsSlotExcluded(item.LocationTopLeft.X, item.LocationTopLeft.Y))
                 {
                     GlobalLog.Info($"[StashTask] Skipping excluded slot ({item.LocationTopLeft.X}, {item.LocationTopLeft.Y}): {item.Name}");
+                    skippedCount++;
+                    return false;
+                }
+
+                // Filter: Optional caller-provided filter (e.g., currency only)
+                if (itemFilter != null && !itemFilter(item))
+                {
                     skippedCount++;
                     return false;
                 }
@@ -452,6 +494,18 @@ namespace FollowBot.Tasks
         #endregion
 
         #region Helper Methods
+
+        /// <summary>
+        /// Item filter that accepts only currency and map fragments.
+        /// </summary>
+        private static bool ImportantItemsOnly(Item item)
+        {
+            return item.Class == ItemClasses.StackableCurrency
+                || item.Class == ItemClasses.MapFragment
+                || item.Class == ItemClasses.Map
+                || item.Class == ItemClasses.MiscMapItem
+                || item.Class == ItemClasses.DivinationCard;
+        }
 
         /// <summary>
         /// Gets the configured stash type from settings.

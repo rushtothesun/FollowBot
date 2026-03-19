@@ -478,6 +478,7 @@ namespace FollowBot
             public const string RcOpenPortal = "RC_open_portal";
             public const string RcEnterPortal = "RC_enter_portal";
             public const string RcStash = "RC_stash";
+            public const string RcStashCurrency = "RC_stash_currency";
             public const string RcNewInstance = "RC_new_instance";
             public const string RcFollowTownOn = "RC_follow_town_on";
             public const string RcFollowTownOff = "RC_follow_town_off";
@@ -554,6 +555,10 @@ namespace FollowBot
                 case Messages.RcStash:
                     Tasks.StashTask.ShouldDepositFromChat = true;
                     GlobalLog.Info("[FollowBot] RC: Stash");
+                    return true;
+                case Messages.RcStashCurrency:
+                    Tasks.StashTask.ShouldDepositCurrencyOnly = true;
+                    GlobalLog.Info("[FollowBot] RC: StashCurrency");
                     return true;
                 case Messages.RcNewInstance:
                     Tasks.FollowTask.ShouldCreateNewInstance = true;
