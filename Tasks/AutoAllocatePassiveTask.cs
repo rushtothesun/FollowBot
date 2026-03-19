@@ -29,7 +29,15 @@ namespace FollowBot.Tasks
         public static void ForceTrigger()
         {
             _forceRunOnce = true;
+            _runCooldown.Restart(0);
             GlobalLog.Info("[AutoAllocatePassiveTask] Force trigger requested via command.");
+        }
+
+        public static void InvalidateCache()
+        {
+            _lastTreeOpenLevel = 0;
+            _runCooldown.Restart(0);
+            GlobalLog.Debug("[AutoAllocatePassiveTask] Reachability cache invalidated.");
         }
 
         public void Start()
@@ -53,6 +61,13 @@ namespace FollowBot.Tasks
                 return false;
             }
 
+            if (!_forceRunOnce && !_runCooldown.Elapsed)
+            {
+                return false;
+            }
+
+            _runCooldown.Restart(LokiPoe.Random.Next(4000, 5500));
+
             var dictP = LokiPoe.InGameState.SkillsUi.Dictionary_Passive;
             var dictA = LokiPoe.InGameState.SkillsUi.Dictionary_Ascend;
 
@@ -72,24 +87,14 @@ namespace FollowBot.Tasks
             int currentLevel = LokiPoe.Me.Level;
             if (currentLevel != _lastTreeOpenLevel)
             {
-                GlobalLog.Debug($"[AutoAllocatePassiveTask] Level changed ({_lastTreeOpenLevel} -> {currentLevel}). Opening tree to prime reachability cache.");
-                if (!await EnsureTreeOpened())
-                    return true;
-                await EnsureTreeClosed();
+                GlobalLog.Debug($"[AutoAllocatePassiveTask] Level changed ({_lastTreeOpenLevel} -> {currentLevel}). Priming reachability cache.");
+                await PrimeReachabilityCache();
                 _lastTreeOpenLevel = currentLevel;
             }
 
-            // 2. Cooldown & Safety Checks (Skip if forced)
+            // 2. Safety Checks (Skip if forced)
             if (!_forceRunOnce)
             {
-                if (!_runCooldown.Elapsed)
-                {
-                    return false;
-                }
-
-                // Randomize next cooldown (4s - 5.5s)
-                _runCooldown.Restart(LokiPoe.Random.Next(4000, 5500));
-
                 // Safe Zone Check
                 if (FollowBotSettings.Instance.PassiveTree.OnlyInSafeZone && !LokiPoe.Me.IsInTown && !LokiPoe.Me.IsInHideout)
                 {
@@ -168,7 +173,6 @@ namespace FollowBot.Tasks
             _forceRunOnce = false;
 
             // 4. Execution (Atomic)
-            bool foundAnyReachableThisRun = false;
             // Virtual Allocation List to track clicks in this session for pathfinding
             var sessionAllocatedIds = LokiPoe.InstanceInfo.PassiveSkillIds.Select(id => (int)id).ToHashSet();
 
@@ -184,7 +188,6 @@ namespace FollowBot.Tasks
                     return true;
                 }
 
-                bool everAllocated = false;
                 // Main Allocation Loop - stay in here until we are actually stuck or done
                 while (true)
                 {
@@ -217,7 +220,6 @@ namespace FollowBot.Tasks
                             var reachableTargets = PassiveTreeHelper.GetReachableTargetNodes(unallocatedTargets, sessionAllocatedIds);
                             if (!reachableTargets.Any()) break;
 
-                            foundAnyReachableThisRun = true;
                             var nextNode = reachableTargets.First();
 
                             // Check point availability for this specific node type
@@ -259,7 +261,6 @@ namespace FollowBot.Tasks
                             if (result == LokiPoe.InGameState.ChoosePassiveError.None)
                             {
                                 urlAllocatedAny = true;
-                                everAllocated = true;
                                 allocatedSomethingInThisPass = true;
                                 sessionAllocatedIds.Add(nextNode.Id);
                                 await Wait.SleepSafe(LokiPoe.Random.Next(200, 500));
@@ -294,10 +295,6 @@ namespace FollowBot.Tasks
                     GlobalLog.Debug("[AutoAllocatePassiveTask] Points remaining, starting another allocation pass.");
                 }
 
-                /*if (!everAllocated && !foundAnyReachableThisRun)
-                {
-                    GlobalLog.Debug("[AutoAllocatePassiveTask] No reachable nodes found for current URLs.");
-                }*/
             }
             catch (Exception ex)
             {
@@ -309,6 +306,13 @@ namespace FollowBot.Tasks
             }
 
             return true;
+        }
+
+        private async Task PrimeReachabilityCache()
+        {
+            var combo = LokiPoe.Input.Binding.open_passive_skills_panel_combo;
+            LokiPoe.Input.SimulateKeyEvent(combo.Key, true, false, false, combo.Modifier);
+            await Coroutines.CloseBlockingWindows();
         }
 
         private async Task<bool> EnsureTreeOpened()

@@ -2,6 +2,7 @@ using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.SimpleEXtensions;
+using FollowBot.Tasks;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -87,20 +88,29 @@ namespace FollowBot.Helpers
 
             GlobalLog.Debug($"[NpcHelper]: Selecting [{dialogName}] via keyboard nav (index {targetIndex} of {rightChoices.Count})");
 
+            // Reset focus to top — game no longer defaults to a known position on dialog open.
+            // Ghost focus lands on left column, so use left-panel entry count.
+            int leftCount = NpcDialogUi.DialogEntries.Count(e => e.Position.X < 400);
+            for (int i = 0; i < leftCount; i++)
+            {
+                Input.SimulateKeyEvent(Keys.Up, true, false, false, Keys.None);
+                await Wait.SleepSafe(LokiPoe.Random.Next(500, 1000));
+            }
+
             // Right arrow enters the right-side list, highlighting the first entry (index 0)
-            Input.SimulateKeyEvent(Keys.Right, true, false, true, Keys.None);
-            await Wait.SleepSafe(LokiPoe.Random.Next(100, 250));
+            Input.SimulateKeyEvent(Keys.Right, true, false, false, Keys.None);
+            await Wait.SleepSafe(LokiPoe.Random.Next(500, 1000));
 
             // Down arrow to navigate to the target entry
             for (int i = 0; i < targetIndex; i++)
             {
-                Input.SimulateKeyEvent(Keys.Down, true, false, true, Keys.None);
-                await Wait.SleepSafe(LokiPoe.Random.Next(100, 250));
+                Input.SimulateKeyEvent(Keys.Down, true, false, false, Keys.None);
+                await Wait.SleepSafe(LokiPoe.Random.Next(500, 1000));
             }
 
             // Enter to select the highlighted entry
-            Input.SimulateKeyEvent(Keys.Return, true, false, true, Keys.None);
-            await Wait.SleepSafe(LokiPoe.Random.Next(100, 250));
+            Input.SimulateKeyEvent(Keys.Return, true, false, false, Keys.None);
+            await Wait.SleepSafe(LokiPoe.Random.Next(500, 1000));
 
             GlobalLog.Debug($"[NpcHelper]: Keyboard nav completed for [{dialogName}]");
             return true;
@@ -348,6 +358,9 @@ namespace FollowBot.Helpers
 
             // Close inventory
             await Coroutines.CloseBlockingWindows();
+
+            if (usedCount > 0)
+                QuestInteractionTask.SkillBookUsed();
 
             return usedCount > 0; // Return true if at least one book was used
         }

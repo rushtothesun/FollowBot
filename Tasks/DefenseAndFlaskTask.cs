@@ -21,6 +21,7 @@ namespace FollowBot.Tasks
         public const string QsilverEffect = "flask_utility_sprint";
         public static bool ShouldTeleport = false;
         public static bool ShouldOpenPortal = false;
+        private static bool _gracePeriodLogged;
         private static readonly Dictionary<string, string> FlaskEffects = new Dictionary<string, string>
         {
             [FlaskNames.Diamond] = "flask_utility_critical_strike_chance",
@@ -142,7 +143,11 @@ namespace FollowBot.Tasks
 
             if (LokiPoe.Me.HasAura("Grace Period"))
             {
-                GlobalLog.Debug("[DefenseAndFlaskTask] Find grace period, wait player moves.");
+                if (!_gracePeriodLogged)
+                {
+                    GlobalLog.Debug("[DefenseAndFlaskTask] Grace period active, waiting for player to move.");
+                    _gracePeriodLogged = true;
+                }
                 return false;
                 //await PlayerAction.MoveAway(15, 20);
             }
@@ -420,6 +425,7 @@ namespace FollowBot.Tasks
             if (message.Id == Events.Messages.AreaChanged)
             {
                 LinkRotationDictionary.Clear();
+                _gracePeriodLogged = false;
             }
             return MessageResult.Unprocessed;
         }

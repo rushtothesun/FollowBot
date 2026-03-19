@@ -153,6 +153,10 @@ namespace FollowBot.Tasks
             if (await TryUseAreaSpecificTransition(distance))
                 return true;
 
+            // Take trial return portal if nearby and leader is far
+            if (await TryUseTrialReturnPortal(distance))
+                return true;
+
             // Try to interact with nearby crafting recipes (always enabled, no setting needed)
             if (await TryInteractWithNearbyRecipe())
                 return true;
@@ -439,6 +443,27 @@ namespace FollowBot.Tasks
             GlobalLog.Debug($"[FollowTask] Leader is far ({leaderDistance}), using transition: {transition.Name}");
             await Coroutines.InteractWith(areaTransition);
             cache.AreaTransitions.Remove(transition);
+            return true;
+        }
+
+        private async Task<bool> TryUseTrialReturnPortal(double leaderDistance)
+        {
+            if (!LokiPoe.LabyrinthTrialAreaIds.Contains(World.CurrentArea.Id))
+                return false;
+
+            if (leaderDistance <= 80)
+                return false;
+
+            var portal = LokiPoe.ObjectManager.Objects
+                .FirstOrDefault(x => x.Metadata == "Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal");
+
+            if (portal == null || !portal.IsTargetable || portal.Distance > 90)
+                return false;
+
+            GlobalLog.Debug($"[FollowTask] Leader is far ({leaderDistance}), using trial return portal.");
+            await portal.WalkablePosition().ComeAtOnce();
+            await PlayerAction.Interact(portal);
+            await Wait.SleepSafe(300, 500);
             return true;
         }
 

@@ -28,7 +28,7 @@ namespace FollowBot.Tasks
 
             if (LokiPoe.Me.HasAura("Grace Period"))
             {
-                GlobalLog.Debug("[AsyncCustomSkillsTask] Find grace period, wait player moves.");
+                //GlobalLog.Debug("[AsyncCustomSkillsTask] Find grace period, wait player moves.");
                 return false;
             }
 

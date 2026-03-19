@@ -222,7 +222,7 @@ namespace FollowBot.Tasks
             {
                 // 1. Entry Portal (We are OUTSIDE the Mirage, button is not visible)
                 var mirageEntry = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Faridun/DjinnPortal");
-                if (await TryInteractWithPortal(mirageEntry, "mirage entry", StandardMaxDistance))
+                if (mirageEntry != null && await TryInteractWithMiragePortal(mirageEntry, "mirage entry", StandardMaxDistance))
                     return true;
 
                 // 2. Return Portal / Button (We are INSIDE the Mirage)
@@ -236,7 +236,7 @@ namespace FollowBot.Tasks
                     if (mirageReturn != null && LokiPoe.Me.Position.Distance(mirageReturn.Position) <= MirageReturnMaxDistance)
                     {
                         // Portal is visible and close enough to walk to
-                        if (await TryInteractWithPortal(mirageReturn, "mirage return", MirageReturnMaxDistance))
+                        if (await TryInteractWithMiragePortal(mirageReturn, "mirage return", MirageReturnMaxDistance))
                             return true;
                     }
                     else
@@ -492,7 +492,7 @@ namespace FollowBot.Tasks
         /// </summary>
         private Element FindMirageReturnButton()
         {
-            var container = ClassExtensions.GetElementByPath(142, 7, 17);
+            var container = FindElementByLabels("HUD", "HUDRight", "skip_button_layout");
             if (container?.Children == null)
                 return null;
 
@@ -572,6 +572,87 @@ namespace FollowBot.Tasks
         #endregion
 
         #region Helper Methods
+
+        /// <summary>
+        /// Navigates the UI element tree by IdLabel instead of hardcoded indices.
+        /// Starts from root.Children[1] and walks down matching each label in order.
+        /// </summary>
+        private static Element FindElementByLabels(params string[] labels)
+        {
+            var allElements = LokiPoe.GetGuiElements();
+            var root = Enumerable.FirstOrDefault(allElements, e => e.IdLabel == "root");
+            if (root?.Children == null || root.Children.Count < 2)
+                return null;
+
+            Element current = root.Children[1];
+            foreach (var label in labels)
+            {
+                if (current?.Children == null)
+                    return null;
+                current = Enumerable.FirstOrDefault(current.Children, c => c?.IdLabel == label);
+                if (current == null)
+                    return null;
+            }
+            return current;
+        }
+
+        /// <summary>
+        /// Like TryInteractWithPortal but forces a pather reload after the interaction completes.
+        /// Only waits for loading screen if the bot was close enough to actually interact.
+        /// </summary>
+        private async Task<bool> TryInteractWithMiragePortal(NetworkObject portal, string portalType, int? maxDistance = null)
+        {
+            if (portal == null || !portal.Components.TargetableComponent.CanTarget)
+                return false;
+
+            var distance = LokiPoe.Me.Position.Distance(portal.Position);
+
+            if (maxDistance.HasValue && distance > maxDistance.Value)
+                return false;
+
+            GlobalLog.Debug($"[{Name}] Found walkable {portalType} portal.");
+
+            // Mirage portals need closer range than normal portals to interact
+            if (distance > 12)
+            {
+                var walkablePosition = ExilePather.FastWalkablePositionFor(portal, PortalWalkableDistance);
+                CustomSkills.PhaseRun();
+                Move.Towards(walkablePosition, $"moving to {portalType} portal");
+                return true;
+            }
+
+            // Actually interact
+            var tele = await Coroutines.InteractWith(portal);
+            if (!tele)
+            {
+                GlobalLog.Debug($"[{Name}] {portalType} portal error.");
+                FollowBot.Leader = null;
+                return true;
+            }
+
+            FollowBot.Leader = null;
+
+            // Wait for loading screen to appear, then wait until back in game (silent polling)
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < 6000 && !LokiPoe.StateManager.IsAreaLoadingStateActive)
+                await Coroutine.Sleep(10);
+
+            if (LokiPoe.StateManager.IsAreaLoadingStateActive)
+            {
+                GlobalLog.Debug($"[{Name}] Mirage loading screen detected, waiting for game...");
+                while (sw.ElapsedMilliseconds < 30000 && !LokiPoe.IsInGame)
+                    await Coroutine.Sleep(100);
+
+                await Wait.SleepSafe(200, 400);
+                ExilePather.Reload2(true);
+                GlobalLog.Debug($"[{Name}] Forced pather reload after mirage transition.");
+            }
+            else
+            {
+                GlobalLog.Debug($"[{Name}] {portalType} portal interaction did not trigger loading screen, will retry.");
+            }
+            return true;
+        }
 
         private async Task<bool> GoToPartyLeaderZone()
         {

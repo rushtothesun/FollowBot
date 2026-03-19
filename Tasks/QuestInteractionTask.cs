@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
@@ -33,6 +33,12 @@ namespace FollowBot.Tasks
 
     class QuestInteractionTask : ITask
     {
+        private static bool _skillBookUsed = false;
+
+        public static void SkillBookUsed()
+        {
+            _skillBookUsed = true;
+        }
 
         public string Author => "Letale, Rushtothesun";
         public string Description => "Quest interact";
@@ -122,6 +128,12 @@ namespace FollowBot.Tasks
 
                 return true;
 
+            }
+
+            if (_skillBookUsed)
+            {
+                AutoAllocatePassiveTask.InvalidateCache();
+                _skillBookUsed = false;
             }
 
             return false;
