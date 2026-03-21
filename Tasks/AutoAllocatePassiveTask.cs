@@ -249,6 +249,14 @@ namespace FollowBot.Tasks
                             else
                             {
                                 if (LokiPoe.InstanceInfo.PassiveSkillPointsAvailable <= 0) break;
+
+                                // Close ascendancy panel if it was open — it can block regular nodes behind it
+                                if (LokiPoe.InGameState.SkillsUi.AscendencyUi.IsOpened)
+                                {
+                                    GlobalLog.Info("[AutoAllocatePassiveTask] Closing Ascendancy panel before allocating regular node.");
+                                    LokiPoe.InGameState.SkillsUi.AscendencyUi.Toggle();
+                                    await Wait.SleepSafe(LokiPoe.Random.Next(600, 900));
+                                }
                             }
 
                             LokiPoe.InGameState.ChoosePassiveError result;
