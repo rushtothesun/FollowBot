@@ -227,6 +227,9 @@ namespace FollowBot.Tasks
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Torments Reward")),
             //new InteractQuestNpc("1_5_5", "Bannon", NpcHelper.TalkAndSkipDialog),
             // Act 6
+            new InteractQuestNpc("2_6_2", "Ailith, First of the Keepers",
+                () => LokiPoe.ObjectManager.Objects.Any(o => o.Name == "Ailith, First of the Keepers" && o.HasNpcFloatingIcon),
+                NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_6_town", "Lilly Roth", () => CheckQuestStateId("a6q4", 2),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Twilight Strand Reward")),
             new InteractQuestNpc("2_6_town", "Bestel", () => CheckQuestStateId("a6q7", new int[] {1, 2}),
