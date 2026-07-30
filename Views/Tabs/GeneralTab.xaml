@@ -178,6 +178,14 @@
                     IsChecked="{Binding Path=Loot.ShouldOpenChests, Mode=TwoWay}"
                     ToolTip="Open nearby chests while following."/>
                 <CheckBox
+                    Grid.Row="4"
+                    Grid.Column="1"
+                    Margin="10,0,10,0"
+                    Content="Open Doors"
+                    VerticalAlignment="Center"
+                    IsChecked="{Binding Path=Follow.OpenDoors, Mode=TwoWay}"
+                    ToolTip="Open nearby doors while following."/>
+                <CheckBox
                     Grid.Row="5"
                     Grid.Column="0"
                     Margin="10,0,10,0"
@@ -601,6 +609,18 @@
                 </StackPanel>
             </Expander>
 
+            <!-- Trade Buyout Settings -->
+            <Expander Header="Trade Buyout Settings" IsExpanded="False" Margin="5">
+                <StackPanel Margin="5">
+                    <CheckBox Content="Check Affordability Before Purchase"
+                              IsChecked="{Binding TradeBuyout.CheckAffordability, Mode=TwoWay}"
+                              Margin="5"
+                              ToolTip="When enabled, verifies you have enough currency and gold before attempting to buy. Scans your inventory for the required orbs and checks gold balance."/>
+                    <TextBlock Text="If disabled, the bot will attempt to FastMove (buy) directly. If you can't afford the item, FastMove will fail and the bot will abort after retries."
+                               Margin="5,5,5,0" FontSize="10" FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Expander>
+
             <!-- Lab Settings -->
             <Expander Header="Lab Settings" IsExpanded="False" Margin="5">
                 <StackPanel>
@@ -749,6 +769,10 @@
                                                      Width="200"
                                                      Margin="5,0,0,0"
                                                      ToolTip="Enter the exact name of the skill gem (e.g., 'Cleave', 'Arc')"/>
+                                             <Button Content="Browse" Width="60" Margin="5,0,0,0"
+                                                     VerticalAlignment="Center"
+                                                     Click="BrowseGemNames_Click"
+                                                     ToolTip="Browse gem names from inventory and stash"/>
                                          </StackPanel>
                                      </Grid>
                                  </DataTemplate>
@@ -783,13 +807,75 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <StackPanel Orientation="Horizontal" Margin="5">
-                        <Label Content="Target Stash Tab:" VerticalAlignment="Center" Width="120"
-                               ToolTip="Name of the stash tab to deposit items into (e.g., 'Dump', 'Currency')"/>
-                        <TextBox Text="{Binding Stash.TargetStashTab, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="200"
-                                 ToolTip="Items will be deposited to this tab. Stash affinities will auto-route currency, maps, etc."/>
-                    </StackPanel>
+                    <!-- Regular Stash Tab Settings (visible when Regular is selected) -->
+                    <GroupBox Header="Regular Stash Tab" Margin="5">
+                        <GroupBox.Style>
+                            <Style TargetType="GroupBox">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Stash.UseGuildStash}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </GroupBox.Style>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <RadioButton Content="Use Tab Index"
+                                             IsChecked="{Binding Stash.RegularTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Index}"
+                                             GroupName="RegularStashTabMode" Margin="0,0,15,0"/>
+                                <RadioButton Content="Use Tab Name"
+                                             IsChecked="{Binding Stash.RegularTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Name}"
+                                             GroupName="RegularStashTabMode"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <Label Content="Tab Index:" VerticalAlignment="Center" Width="70"/>
+                                <controls:NumericUpDown Value="{Binding Stash.RegularStashTabIndex, Mode=TwoWay}"
+                                                       Minimum="0" Maximum="100" Width="100"
+                                                       IsEnabled="{Binding Stash.RegularTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Index}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <Label Content="Tab Name:" VerticalAlignment="Center" Width="70"/>
+                                <TextBox Text="{Binding Stash.RegularStashTab, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                                         IsEnabled="{Binding Stash.RegularTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Name}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Guild Stash Tab Settings (visible when Guild is selected) -->
+                    <GroupBox Header="Guild Stash Tab" Margin="5">
+                        <GroupBox.Style>
+                            <Style TargetType="GroupBox">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Stash.UseGuildStash}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </GroupBox.Style>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <RadioButton Content="Use Tab Index"
+                                             IsChecked="{Binding Stash.GuildTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Index}"
+                                             GroupName="GuildStashTabMode" Margin="0,0,15,0"/>
+                                <RadioButton Content="Use Tab Name"
+                                             IsChecked="{Binding Stash.GuildTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Name}"
+                                             GroupName="GuildStashTabMode"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <Label Content="Tab Index:" VerticalAlignment="Center" Width="70"/>
+                                <controls:NumericUpDown Value="{Binding Stash.GuildStashTabIndex, Mode=TwoWay}"
+                                                       Minimum="0" Maximum="100" Width="100"
+                                                       IsEnabled="{Binding Stash.GuildTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Index}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <Label Content="Tab Name:" VerticalAlignment="Center" Width="70"/>
+                                <TextBox Text="{Binding Stash.GuildStashTab, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                                         IsEnabled="{Binding Stash.GuildTabMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Name}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
 
                     <TextBlock Text="Note: With stash affinities enabled, currency and maps will automatically go to their designated tabs."
                                Margin="5,10,5,0" FontSize="10" FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap"/>

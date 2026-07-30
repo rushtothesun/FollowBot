@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
@@ -27,7 +27,7 @@ namespace FollowBot.Tasks
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return Task.FromResult(false);
             if (!LokiPoe.CurrentWorldArea.IsCombatArea) return Task.FromResult(false);
 
-            if (LokiPoe.Me.HasAura("Grace Period"))
+            if (ClassExtensions.IsUnderGracePeriod)
             {
                 //GlobalLog.Debug("[CustomSkillsTask] Find grace period, wait player moves.");
                 return Task.FromResult(false);
@@ -38,13 +38,16 @@ namespace FollowBot.Tasks
 
             if (settings.EnablePhaseRun) CustomSkills.PhaseRun();
             if (settings.EnableGuardSkill) CustomSkills.GuardSkill();
-            if (settings.EnableEnduringCry) CustomSkills.EnduringCry();
-            if (settings.EnableSeismicCry) CustomSkills.SeismicCry();
-            if (settings.EnableBattlemageCry) CustomSkills.BattlemageCry();
-            if (settings.EnableAncestralCry) CustomSkills.AncestralCry();
-            if (settings.EnableIntimidatingCry) CustomSkills.IntimidatingCry();
-            if (settings.EnableInfernalCry) CustomSkills.InfernalCry();
-            if (settings.EnableRallyingCry) CustomSkills.RallyingCry();
+            if (settings.EnableWarcriesForBuffs)
+            {
+                if (settings.EnableEnduringCry) CustomSkills.EnduringCry();
+                if (settings.EnableSeismicCry) CustomSkills.SeismicCry();
+                if (settings.EnableBattlemageCry) CustomSkills.BattlemageCry();
+                if (settings.EnableAncestralCry) CustomSkills.AncestralCry();
+                if (settings.EnableIntimidatingCry) CustomSkills.IntimidatingCry();
+                if (settings.EnableInfernalCry) CustomSkills.InfernalCry();
+                if (settings.EnableRallyingCry) CustomSkills.RallyingCry();
+            }
             if (settings.EnableGuardiansBlessingHandler) CustomSkills.GuardiansBlessingHandler();
             if (settings.EnableChaosElixir) CustomSkills.ChaosElixir();
             if (settings.EnableConvocation) CustomSkills.Convocation();

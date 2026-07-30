@@ -27,6 +27,10 @@ namespace FollowBot.Tasks
         public string Version { get { return "0.0.0.1"; } }
         private const int MaxInteractionAttempts = 4;
         private const int InteractionDistance = 40;
+        private const string DeepwaterEncounterAreaId = "DeepwaterEncounter";
+        private const string DeepwaterLanternMetadata = "Metadata/Terrain/Leagues/Deepwater/Objects/Lantern";
+        private const int DeepwaterChestSafetyRadius = 105;
+        private const int DeepwaterChestSafetyRadiusSqr = DeepwaterChestSafetyRadius * DeepwaterChestSafetyRadius;
         public const int NewInstanceWaitMs = 7000;
         private Vector2i _lastSeenMasterPosition;
         private Stopwatch _leaderzoningSw;
@@ -161,6 +165,10 @@ namespace FollowBot.Tasks
             if (await TryInteractWithNearbyRecipe())
                 return true;
 
+            // Try to open nearby doors
+            if (FollowBotSettings.Instance.Follow.OpenDoors && await TryOpenNearbyDoor())
+                return true;
+
             // Try to click nearby shrines
             if (FollowBotSettings.Instance.Follow.ClickShrines && await TryClickNearbyShrine())
                 return true;
@@ -170,7 +178,7 @@ namespace FollowBot.Tasks
                 return true;
 
             // Try to activate Mirage spawners
-            if (FollowBotSettings.Instance.Follow.ActivateMirageSpawners && await TryActivateNearbySpawner())
+            if (LeagueFeatureFlags.MirageEnabled && FollowBotSettings.Instance.Follow.ActivateMirageSpawners && await TryActivateNearbySpawner())
                 return true;
 
             if (distance > FollowBotSettings.Instance.Follow.MaxFollowDistance || leader?.HasCurrentAction == true && leader?.CurrentAction?.Skill?.InternalId == "Move")
@@ -184,7 +192,7 @@ namespace FollowBot.Tasks
                 {
                     KeyManager.ClearAllKeyStates();
                     // First check for Grace period, that mean we have just zoned, and the leader position might be incorrect.
-                    if (Me.HasAura("Grace Period"))
+                    if (ClassExtensions.IsUnderGracePeriod)
                     {
                         if (!_leaderzoningSw.IsRunning)
                         {
@@ -310,14 +318,45 @@ namespace FollowBot.Tasks
             return false;
         }
 
-        private async Task<bool> TryOpenNearbyChest()
+        private async Task<bool> TryOpenNearbyDoor()
         {
             var cache = CombatAreaCache.Current;
 
+            return await TryInteractWithNearbyObject(
+                cache.Blockages,
+                obj =>
+                {
+                    var blockObj = obj.Object;
+                    return blockObj != null && blockObj.IsTargetable && 
+                           ((blockObj as TriggerableBlockage)?.IsOpened != true);
+                },
+                obj => cache.Blockages.Remove(obj),
+                obj => $"Opening mechanism: {obj.Object.Name}"
+            );
+        }
+
+        private async Task<bool> TryOpenNearbyChest()
+        {
+            var cache = CombatAreaCache.Current;
+            var isDeepwaterEncounter = IsDeepwaterEncounter();
+
             // Combine regular chests, special chests, and unique strongboxes from cache
+            // Filter out Izaro treasure chests to avoid interacting with them
             var cachedObjects = cache.Chests
                 .Concat(cache.SpecialChests)
-                .Concat(cache.Strongboxes.Where(s => s.Rarity == Rarity.Unique));
+                .Concat(cache.Strongboxes.Where(s => s.Rarity == Rarity.Unique))
+                .Where(obj => obj.Object?.Metadata != null && !obj.Object.Metadata.Contains("Metadata/Chests/Labyrinth/Izaro"));
+
+            // In Deepwater, do not select a chest unless its position is safely covered by a lantern.
+            // Keep uncovered chests in the cache so they can become eligible after the leader places a lantern.
+            if (isDeepwaterEncounter)
+            {
+                cachedObjects = cachedObjects.Where(obj =>
+                {
+                    var chest = obj.Object as Chest;
+                    return chest != null && IsInsideDeepwaterLanternSafetyRadius(chest);
+                });
+            }
 
             return await TryInteractWithNearbyObject(
                 cachedObjects,
@@ -335,6 +374,26 @@ namespace FollowBot.Tasks
                 },
                 obj => $"Opening chest: {obj.Object.Name}"
             );
+        }
+
+        private static bool IsDeepwaterEncounter()
+        {
+            return CurrentWorldArea != null && CurrentWorldArea.Id == DeepwaterEncounterAreaId;
+        }
+
+        private static bool IsInsideDeepwaterLanternSafetyRadius(Chest chest)
+        {
+            var chestPosition = chest.Position;
+
+            return ObjectManager.Objects.Any(obj =>
+            {
+                if (obj == null || !obj.IsValid || obj.Metadata != DeepwaterLanternMetadata)
+                    return false;
+
+                var dx = chestPosition.X - obj.Position.X;
+                var dy = chestPosition.Y - obj.Position.Y;
+                return dx * dx + dy * dy <= DeepwaterChestSafetyRadiusSqr;
+            });
         }
 
         private async Task<bool> TryInteractWithNearbyRecipe()

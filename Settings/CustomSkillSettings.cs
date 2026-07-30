@@ -8,8 +8,11 @@ namespace FollowBot.Settings
         private bool _enablePhaseRun = false;
         private bool _enableGuardSkill = false;
         private string _guardSkillName = "Molten Shell";
+        private bool _enableWarcriesForBuffs = false;
+        private bool _enableWarcriesForBanners = false;
         private bool _enableEnduringCry = false;
         private bool _enduringCryHasOnslaughtCluster = false;
+        private bool _enableGeneralsCry = false;
         private bool _enableSeismicCry = false;
         private bool _enableBattlemageCry = false;
         private bool _enableAncestralCry = false;
@@ -28,6 +31,8 @@ namespace FollowBot.Settings
         private bool _rejuvenationTotemAlwaysUseInUltimatum = false;
         private bool _rejuvenationTotemAlwaysUseInBlight = false;
         private string _guardiansBlessingMinion = "";
+        private string _golemManaToggleAura = "";
+        private int _golemManaToggleTimeoutMs = 5000;
         private bool _enableSummonRagingSpirits = false;
         private int _minRagingSpirits = 10;
         private bool _srsOnNormalMagic = false;
@@ -83,6 +88,20 @@ namespace FollowBot.Settings
 
         #region Warcries
         [DefaultValue(false)]
+        public bool EnableWarcriesForBuffs
+        {
+            get => _enableWarcriesForBuffs;
+            set { _enableWarcriesForBuffs = value; NotifyPropertyChanged(nameof(EnableWarcriesForBuffs)); }
+        }
+
+        [DefaultValue(false)]
+        public bool EnableWarcriesForBanners
+        {
+            get => _enableWarcriesForBanners;
+            set { _enableWarcriesForBanners = value; NotifyPropertyChanged(nameof(EnableWarcriesForBanners)); }
+        }
+
+        [DefaultValue(false)]
         public bool EnableEnduringCry
         {
             get => _enableEnduringCry;
@@ -94,6 +113,13 @@ namespace FollowBot.Settings
         {
             get => _enduringCryHasOnslaughtCluster;
             set { _enduringCryHasOnslaughtCluster = value; NotifyPropertyChanged(nameof(EnduringCryHasOnslaughtCluster)); }
+        }
+
+        [DefaultValue(false)]
+        public bool EnableGeneralsCry
+        {
+            get => _enableGeneralsCry;
+            set { _enableGeneralsCry = value; NotifyPropertyChanged(nameof(EnableGeneralsCry)); }
         }
 
         [DefaultValue(false)]
@@ -221,6 +247,20 @@ namespace FollowBot.Settings
         {
             get => _guardiansBlessingMinion;
             set { _guardiansBlessingMinion = value; NotifyPropertyChanged(nameof(GuardiansBlessingMinion)); }
+        }
+
+        [DefaultValue("")]
+        public string GolemManaToggleAura
+        {
+            get => _golemManaToggleAura;
+            set { _golemManaToggleAura = value; NotifyPropertyChanged(nameof(GolemManaToggleAura)); }
+        }
+
+        [DefaultValue(5000)]
+        public int GolemManaToggleTimeoutMs
+        {
+            get => _golemManaToggleTimeoutMs;
+            set { _golemManaToggleTimeoutMs = value; NotifyPropertyChanged(nameof(GolemManaToggleTimeoutMs)); }
         }
 
         #region Summon Raging Spirits

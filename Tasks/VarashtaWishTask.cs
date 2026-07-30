@@ -55,6 +55,9 @@ namespace FollowBot.Tasks
 
         public async Task<bool> Run()
         {
+            if (!LeagueFeatureFlags.MirageEnabled)
+                return false;
+
             if (!LokiPoe.IsInGame || LokiPoe.Me.IsDead)
                 return false;
 

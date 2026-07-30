@@ -20,6 +20,7 @@ namespace FollowBot.Settings
         private bool _autoReloadPathfinder = false;
         private bool _interactQuest = true;
         private bool _clickShrines = true;
+        private bool _openDoors = true;
         private bool _activateMirageSpawners = false;
         private int _mirageSpawnerDistance = 40;
         private ObservableCollection<string> _partyAndTradeWhitelist;
@@ -140,6 +141,16 @@ namespace FollowBot.Settings
             set
             {
                 _clickShrines = value; NotifyPropertyChanged(nameof(ClickShrines));
+            }
+        }
+
+        [DefaultValue(true)]
+        public bool OpenDoors
+        {
+            get { return _openDoors; }
+            set
+            {
+                _openDoors = value; NotifyPropertyChanged(nameof(OpenDoors));
             }
         }
 

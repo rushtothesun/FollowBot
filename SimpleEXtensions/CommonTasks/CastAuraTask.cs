@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
@@ -16,6 +17,15 @@ namespace FollowBot
         private const int MinGolemHpPercent = 40;
         private const int MinRelicHpPercent = 20;
         private static List<int> _temporaryBlacklistedAuras = new List<int>();
+        private static Dictionary<int, int> _auraRetryCount = new Dictionary<int, int>();
+        private const int MaxAuraRetries = 5;
+
+        // Golem mana-toggle state machine
+        private enum GolemToggleState { Idle, AuraDropped }
+        private static GolemToggleState _golemToggleState = GolemToggleState.Idle;
+        private static string _suppressedAuraName = null;
+        private static int _suppressedAuraSkillId = 0;
+        private static Stopwatch _golemToggleTimer = new Stopwatch();
         public async Task<bool> Run()
         {
             var area = World.CurrentArea;
@@ -31,17 +41,97 @@ namespace FollowBot
                     LokiPoe.InGameState.SentinelSkillUi.StalkerSentinel.Activate();
             }
 
+            // --- Golem Summoning with Mana Toggle Recovery ---
             var golemSkill = SkillBar.Skills.FirstOrDefault(s => s.IsOnSkillBar && s.SkillTags.Contains("golem"));
-            if (golemSkill != null && golemSkill.CanUse())
+            if (golemSkill != null)
             {
                 var golemObj = golemSkill.DeployedObjects.FirstOrDefault() as Monster;
-                if (golemObj == null || golemObj.HealthPercent < MinGolemHpPercent)
+                bool golemNeedsSummon = golemObj == null || golemObj.HealthPercent < MinGolemHpPercent;
+
+                var toggleAuraName = FollowBotSettings.Instance.CustomSkills.GolemManaToggleAura;
+                var timeoutMs = FollowBotSettings.Instance.CustomSkills.GolemManaToggleTimeoutMs;
+                bool toggleFeatureEnabled = !string.IsNullOrEmpty(toggleAuraName);
+
+                // Safety timeout: if we've been in a non-Idle state too long, reset
+                if (_golemToggleState != GolemToggleState.Idle
+                    && _golemToggleTimer.ElapsedMilliseconds > timeoutMs)
                 {
-                    GlobalLog.Debug($"[CastAuraTask] Now summoning \"{golemSkill.Name}\".");
-                    SkillBar.Use(golemSkill.Slot, false);
-                    await Wait.SleepSafe(100);
-                    await Coroutines.FinishCurrentAction();
-                    await Wait.SleepSafe(100);
+                    GlobalLog.Warn($"[CastAuraTask] Golem mana-toggle timed out after {timeoutMs}ms. Resetting.");
+                    _golemToggleState = GolemToggleState.Idle;
+                    _suppressedAuraName = null;
+                    _suppressedAuraSkillId = 0;
+                    _golemToggleTimer.Reset();
+                }
+
+                switch (_golemToggleState)
+                {
+                    case GolemToggleState.Idle:
+                        if (golemNeedsSummon)
+                        {
+                            if (golemSkill.CanUse())
+                            {
+                                // Normal path: enough mana, just summon
+                                GlobalLog.Debug($"[CastAuraTask] Now summoning \"{golemSkill.Name}\".");
+                                SkillBar.Use(golemSkill.Slot, false);
+                                await Wait.SleepSafe(100);
+                                await Coroutines.FinishCurrentAction();
+                                await Wait.SleepSafe(100);
+                            }
+                            else if (toggleFeatureEnabled && golemObj == null)
+                            {
+                                // CanUse failed and golem is dead -- drop a low-priority aura to free mana
+                                var auraToToggle = AllAuras.FirstOrDefault(s =>
+                                    s.IsOnSkillBar &&
+                                    s.Name.Equals(toggleAuraName, System.StringComparison.OrdinalIgnoreCase) &&
+                                    PlayerHasAura(s));
+
+                                if (auraToToggle != null)
+                                {
+                                    GlobalLog.Info($"[CastAuraTask] Golem dead, can't summon. Deactivating \"{auraToToggle.Name}\" to free mana.");
+                                    _suppressedAuraName = auraToToggle.Name;
+                                    _suppressedAuraSkillId = auraToToggle.Id;
+                                    SkillBar.Use(auraToToggle.Slot, false);
+                                    await Wait.SleepSafe(100);
+                                    await Coroutines.FinishCurrentAction();
+                                    await Wait.SleepSafe(100);
+                                    _golemToggleState = GolemToggleState.AuraDropped;
+                                    _golemToggleTimer.Restart();
+                                }
+                                else
+                                {
+                                    GlobalLog.Warn($"[CastAuraTask] Golem dead, can't summon. Toggle aura \"{toggleAuraName}\" not found active on skill bar.");
+                                }
+                            }
+                        }
+                        break;
+
+                    case GolemToggleState.AuraDropped:
+                        if (golemNeedsSummon && golemSkill.CanUse())
+                        {
+                            // Mana regenerated, summon the golem
+                            GlobalLog.Info($"[CastAuraTask] Mana available. Summoning \"{golemSkill.Name}\" after aura drop.");
+                            SkillBar.Use(golemSkill.Slot, false);
+                            await Wait.SleepSafe(100);
+                            await Coroutines.FinishCurrentAction();
+                            await Wait.SleepSafe(100);
+                            // Clear suppression so the aura recasts below
+                            GlobalLog.Info($"[CastAuraTask] Golem summoned. Clearing aura suppression for \"{_suppressedAuraName}\".");
+                            _golemToggleState = GolemToggleState.Idle;
+                            _suppressedAuraName = null;
+                            _suppressedAuraSkillId = 0;
+                            _golemToggleTimer.Reset();
+                        }
+                        else if (!golemNeedsSummon)
+                        {
+                            // Golem is somehow alive already, reset
+                            GlobalLog.Debug("[CastAuraTask] Golem alive during AuraDropped state. Resetting.");
+                            _golemToggleState = GolemToggleState.Idle;
+                            _suppressedAuraName = null;
+                            _suppressedAuraSkillId = 0;
+                            _golemToggleTimer.Reset();
+                        }
+                        // else: CanUse still fails, mana hasn't regen'd yet. Do nothing, retry next tick.
+                        break;
                 }
             }
 
@@ -83,9 +173,24 @@ namespace FollowBot
                 if (LokiPoe.Me.IsDead) break;
                 if (!aura.CanUse())
                 {
-                    _temporaryBlacklistedAuras.Add(aura.Id);
+                    int retries;
+                    _auraRetryCount.TryGetValue(aura.Id, out retries);
+                    retries++;
+                    if (retries >= MaxAuraRetries)
+                    {
+                        GlobalLog.Warn($"[CastAuraTask] CanUse() returned false for \"{aura.Name}\" after {retries} attempts. Adding to temporary blacklist.");
+                        _temporaryBlacklistedAuras.Add(aura.Id);
+                        _auraRetryCount.Remove(aura.Id);
+                    }
+                    else
+                    {
+                        GlobalLog.Debug($"[CastAuraTask] CanUse() returned false for \"{aura.Name}\". Retry {retries}/{MaxAuraRetries}.");
+                        _auraRetryCount[aura.Id] = retries;
+                    }
                     continue;
                 }
+                // CanUse succeeded, clear any retry count
+                _auraRetryCount.Remove(aura.Id);
                 if (aura.Slot == -1)
                 {
                     await SetAuraToSlot(aura, slotForHidden);
@@ -176,6 +281,10 @@ namespace FollowBot
                 // Skip auras linked with Guardian's Blessing Support (handled by CustomSkills)
                 var display = aura.LinkedDisplayString;
                 if (!string.IsNullOrEmpty(display) && display.Contains("Guardian's Blessing Support"))
+                    continue;
+
+                // Skip the aura that was intentionally deactivated for golem mana recovery
+                if (_suppressedAuraName != null && aura.Id == _suppressedAuraSkillId)
                     continue;
 
                 auras.Add(aura);
@@ -335,6 +444,11 @@ namespace FollowBot
         public void Start()
         {
             _temporaryBlacklistedAuras.Clear();
+            _auraRetryCount.Clear();
+            _golemToggleState = GolemToggleState.Idle;
+            _suppressedAuraName = null;
+            _suppressedAuraSkillId = 0;
+            _golemToggleTimer.Reset();
         }
 
         public void Stop()

@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.NativeWrappers;
 using DreamPoeBot.Loki.Game.Objects;
@@ -141,7 +141,7 @@ namespace FollowBot.Tasks
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return false;
             if (!LokiPoe.CurrentWorldArea.IsCombatArea) return false;
 
-            if (LokiPoe.Me.HasAura("Grace Period"))
+            if (ClassExtensions.IsUnderGracePeriod)
             {
                 if (!_gracePeriodLogged)
                 {

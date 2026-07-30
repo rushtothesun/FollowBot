@@ -70,6 +70,7 @@ namespace FollowBot.SimpleEXtensions.Global
         public readonly List<CachedStrongbox> Strongboxes = new List<CachedStrongbox>();
         public readonly List<CachedObject> Shrines = new List<CachedObject>();
         public readonly List<CachedObject> MirageSpawners = new List<CachedObject>();
+        public readonly List<CachedObject> Blockages = new List<CachedObject>();
         public readonly List<CachedObject> Monsters = new List<CachedObject>();
         public readonly List<CachedTransition> AreaTransitions = new List<CachedTransition>();
         public readonly ObjectDictionary Storage = new ObjectDictionary();
@@ -209,9 +210,15 @@ namespace FollowBot.SimpleEXtensions.Global
                         }
                     }
 
-                    if (obj.Metadata == "Metadata/MiscellaneousObjects/Faridun/ZarokhSpawner")
+                    if (LeagueFeatureFlags.MirageEnabled && obj.Metadata == "Metadata/MiscellaneousObjects/Faridun/ZarokhSpawner")
                     {
                         ProcessSpawner(obj);
+                        continue;
+                    }
+
+                    if (IsValidInteractiveBlockage(obj))
+                    {
+                        ProcessBlockage(obj);
                         continue;
                     }
                 }
@@ -452,6 +459,38 @@ namespace FollowBot.SimpleEXtensions.Global
             var pos = s.WalkablePosition();
             MirageSpawners.Add(new CachedObject(id, pos));
             _processedObjects.Add(id);
+        }
+
+        private void ProcessBlockage(NetworkObject b)
+        {
+            var id = b.Id;
+            if (_processedObjects.Contains(id))
+                return;
+
+            var pos = b.WalkablePosition();
+            pos.Initialize(); // Shift coordinate out of the wall so pathfinding distance checks succeed
+            Blockages.Add(new CachedObject(id, pos));
+            _processedObjects.Add(id);
+            GlobalLog.Warn($"[CombatAreaCache] Registering interactive mechanism {pos}");
+        }
+
+        private static bool IsValidInteractiveBlockage(NetworkObject d)
+        {
+            if (d is TriggerableBlockage tb)
+            {
+                return !tb.IsOpened && (tb.Name == "Door" || 
+                                        tb.Metadata == "Metadata/MiscellaneousObjects/Smashable" || 
+                                        tb.Metadata.Contains("LabyrinthSmashableDoor"));
+            }
+
+            var meta = d.Metadata;
+            // Additional non-TriggerableBlockage mechanisms to interact with
+            if (meta == "Metadata/Terrain/Labyrinth/Objects/SecretPassageCover") return true;
+            if (meta == "Metadata/Terrain/Labyrinth/Objects/HiddenDoor_Switch") return true;
+            if (meta == "Metadata/Terrain/Labyrinth/Objects/LabyrinthDarkshrineHidden") return true;
+            if (meta == "Metadata/Terrain/Labyrinth/Objects/Puzzle_Parts/Switch_Once") return true;
+
+            return false;
         }
 
         private void ProcessTransition(AreaTransition t)
@@ -719,6 +758,10 @@ namespace FollowBot.SimpleEXtensions.Global
             foreach (var spawner in cache.MirageSpawners)
             {
                 spawner.Unwalkable = false;
+            }
+            foreach (var blockage in cache.Blockages)
+            {
+                blockage.Unwalkable = false;
             }
             foreach (var transition in cache.AreaTransitions)
             {

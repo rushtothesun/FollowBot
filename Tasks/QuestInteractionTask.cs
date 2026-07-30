@@ -119,9 +119,10 @@ namespace FollowBot.Tasks
                 if (!findObj.IsTargetable) continue;
 
                 // Only check PathExists for non-town areas - in towns it can incorrectly return false
-                if (!LokiPoe.CurrentWorldArea.IsTown && !findObj.PathExists()) continue;
+                var isTownLike = LokiPoe.CurrentWorldArea.IsTown || areaId == "ChayulaLeague";
+                if (!isTownLike && !findObj.PathExists()) continue;
 
-                if (!LokiPoe.CurrentWorldArea.IsTown && LokiPoe.Me.Position.Distance(findObj.Position) > 30) continue;
+                if (!isTownLike && LokiPoe.Me.Position.Distance(findObj.Position) > 30) continue;
                 GlobalLog.Debug($"[{Name}: Find Npc [{npcInteractInf.NpcName}]");
 
                 await npcInteractInf.Action(findObj);
@@ -230,6 +231,9 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("2_6_2", "Ailith, First of the Keepers",
                 () => LokiPoe.ObjectManager.Objects.Any(o => o.Name == "Ailith, First of the Keepers" && o.HasNpcFloatingIcon),
                 NpcHelper.TalkAndSkipDialog),
+            new InteractQuestNpc("ChayulaLeague", "Ailith, First of the Keepers",
+                () => Inventories.InventoryItems.Any(i => i.Metadata != null && i.Metadata.StartsWith("Metadata/Items/QuestItems/Chayula/BodyPart")),
+                NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_6_town", "Lilly Roth", () => CheckQuestStateId("a6q4", 2),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Twilight Strand Reward")),
             new InteractQuestNpc("2_6_town", "Bestel", () => CheckQuestStateId("a6q7", new int[] {1, 2}),
@@ -268,12 +272,13 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("2_9_town", "Sin", () => CheckQuestStateId("a9q1", 17), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Sin", () => CheckQuestStateId("a9q5", 10), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => CheckQuestStateId("a9q5", 7), (obj)=>NpcHelper.TakeReward(obj,"Take Bottled Storm")),
+            new InteractQuestNpc("2_9_8", "Sin", () => LokiPoe.ObjectManager.Objects.Any(o => o.Name == "Sin" && o.HasNpcFloatingIcon), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_8", "Sin", ()=> PlayerHasItem("Trarthan Powder"), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_9_town", "Petarus and Vanja", () => CheckQuestStateId("a9q4", new int[] {1, 2, 3}) && PlayerHasItem("Calendar of Fortune"),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Maraketh Calendar Reward")),
             new InteractQuestNpc("2_9_town", "Irasha", () => CheckQuestStateId("a9q5", new int[] {1, 2}),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Shakari Reward")),
-            new InteractQuestNpc("2_9_town", "Irasha", () => CheckQuestStateId("a9q2", new int[] {2, 3}),
+            new InteractQuestNpc("2_9_town", "Irasha", () => PlayerHasItem("Sekhema Feather"),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Feather Reward")),
             // Act 10
             new InteractQuestNpc("2_10_town", "Bannon", ()=> PlayerHasItem("The Staff of Purity"), NpcHelper.TalkAndSkipDialog),
@@ -281,7 +286,7 @@ namespace FollowBot.Tasks
             new InteractQuestNpc("2_10_2", "Innocence", () => CheckQuestStateId("a10q3", 10), NpcHelper.TalkAndSkipDialog),
             new InteractQuestNpc("2_10_town", "Weylam Roth", () => CheckQuestStateId("a10q4", new int[] {1, 2, 3}) && PlayerHasItem("Elixir of Allure"),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Elixir of Allure Reward")),
-            new InteractQuestNpc("2_10_town", "Lani", () => CheckQuestStateId("a10q3", new int[] {2, 5}),
+            new InteractQuestNpc("2_10_town", "Lani", () => CheckQuestStateId("a10q3", new int[] {2, 4, 5}),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Kitava Reward")),
             new InteractQuestNpc("2_10_town", "Lani", () => CheckQuestStateId("a10q6", new int[] {1, 2}),
                 (obj) => NpcHelper.TakeRewardAndUseBook(obj, "Vilenta Reward"))

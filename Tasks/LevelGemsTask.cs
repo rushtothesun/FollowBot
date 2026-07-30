@@ -128,20 +128,30 @@ namespace FollowBot.Tasks
                     // NOW proceed with blocking operations (we have work to do)
                     await Coroutines.CloseBlockingWindows();
 
+                    // Open the large map overlay to push the buff bar off screen,
+                    // preventing it from occluding the LevelAll button or gem icons.
+                    if (!LokiPoe.InGameState.MapUi.LargeMapElement.IsVisible)
+                    {
+                        LokiPoe.Input.SimulateKeyEvent(LokiPoe.Input.Binding.open_map, true, false, false);
+                        await Wait.For(() => LokiPoe.InGameState.MapUi.LargeMapElement.IsVisible, "Map opening", 100, 1000);
+                    }
+
                     // We need to let skills finish casting, because of 2.6 changes.
                     await Coroutines.FinishCurrentAction();
                     await Coroutines.LatencyWait();
 
                     // RE-FETCH both lists - state may have changed during waits (combat finished, player leveled, gem gained XP, etc.)
-                    var pendingElements = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillElements;
+                    var pendingGemContainer = ClassExtensions.GetElementByPath(4, 1, 0, 1, 0);
+                    var pendingElements = pendingGemContainer?.Children;
                     var pendingGems = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillGems;
 
                     // Safety check for both lists
-                    if (pendingElements == null || pendingElements.Count == 0 || pendingGems == null || pendingGems.Count == 0)
+                    if (pendingElements == null || pendingGems == null || pendingElements.Count == 0 ||
+                        pendingGems.Count == 0 || pendingElements.Count != pendingGems.Count)
                     {
                         if (FollowBotSettings.Instance.Gems.GemDebugStatements)
                         {
-                            GlobalLog.Debug("[LevelGemsTask] No pending elements (UI issue?)");
+                            GlobalLog.Debug($"[LevelGemsTask] Pending HUD mismatch. Elements: {pendingElements?.Count ?? -1}, Gems: {pendingGems?.Count ?? -1}");
                         }
                         return false;
                     }
@@ -167,7 +177,7 @@ namespace FollowBot.Tasks
                                 var clickPos = buttonElement.CenterClickLocation();
 
                                 await Wait.SleepSafe(25, 100);
-                                MouseManager.ClickRMB();
+                                MouseManager.ClickRMB(0, 0);
                                 await Wait.SleepSafe(25, 100);
 
                                 if (FollowBotSettings.Instance.Gems.GemDebugStatements)

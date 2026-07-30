@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace FollowBot.Settings
@@ -42,6 +43,18 @@ namespace FollowBot.Settings
         {
             if (_divineFontOptions == null)
                 _divineFontOptions = SetupDefaultDivineFontOptions();
+        }
+
+        private void EnsureAllOptionTypesExist()
+        {
+            var defaults = SetupDefaultDivineFontOptions();
+            foreach (var defaultOption in defaults)
+            {
+                if (!_divineFontOptions.Any(o => o.Type == defaultOption.Type))
+                {
+                    _divineFontOptions.Add(defaultOption);
+                }
+            }
         }
 
         [DefaultValue(GemColor.Any)]
@@ -139,6 +152,7 @@ namespace FollowBot.Settings
             set
             {
                 _divineFontOptions = value;
+                EnsureAllOptionTypesExist();
                 OnPropertyChanged(nameof(DivineFontOptions));
             }
         }
@@ -161,6 +175,13 @@ namespace FollowBot.Settings
                     IsEnabled = false,
                     Priority = 2,
                     GemName = ""
+                },
+                new DivineFontOption
+                {
+                    Name = "Exchange Support Gem for Exceptional Gem",
+                    Type = DivineFontOptionType.ExchangeForExceptional,
+                    IsEnabled = false,
+                    Priority = 3
                 }
             };
         }
@@ -169,7 +190,8 @@ namespace FollowBot.Settings
     public enum DivineFontOptionType
     {
         TransformRandomSameColor,
-        TransformSpecificGem
+        TransformSpecificGem,
+        ExchangeForExceptional
     }
 
     public class DivineFontOption : INotifyPropertyChanged

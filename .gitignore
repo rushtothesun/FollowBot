@@ -340,3 +340,12 @@ Default/EXtensions/World.cs
 Default/ToolsPlugin/Class/ChatWrapper.cs
 Default/ToolsPlugin/Pricer/Pricer.cs
 DreamPoeBot.Default.sln
+
+# Local development and generated scratch files
+.claude/
+.vscode/
+FollowBotGui.xaml.backup
+GeneratedInternalTypeHelper.g.cs
+api_response.json
+divinelog.txt
+docs/test

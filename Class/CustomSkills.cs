@@ -1,4 +1,4 @@
-﻿using DreamPoeBot.Loki.Game;
+using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using DreamPoeBot.Loki.RemoteMemoryObjects;
@@ -52,7 +52,7 @@ namespace FollowBot.Class
         #endregion
 
         #region Warcries
-        
+
         public static void SeismicCry() => CastWarcry("SeismicCry", "Seismic Cry", 4);
 
         public static void BattlemageCry() => CastWarcry("DivineCry", "Battlemage's Cry", 2, checkSelf: false, checkLeader: true);
@@ -91,7 +91,7 @@ namespace FollowBot.Class
                     }
                 }
             }
-        }        
+        }
         #endregion
 
         #region Guardian's Blessing
@@ -149,7 +149,7 @@ namespace FollowBot.Class
                 SkillBarHud.Use(Convocation.Slot, false, false);
             }
         }
-        
+
         public static void ChaosElixir()
         {
             if (LokiPoe.Me.Auras.All(x => (x.Name != "Coruscating Elixir") || (x.Name == "Coruscating Elixir" && x.TimeLeft.Seconds <= 1.3)))
@@ -210,7 +210,7 @@ namespace FollowBot.Class
             var leaderHealthPercentage = unreservedLeaderHealth > 0 ? ((double)leader.Health / unreservedLeaderHealth) * 100 : 100;
 
             bool leaderNeedsHelp = leaderHealthPercentage <= settings.RejuvenationTotemLeaderHealthPercent;
-            
+
             bool selfNeedsHelp;
 
             if (LokiPoe.Me.EnergyShieldMax >= 1000)
@@ -290,9 +290,9 @@ namespace FollowBot.Class
 
             // --- Valor on Demand ---
             bool needsValor = false;
-            if (FollowBotSettings.Instance.CustomSkills.UseWarBanner && !LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura") && valourCharges < FollowBotSettings.Instance.CustomSkills.WarBannerCharges) needsValor = true;
-            else if (FollowBotSettings.Instance.CustomSkills.UseDefianceBanner && !LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura") && valourCharges < FollowBotSettings.Instance.CustomSkills.DefianceBannerCharges) needsValor = true;
-            else if (FollowBotSettings.Instance.CustomSkills.UseDreadBanner && !LokiPoe.Me.Auras.Any(x => x.InternalName == "puresteel_banner_buff_aura") && valourCharges < FollowBotSettings.Instance.CustomSkills.DreadBannerCharges) needsValor = true;
+            if (FollowBotSettings.Instance.CustomSkills.UseWarBanner && !HasBannerBuff("bloodstained_banner_buff_aura", "BloodstainedBanner") && valourCharges < FollowBotSettings.Instance.CustomSkills.WarBannerCharges) needsValor = true;
+            else if (FollowBotSettings.Instance.CustomSkills.UseDefianceBanner && !HasBannerBuff("armour_evasion_banner_buff_aura", "ArmourEvasionBanner") && valourCharges < FollowBotSettings.Instance.CustomSkills.DefianceBannerCharges) needsValor = true;
+            else if (FollowBotSettings.Instance.CustomSkills.UseDreadBanner && !HasBannerBuff("puresteel_banner_buff_aura", "PuresteelBanner") && valourCharges < FollowBotSettings.Instance.CustomSkills.DreadBannerCharges) needsValor = true;
 
             if (needsValor)
             {
@@ -322,7 +322,7 @@ namespace FollowBot.Class
             // 1. War Banner
             if (FollowBotSettings.Instance.CustomSkills.UseWarBanner)
             {
-                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
+                bool hasWarBannerBuff = HasBannerBuff("bloodstained_banner_buff_aura", "BloodstainedBanner");
                 if (!hasWarBannerBuff && valourCharges >= FollowBotSettings.Instance.CustomSkills.WarBannerCharges)
                 {
                     var warBanner = SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "BloodstainedBanner");
@@ -338,10 +338,10 @@ namespace FollowBot.Class
             // 2. Defiance Banner
             if (FollowBotSettings.Instance.CustomSkills.UseDefianceBanner)
             {
-                bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
+                bool hasDefianceBannerBuff = HasBannerBuff("armour_evasion_banner_buff_aura", "ArmourEvasionBanner");
                 bool warBannerEnabled = FollowBotSettings.Instance.CustomSkills.UseWarBanner;
-                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
-                
+                bool hasWarBannerBuff = HasBannerBuff("bloodstained_banner_buff_aura", "BloodstainedBanner");
+
                 // Only proceed if War Banner is not enabled OR (War Banner is enabled AND already active)
                 if ((!warBannerEnabled || (warBannerEnabled && hasWarBannerBuff)) && !hasDefianceBannerBuff && valourCharges >= FollowBotSettings.Instance.CustomSkills.DefianceBannerCharges)
                 {
@@ -360,16 +360,16 @@ namespace FollowBot.Class
             {
                 bool warBannerEnabled = FollowBotSettings.Instance.CustomSkills.UseWarBanner;
                 bool defianceBannerEnabled = FollowBotSettings.Instance.CustomSkills.UseDefianceBanner;
-                bool hasWarBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "bloodstained_banner_buff_aura");
-                bool hasDefianceBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "armour_evasion_banner_buff_aura");
-                bool hasDreadBannerBuff = LokiPoe.Me.Auras.Any(x => x.InternalName == "puresteel_banner_buff_aura");
-                
+                bool hasWarBannerBuff = HasBannerBuff("bloodstained_banner_buff_aura", "BloodstainedBanner");
+                bool hasDefianceBannerBuff = HasBannerBuff("armour_evasion_banner_buff_aura", "ArmourEvasionBanner");
+                bool hasDreadBannerBuff = HasBannerBuff("puresteel_banner_buff_aura", "PuresteelBanner");
+
                 // Only proceed if higher priority banners are not enabled OR (they are enabled AND already active)
                 bool canCastDread = (!warBannerEnabled || (warBannerEnabled && hasWarBannerBuff)) &&
                                     (!defianceBannerEnabled || (defianceBannerEnabled && hasDefianceBannerBuff)) &&
                                     !hasDreadBannerBuff &&
                                     valourCharges >= FollowBotSettings.Instance.CustomSkills.DreadBannerCharges;
-                
+
                 if (canCastDread)
                 {
                     var dreadBanner = SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == "PuresteelBanner");
@@ -387,15 +387,37 @@ namespace FollowBot.Class
         #region Helper Methods
 
         /// <summary>
+        /// Checks if a banner skill is linked with Generosity Support.
+        /// </summary>
+        private static bool IsLinkedWithGenerosity(string bannerInternalName)
+        {
+            var skill = SkillBarHud.SkillBarSkills.FirstOrDefault(x => x != null && x.InternalName == bannerInternalName);
+            return skill?.LinkedGems != null && skill.LinkedGems.Any(g => g != null && g.FullName == "Generosity Support");
+        }
+
+        /// <summary>
+        /// Checks if a banner buff aura is active. If the banner is linked with Generosity,
+        /// checks the party leader's auras instead of the player's own auras.
+        /// </summary>
+        private static bool HasBannerBuff(string buffInternalName, string bannerInternalName)
+        {
+            if (IsLinkedWithGenerosity(bannerInternalName))
+            {
+                var leader = FollowBot.Leader;
+                return leader != null && leader.Auras.Any(x => x.InternalName == buffInternalName);
+            }
+            return LokiPoe.Me.Auras.Any(x => x.InternalName == buffInternalName);
+        }
+
+        /// <summary>
         /// Checks if a skill is on cooldown with randomized cooldown duration between 500ms and 1000ms.
         /// </summary>
-        public static bool IsOnCooldown(string skillKey)
+        public static bool IsOnCooldown(string skillKey, int minMs = COOLDOWN_MIN_MS, int maxMs = COOLDOWN_MAX_MS)
         {
             if (!_lastCastTimes.ContainsKey(skillKey))
                 return false;
-            
-            // Random cooldown between 500ms and 1000ms
-            var randomCooldown = LokiPoe.Random.Next(COOLDOWN_MIN_MS, COOLDOWN_MAX_MS);
+
+            var randomCooldown = LokiPoe.Random.Next(minMs, maxMs);
             return (DateTime.UtcNow - _lastCastTimes[skillKey]).TotalMilliseconds < randomCooldown;
         }
 
@@ -458,11 +480,28 @@ namespace FollowBot.Class
 
         private static void UseWarcryForValor()
         {
-            if (IsOnCooldown("ValorWarcry"))
+            if (IsOnCooldown("ValorWarcry", 150, 250))
                 return;
 
-            var availableWarcries = new List<DreamPoeBot.Loki.RemoteMemoryObjects.Skill>();
             var settings = FollowBotSettings.Instance.CustomSkills;
+
+            if (!settings.EnableWarcriesForBanners)
+                return;
+
+            // Priority Check for General's Cry
+            if (settings.EnableGeneralsCry)
+            {
+                var generalsCry = SkillBarHud.SkillBarSkills.FirstOrDefault(s => s != null && s.InternalName == "DoubleCry" && s.CanUse());
+                if (generalsCry != null)
+                {
+                    GlobalLog.Debug($"[UseWarcryForValor] Using {generalsCry.Name}.");
+                    SkillBarHud.Use(generalsCry.Slot, false, false);
+                    UpdateCooldown("ValorWarcry");
+                    return;
+                }
+            }
+
+            var availableWarcries = new List<DreamPoeBot.Loki.RemoteMemoryObjects.Skill>();
 
             if (settings.EnableEnduringCry)
             {

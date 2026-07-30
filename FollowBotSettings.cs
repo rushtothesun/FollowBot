@@ -28,6 +28,7 @@ namespace FollowBot
             Login = Login ?? new LoginSettings();
             PassiveTree = PassiveTree ?? new PassiveSkillTreeSettings();
             Wish = Wish ?? new WishSettings();
+            TradeBuyout = TradeBuyout ?? new TradeBuyoutSettings();
         }
 
         // Nested settings properties
@@ -46,5 +47,6 @@ namespace FollowBot
         public LoginSettings Login { get; set; } = new LoginSettings();
         public PassiveSkillTreeSettings PassiveTree { get; set; } = new PassiveSkillTreeSettings();
         public WishSettings Wish { get; set; } = new WishSettings();
+        public TradeBuyoutSettings TradeBuyout { get; set; } = new TradeBuyoutSettings();
     }
 }

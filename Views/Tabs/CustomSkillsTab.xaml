@@ -20,6 +20,17 @@
                 <Label Content="Minion Name:" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 <TextBox Width="140" Margin="5,0,0,0" VerticalAlignment="Center" Text="{Binding CustomSkills.GuardiansBlessingMinion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ToolTip="Enter the name of the minion skill used for Guardian's Blessing (e.g., Summon Chaos Golem)."/>
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="17,2,2,2">
+                <Label Content="Mana Toggle Aura:" VerticalAlignment="Center"
+                       ToolTip="Name of a low-priority aura to temporarily deactivate when the golem dies and cannot be resummoned due to insufficient mana. Leave empty to disable."/>
+                <TextBox Width="140" Margin="5,0,0,0" VerticalAlignment="Center"
+                         Text="{Binding CustomSkills.GolemManaToggleAura, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="e.g., Determination, Vitality. Must match the aura's display name exactly."/>
+                <Label Content="Timeout (ms):" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                <controls:NumericUpDown Value="{Binding CustomSkills.GolemManaToggleTimeoutMs, Mode=TwoWay}"
+                                        Minimum="2000" Maximum="15000" Interval="500" Width="90" VerticalAlignment="Center"
+                                        ToolTip="Max time to wait for mana regen before giving up and recasting the aura."/>
+            </StackPanel>
             <CheckBox Content="Enable Sentinel of Radiance Auto-Deploy" IsChecked="{Binding CustomSkills.EnableSentinelUsage, Mode=TwoWay}" Margin="2"/>
             <StackPanel Orientation="Horizontal" Margin="2">
                 <CheckBox Content="Enable Chaos Elixir" IsChecked="{Binding CustomSkills.EnableChaosElixir, Mode=TwoWay}" VerticalAlignment="Center"/>
@@ -63,12 +74,17 @@
             </Expander>
             <Expander Header="Warcries" Margin="0,10,0,0" IsExpanded="True">
                 <StackPanel Margin="15,5,0,0">
+                    <!-- Master Toggles -->
+                    <CheckBox Content="Enable Warcries for Buff Management" IsChecked="{Binding CustomSkills.EnableWarcriesForBuffs, Mode=TwoWay}" FontWeight="Bold" Margin="2,2,2,0"/>
+                    <CheckBox Content="Enable Warcries for Banner Management" IsChecked="{Binding CustomSkills.EnableWarcriesForBanners, Mode=TwoWay}" FontWeight="Bold" Margin="2,0,2,10"/>
+                    
                     <StackPanel Orientation="Vertical" Margin="2">
                         <CheckBox Content="Enable Enduring Cry" IsChecked="{Binding CustomSkills.EnableEnduringCry, Mode=TwoWay}" VerticalAlignment="Center"/>
                         <StackPanel Margin="15,5,0,0">
                             <CheckBox Content="Has Onslaught Cluster?" IsChecked="{Binding CustomSkills.EnduringCryHasOnslaughtCluster, Mode=TwoWay}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
+                    <CheckBox Content="Enable General's Cry" IsChecked="{Binding CustomSkills.EnableGeneralsCry, Mode=TwoWay}" Margin="2" ToolTip="Uses General's Cry (DoubleCry). Has top priority when enabled and slotted."/>
                     <CheckBox Content="Enable Seismic Cry" IsChecked="{Binding CustomSkills.EnableSeismicCry, Mode=TwoWay}" Margin="2"/>
                     <CheckBox Content="Enable Battlemage's Cry" IsChecked="{Binding CustomSkills.EnableBattlemageCry, Mode=TwoWay}" Margin="2"/>
                     <CheckBox Content="Enable Ancestral Cry" IsChecked="{Binding CustomSkills.EnableAncestralCry, Mode=TwoWay}" Margin="2"/>

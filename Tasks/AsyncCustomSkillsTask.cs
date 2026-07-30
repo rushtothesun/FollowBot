@@ -26,7 +26,7 @@ namespace FollowBot.Tasks
             if (LokiPoe.CurrentWorldArea.Id == "HeistHub") return false;
             if (!LokiPoe.CurrentWorldArea.IsCombatArea) return false;
 
-            if (LokiPoe.Me.HasAura("Grace Period"))
+            if (ClassExtensions.IsUnderGracePeriod)
             {
                 //GlobalLog.Debug("[AsyncCustomSkillsTask] Find grace period, wait player moves.");
                 return false;

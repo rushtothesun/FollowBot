@@ -217,17 +217,17 @@ namespace FollowBot.Tasks
             #endregion
 
             #region Mirage Portals
-            if (leaderArea.Id == LokiPoe.CurrentWorldArea.Id)
+            if (LeagueFeatureFlags.MirageEnabled && leaderArea.Id == LokiPoe.CurrentWorldArea.Id)
             {
                 // 1. Entry Portal (We are OUTSIDE the Mirage, button is not visible)
                 var mirageEntry = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/MiscellaneousObjects/Faridun/DjinnPortal");
-                if (mirageEntry != null && await TryInteractWithPortal(mirageEntry, "mirage entry", StandardMaxDistance, interactDistance: 12))
+                if (mirageEntry != null && await TryInteractWithPortal(mirageEntry, "mirage entry", NearbyTransitionMaxDistance, interactDistance: 12))
                     return true;
 
                 // 2. Return Portal / Button (We are INSIDE the Mirage)
                 // The presence of the Mirage return UI button is the only 100% guarantee we are actually inside a Mirage instance,
                 // and prevents the bot from clicking a player's Sekhema Portal MTX in a regular map.
-                var mirageButton = FindMirageReturnButton();
+                var mirageButton = ClassExtensions.FindMirageReturnButton();
                 if (mirageButton != null)
                 {
                     var mirageReturn = LokiPoe.ObjectManager.GetObjectByMetadata("Metadata/Effects/Microtransactions/Town_Portals/SekhemaPortal/SekhemaPortal");
@@ -483,45 +483,6 @@ namespace FollowBot.Tasks
 
         #region Mirage Return Button
 
-        private const string MirageButtonTooltip = "Teleports you back to the entrance of this Mirage.";
-
-        /// <summary>
-        /// Finds the mirage return button by searching the action button container for the
-        /// element whose tooltip matches. Resilient to index shifts from other mechanic buttons.
-        /// </summary>
-        private Element FindMirageReturnButton()
-        {
-            var container = FindElementByLabels("HUD", "HUDRight", "skip_button_layout");
-            if (container?.Children == null)
-                return null;
-
-            foreach (var child in container.Children)
-            {
-                if (child == null || !child.IsVisible)
-                    continue;
-
-                try
-                {
-                    var tooltip = child.Tooltip;
-                    if (tooltip?.Text?.Contains(MirageButtonTooltip) == true)
-                        return child;
-
-                    // Some tooltips have text in children
-                    if (tooltip?.Children != null && tooltip.Children.Count > 0)
-                    {
-                        var text = tooltip.Children[0]?.Text;
-                        if (text != null && text.Contains(MirageButtonTooltip))
-                            return child;
-                    }
-                }
-                catch
-                {
-                    // Tooltip access can throw on stale elements
-                }
-            }
-
-            return null;
-        }
 
         /// <summary>
         /// Clicks the in-game "Return to Mirage Portal" UI button to teleport near the exit portal.
@@ -572,28 +533,6 @@ namespace FollowBot.Tasks
 
         #region Helper Methods
 
-        /// <summary>
-        /// Navigates the UI element tree by IdLabel instead of hardcoded indices.
-        /// Starts from root.Children[1] and walks down matching each label in order.
-        /// </summary>
-        private static Element FindElementByLabels(params string[] labels)
-        {
-            var allElements = LokiPoe.GetGuiElements();
-            var root = Enumerable.FirstOrDefault(allElements, e => e.IdLabel == "root");
-            if (root?.Children == null || root.Children.Count < 2)
-                return null;
-
-            Element current = root.Children[1];
-            foreach (var label in labels)
-            {
-                if (current?.Children == null)
-                    return null;
-                current = Enumerable.FirstOrDefault(current.Children, c => c?.IdLabel == label);
-                if (current == null)
-                    return null;
-            }
-            return current;
-        }
 
 
         private async Task<bool> GoToPartyLeaderZone()

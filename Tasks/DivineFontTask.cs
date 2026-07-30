@@ -65,7 +65,7 @@ namespace FollowBot.Tasks
         public string Version => "1.0.0";
 
         private bool _hasExecuted = false;
-        private HashSet<DivineFontOptionType> _failedOptions = new HashSet<DivineFontOptionType>();
+        private string _lastCraftedGemName = null;
 
         public void Start() { }
         public void Stop() { }
@@ -74,110 +74,357 @@ namespace FollowBot.Tasks
         public async Task<bool> Run()
         {
             if (!LokiPoe.IsInGame || LokiPoe.Me.IsDead || !World.CurrentArea.IsLabyrinthArea || !FollowBotSettings.Instance.Lab.EnableDivineFontHandling)
-            {
                 return false;
-            }
+
+            if (_hasExecuted)
+                return false;
 
             await UpdateGemPricesIfNeeded();
 
-            // Check if Divine Font UI is open
-            var isOpened = LokiPoe.InGameState.DivineFontUi.IsOpened;
-
-            if (!isOpened && !_hasExecuted)
+            if (!LokiPoe.InGameState.DivineFontUi.IsOpened)
             {
-                // Try to find and interact with Divine Font
-                var divineFont = FindDivineFont();
-                if (divineFont == null)
-                {
+                if (!await OpenDivineFont())
                     return false;
-                }
-
-                if (divineFont.Distance > 40)
-                {
-                    GlobalLog.Info("[DivineFontTask] Divine Font too far away");
-                    return false;
-                }
-
-                GlobalLog.Info("[DivineFontTask] Interacting with Divine Font");
-                var interactResult = await PlayerAction.Interact(divineFont);
-                if (interactResult)
-                {
-                    await Wait.Sleep(500);
-                    // Return true to maintain control and prevent other tasks from closing the UI
-                    return true;
-                }
-
-                return false;
-            }
-
-            // Only execute the main logic once though
-            if (_hasExecuted)
-            {
-                return false;
             }
 
             return await ExecutePriorityLogic();
         }
 
+        private async Task<bool> OpenDivineFont()
+        {
+            var divineFont = FindDivineFont();
+            if (divineFont == null || divineFont.Distance > 55)
+                return false;
+
+            GlobalLog.Info("[DivineFontTask] Interacting with Divine Font");
+            var interactResult = await PlayerAction.Interact(divineFont);
+            if (!interactResult)
+                return false;
+
+            return await Wait.For(() => LokiPoe.InGameState.DivineFontUi.IsOpened, "Divine Font UI opening", 200, 2000);
+        }
+
         private async Task<bool> ExecutePriorityLogic()
         {
-            var availableTypes = ReadAvailableOptionsFromUi();
-
-            // 1. Check Inventory First (Fastest)
-            var userOptions = FollowBotSettings.Instance.Lab.DivineFontOptions
-                .Where(o => o.IsEnabled)
-                .OrderBy(o => o.Priority)
-                .ToList();
-
-            foreach (var option in userOptions)
+            while (true)
             {
-                if (!availableTypes.Contains(option.Type)) continue;
-                if (_failedOptions.Contains(option.Type)) continue;
+                await Wait.Sleep(LokiPoe.Random.Next(200, 500));
+                // 1. Read what options the Divine Font is offering
+                var availableTypes = ReadAvailableOptionsFromUi();
 
-                if (CanFulfillFromInventory(option))
+                // 2. Pick highest-priority enabled option that's available on the UI
+                var userOptions = FollowBotSettings.Instance.Lab.DivineFontOptions
+                    .Where(o => o.IsEnabled)
+                    .OrderBy(o => o.Priority)
+                    .ToList();
+
+                var chosenOption = userOptions.FirstOrDefault(o => availableTypes.Contains(o.Type));
+                if (chosenOption == null)
                 {
-                    return await ExecuteOption(option);
+                    GlobalLog.Info("[DivineFontTask] No enabled options match what the Divine Font is offering.");
+                    BotManager.Stop(false);
+                    return false;
                 }
+
+                GlobalLog.Info($"[DivineFontTask] Chosen option: {chosenOption.Name} (Priority {chosenOption.Priority})");
+                await Wait.Sleep(LokiPoe.Random.Next(200, 500));
+
+                // 3. Execute the chosen option
+                _lastCraftedGemName = null;
+                bool success;
+                switch (chosenOption.Type)
+                {
+                    case DivineFontOptionType.TransformSpecificGem:
+                        success = await ExecuteTransformSpecific(chosenOption);
+                        break;
+                    case DivineFontOptionType.ExchangeForExceptional:
+                        success = await ExecuteExchangeForExceptional();
+                        break;
+                    case DivineFontOptionType.TransformRandomSameColor:
+                        success = await ExecuteTransformRandom();
+                        break;
+                    default:
+                        GlobalLog.Error($"[DivineFontTask] Unknown option type: {chosenOption.Type}");
+                        BotManager.Stop(false);
+                        return false;
+                }
+
+                if (!success)
+                {
+                    BotManager.Stop(false);
+                    return false;
+                }
+
+                // 4. Drop valuable gems on the ground so they don't get re-used
+                if (_lastCraftedGemName != null)
+                {
+                    double price = _gemPrices.ContainsKey(_lastCraftedGemName) ? _gemPrices[_lastCraftedGemName] : 0;
+                    if (price > FollowBotSettings.Instance.Lab.GemValueSafetyThreshold)
+                    {
+                        GlobalLog.Info($"[DivineFontTask] '{_lastCraftedGemName}' ({price:F0}c) exceeds safety threshold ({FollowBotSettings.Instance.Lab.GemValueSafetyThreshold}c). Dropping on ground.");
+                        if (!await DropCraftedGem(_lastCraftedGemName))
+                        {
+                            BotManager.Stop(false);
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        GlobalLog.Info($"[DivineFontTask] '{_lastCraftedGemName}' ({price:F0}c) below safety threshold ({FollowBotSettings.Instance.Lab.GemValueSafetyThreshold}c). Keeping in inventory.");
+                    }
+                }
+
+                // 5. Reopen Divine Font if it was closed (e.g. after dropping gem)
+                if (!LokiPoe.InGameState.DivineFontUi.IsOpened)
+                {
+                    if (!await OpenDivineFont())
+                    {
+                        GlobalLog.Error("[DivineFontTask] Failed to reopen Divine Font after drop.");
+                        BotManager.Stop(false);
+                        return false;
+                    }
+                }
+
+                // 6. Check if crafts remain
+                int remaining = GetRemainingCrafts();
+                if (remaining <= 0)
+                {
+                    GlobalLog.Info("[DivineFontTask] No crafts remaining. Task complete.");
+                    _hasExecuted = true;
+                    return true;
+                }
+
+                GlobalLog.Info($"[DivineFontTask] {remaining} craft(s) remaining. Re-evaluating options.");
+                // Loop back to re-read available options
             }
-
-            // 2. If we are here, we need *something* from stash.
-            // Calculate requirements based on what we are missing.
-            var requirements = DetermineGemRequirements(availableTypes);
-
-            if (requirements.Any())
-            {
-                GlobalLog.Info("[DivineFont] Inventory check failed. Initiating Smart Stash Retrieval.");
-
-                // Close Font UI to go to stash
-                if (LokiPoe.InGameState.DivineFontUi.IsOpened)
-                    await Coroutines.CloseBlockingWindows();
-
-                // This function handles the "Check A -> Fail -> Check B -> Success" logic internally
-                // and ensures we leave the stash with the best possible gem (or nothing if empty).
-                await PerformSmartStashRetrieval(requirements);
-
-                // Return true to loop back.
-                // Next tick, "Check Inventory" will pass for whatever gem we managed to grab.
-                return true;
-            }
-
-            GlobalLog.Info("[DivineFont] No options could be fulfilled.");
-            _hasExecuted = true;
-            return false;
         }
 
-        private bool CanFulfillFromInventory(DivineFontOption option)
+        #region Execution Methods
+
+        private async Task<bool> ExecuteTransformSpecific(DivineFontOption option)
         {
-            if (option.Type == DivineFontOptionType.TransformSpecificGem)
+            var gem = FindSpecificGemInInventory(option.GemName);
+            if (gem == null)
             {
-                return FindSpecificGemInInventory(option.GemName) != null;
+                GlobalLog.Info($"[DivineFontTask] Specific gem '{option.GemName}' not in inventory. Checking stash...");
+                gem = await WithdrawFromStash(option);
             }
-            else if (option.Type == DivineFontOptionType.TransformRandomSameColor)
+            if (gem == null)
             {
-                return FindGemToEnchant() != null;
+                GlobalLog.Error($"[DivineFontTask] Cannot find '{option.GemName}' in inventory or stash. Stopping for leader intervention.");
+                return false;
             }
-            return false;
+
+            return await PlaceCraftAndPickResult(gem, DivineFontOptionType.TransformSpecificGem);
         }
+
+        private async Task<bool> ExecuteExchangeForExceptional()
+        {
+            var gem = FindSupportGemInInventory();
+            if (gem == null)
+            {
+                GlobalLog.Info("[DivineFontTask] No support gem in inventory. Checking stash...");
+                gem = await WithdrawFromStash(DivineFontOptionType.ExchangeForExceptional);
+            }
+            if (gem == null)
+            {
+                GlobalLog.Error("[DivineFontTask] Cannot find support gem in inventory or stash. Stopping for leader intervention.");
+                return false;
+            }
+
+            return await PlaceCraftAndPickResult(gem, DivineFontOptionType.ExchangeForExceptional);
+        }
+
+        private async Task<bool> ExecuteTransformRandom()
+        {
+            var gem = FindGemToEnchant();
+            if (gem == null)
+            {
+                GlobalLog.Info("[DivineFontTask] No suitable gem in inventory. Checking stash...");
+                gem = await WithdrawFromStash(DivineFontOptionType.TransformRandomSameColor);
+            }
+            if (gem == null)
+            {
+                GlobalLog.Error("[DivineFontTask] Cannot find suitable gem in inventory or stash. Stopping for leader intervention.");
+                return false;
+            }
+
+            return await PlaceCraftAndPickResult(gem, DivineFontOptionType.TransformRandomSameColor);
+        }
+
+        #endregion
+
+        #region Shared Craft Execution
+
+        private async Task<bool> PlaceCraftAndPickResult(Item gem, DivineFontOptionType optionType)
+        {
+            GlobalLog.Info($"[DivineFontTask] Starting Divine Font sequence with gem: {gem.Name}");
+
+            if (!LokiPoe.InGameState.DivineFontUi.IsOpened)
+            {
+                GlobalLog.Error("[DivineFontTask] Divine Font UI not open");
+                return false;
+            }
+
+            // Place gem
+            GlobalLog.Info($"[DivineFontTask] Placing gem: {gem.Name}");
+            if (!await PlaceGemInSlot(gem)) return false;
+            await Wait.Sleep(300);
+
+            // Select option
+            GlobalLog.Info($"[DivineFontTask] Selecting option: {optionType}");
+            if (!await SelectTransformOption(optionType)) return false;
+            await Wait.Sleep(300);
+
+            // Click craft
+            GlobalLog.Info("[DivineFontTask] Clicking craft button");
+            if (!await ClickCraftButton()) return false;
+            await Wait.Sleep(2000);
+
+            // Handle result
+            if (optionType == DivineFontOptionType.ExchangeForExceptional)
+            {
+                GlobalLog.Info("[DivineFontTask] Exchange craft complete. Taking result.");
+            }
+            else
+            {
+                if (!await PickBestGemChoice()) return false;
+            }
+
+            // Take result from slot
+            return await TakeResultFromSlot();
+        }
+
+        private async Task<bool> PickBestGemChoice()
+        {
+            string gem1 = GetGemNameFromTooltip(0);
+            string gem2 = GetGemNameFromTooltip(1);
+            string gem3 = GetGemNameFromTooltip(2);
+
+            GlobalLog.Info($"[DivineFontTask] Gem choices: '{gem1}', '{gem2}', '{gem3}'");
+
+            if (!await ChooseMostValuableGem(new[] { gem1, gem2, gem3 })) return false;
+            await Wait.Sleep(300);
+
+            GlobalLog.Info("[DivineFontTask] Clicking confirm button");
+            if (!await ClickConfirmButton()) return false;
+            await Wait.Sleep(1000);
+
+            return true;
+        }
+
+        private async Task<bool> TakeResultFromSlot()
+        {
+            if (!IsGemInSlot())
+            {
+                GlobalLog.Error("[DivineFontTask] No gem in slot after craft");
+                return false;
+            }
+
+            string gemName = GetGemNameFromInputSlot();
+            GlobalLog.Info($"[DivineFontTask] Removing gem '{gemName}' from input slot");
+            if (!await RemoveGemFromSlot()) return false;
+            _lastCraftedGemName = gemName;
+            GlobalLog.Info("[DivineFontTask] Gem successfully transformed!");
+            return true;
+        }
+
+        private async Task<bool> DropCraftedGem(string gemName)
+        {
+            GlobalLog.Info($"[DivineFontTask] Dropping '{gemName}' on the ground.");
+
+            // Close Divine Font UI for more room
+            await Coroutines.CloseBlockingWindows();
+            await Wait.Sleep(300);
+
+            // Open inventory (required to drop items)
+            if (!LokiPoe.InGameState.InventoryUi.IsOpened)
+            {
+                if (!await Inventories.OpenInventory())
+                {
+                    GlobalLog.Error("[DivineFontTask] Failed to open inventory for gem drop.");
+                    return false;
+                }
+                await Wait.Sleep(900); // Wait for viewport shift
+            }
+
+            // Find the gem in inventory
+            var inv = InventoryUi.InventoryControl_Main;
+            var gem = inv.Inventory.Items?.FirstOrDefault(i =>
+                i.Name.Equals(gemName, StringComparison.OrdinalIgnoreCase));
+
+            if (gem == null)
+            {
+                GlobalLog.Error($"[DivineFontTask] Could not find '{gemName}' in inventory to drop.");
+                return false;
+            }
+
+            // Pick up the gem (attach to cursor)
+            var pickupResult = inv.Pickup(gem.LocalId, true);
+            if (pickupResult != PickupResult.None)
+            {
+                GlobalLog.Error($"[DivineFontTask] Failed to pick up '{gemName}': {pickupResult}");
+                return false;
+            }
+            await Wait.Sleep(300);
+
+            // Wait for cursor attach
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < 3000)
+            {
+                if (LokiPoe.InGameState.CursorItemOverlay.Item != null)
+                    break;
+                await Wait.Sleep(50);
+            }
+
+            if (LokiPoe.InGameState.CursorItemOverlay.Item == null)
+            {
+                GlobalLog.Error("[DivineFontTask] Gem did not attach to cursor.");
+                return false;
+            }
+
+            // Drop at character's feet
+            int cx, cy;
+            LokiPoe.ClientFunctions.WorldToScreen(LokiPoe.Me.InteractCenterWorld, out cx, out cy);
+            var dropX = cx;
+            var dropY = cy + 50;
+
+            await Wait.Sleep(200);
+            MouseManager.SetMousePosition(new DreamPoeBot.Common.Vector2i(dropX, dropY), false);
+            await Wait.Sleep(200);
+            MouseManager.ClickLMB(dropX, dropY);
+            await Wait.Sleep(300);
+
+            // Wait for cursor to clear
+            sw.Restart();
+            while (sw.ElapsedMilliseconds < 3000)
+            {
+                if (LokiPoe.InGameState.CursorItemOverlay.Item == null)
+                    break;
+                await Wait.Sleep(50);
+            }
+
+            if (LokiPoe.InGameState.CursorItemOverlay.Item != null)
+            {
+                GlobalLog.Error("[DivineFontTask] Item stuck on cursor after drop attempt.");
+                return false;
+            }
+
+            GlobalLog.Info($"[DivineFontTask] '{gemName}' dropped on ground successfully.");
+
+            // Close inventory
+            if (LokiPoe.InGameState.InventoryUi.IsOpened)
+            {
+                LokiPoe.Input.SimulateKeyEvent(LokiPoe.Input.Binding.open_inventory_panel, true, false, false);
+                await Wait.Sleep(300);
+            }
+
+            return true;
+        }
+
+        #endregion
+
+        #region Gem Finding
 
         private Item FindSpecificGemInInventory(string gemName)
         {
@@ -188,153 +435,133 @@ namespace FollowBot.Tasks
                 i.Name.Equals(gemName, StringComparison.OrdinalIgnoreCase));
         }
 
-        private async Task<bool> ExecuteOption(DivineFontOption option)
+        private static readonly HashSet<string> ExceptionalGemNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            Item gem = null;
-            if (option.Type == DivineFontOptionType.TransformSpecificGem)
+            "Empower Support", "Enlighten Support", "Enhance Support"
+        };
+
+        private Item FindSupportGemInInventory()
+        {
+            var mainInventoryItems = InventoryUi.InventoryControl_Main.Inventory.Items;
+            return mainInventoryItems?.FirstOrDefault(i =>
+                i.Class == "Support Skill Gem" &&
+                !i.IsCorrupted &&
+                i.SkillGemLevel == 1 &&
+                i.Quality == 0 &&
+                !ExceptionalGemNames.Contains(i.Name));
+        }
+
+        #endregion
+
+        #region Stash Interaction
+
+        private async Task<Item> WithdrawFromStash(DivineFontOption option)
+        {
+            return await WithdrawFromStash(option.Type, option.GemName);
+        }
+
+        private async Task<Item> WithdrawFromStash(DivineFontOptionType optionType, string specificGemName = null)
+        {
+            // Close Divine Font UI to access stash
+            if (LokiPoe.InGameState.DivineFontUi.IsOpened)
+                await Coroutines.CloseBlockingWindows();
+
+            if (!await OpenStash())
+                return null;
+
+            bool withdrew = false;
+
+            switch (optionType)
             {
-                gem = FindSpecificGemInInventory(option.GemName);
-            }
-            else if (option.Type == DivineFontOptionType.TransformRandomSameColor)
-            {
-                gem = FindGemToEnchant();
+                case DivineFontOptionType.TransformSpecificGem:
+                    withdrew = await StashHelper.WithdrawItem(i =>
+                        (i.Name == specificGemName || i.FullName == specificGemName) &&
+                        i.Class == "Active Skill Gem" &&
+                        !i.IsCorrupted);
+                    break;
+
+                case DivineFontOptionType.ExchangeForExceptional:
+                    withdrew = await StashHelper.WithdrawItem(i =>
+                        i.Class == "Support Skill Gem" &&
+                        !i.IsCorrupted &&
+                        i.SkillGemLevel == 1 &&
+                        i.Quality == 0 &&
+                        !ExceptionalGemNames.Contains(i.Name));
+                    break;
+
+                case DivineFontOptionType.TransformRandomSameColor:
+                    withdrew = await WithdrawRandomGemFromStash();
+                    break;
             }
 
-            if (gem == null)
+            await Coroutines.CloseBlockingWindows();
+
+            if (!withdrew)
             {
-                GlobalLog.Error($"[DivineFontTask] Failed to find gem for option {option.Name} despite check passing.");
+                GlobalLog.Info($"[DivineFontTask] No suitable gem found in stash for {optionType}.");
+                return null;
+            }
+
+            GlobalLog.Info($"[DivineFontTask] Withdrew gem from stash for {optionType}.");
+
+            // Reopen Divine Font
+            if (!await OpenDivineFont())
+            {
+                GlobalLog.Error("[DivineFontTask] Failed to reopen Divine Font after stash trip.");
+                return null;
+            }
+
+            // Find the withdrawn gem in inventory
+            switch (optionType)
+            {
+                case DivineFontOptionType.TransformSpecificGem:
+                    return FindSpecificGemInInventory(specificGemName);
+                case DivineFontOptionType.ExchangeForExceptional:
+                    return FindSupportGemInInventory();
+                case DivineFontOptionType.TransformRandomSameColor:
+                    return FindGemToEnchant();
+                default:
+                    return null;
+            }
+        }
+
+        private async Task<bool> WithdrawRandomGemFromStash()
+        {
+            var desiredColor = FollowBotSettings.Instance.Lab.Color;
+
+            if (desiredColor == LabSettings.GemColor.Smart)
+            {
+                var colorPriority = GetColorPriorityList();
+                foreach (var color in colorPriority)
+                {
+                    GlobalLog.Info($"[DivineFontTask] Smart Stash: Checking for {color} gems...");
+                    if (await TryWithdrawGemByColor(color))
+                    {
+                        GlobalLog.Info($"[DivineFontTask] Withdrew {color} gem (Smart Choice).");
+                        return true;
+                    }
+                }
                 return false;
             }
 
-            return await ExecuteTransformation(gem, option.Type);
+            return await TryWithdrawGemByColor(desiredColor);
         }
 
-        private async Task<bool> ExecuteTransformation(Item gem, DivineFontOptionType optionType)
+        private async Task<bool> OpenStash()
         {
-            GlobalLog.Info($"[DivineFontTask] Starting Divine Font sequence with gem: {gem.Name}");
-
-            if (!LokiPoe.InGameState.DivineFontUi.IsOpened)
-            {
-                GlobalLog.Error("[DivineFontTask] Divine Font UI closed unexpectedly");
-                return false;
-            }
-
-            // Place gem
-            GlobalLog.Info($"[DivineFontTask] Placing gem: {gem.Name}");
-            bool placed = await PlaceGemInSlot(gem);
-            if (!placed) return false;
-
-            await Wait.Sleep(300);
-
-            // Select Transform option
-            GlobalLog.Info("[DivineFontTask] Selecting Transform option");
-            bool optionSelected = await SelectTransformOption(optionType);
-            if (!optionSelected) return false;
-
-            await Wait.Sleep(300);
-
-            // Click craft button
-            GlobalLog.Info("[DivineFontTask] Clicking craft button");
-            bool crafted = await ClickCraftButton();
-            if (!crafted) return false;
-
-            await Wait.Sleep(2000);
-
-            // Get gem choices
-            string gem1 = GetGemNameFromTooltip(0);
-            string gem2 = GetGemNameFromTooltip(1);
-            string gem3 = GetGemNameFromTooltip(2);
-
-            GlobalLog.Info($"[DivineFontTask] Gem choices: '{gem1}', '{gem2}', '{gem3}'");
-
-            // Choose best gem
-            bool gemSelected = await ChooseMostValuableGem(new[] { gem1, gem2, gem3 });
-            if (!gemSelected) return false;
-
-            await Wait.Sleep(300);
-
-            // Confirm
-            GlobalLog.Info("[DivineFontTask] Clicking confirm button");
-            bool confirmed = await ClickConfirmButton();
-            if (!confirmed) return false;
-
-            await Wait.Sleep(1000);
-
-            // Remove gem
-            if (IsGemInSlot())
-            {
-                string gemName = GetGemNameFromInputSlot();
-                GlobalLog.Info($"[DivineFontTask] Removing gem '{gemName}' from input slot");
-                bool removed = await RemoveGemFromSlot();
-                if (!removed) return false;
-                GlobalLog.Info("[DivineFontTask] Task complete - gem successfully transformed!");
-                _hasExecuted = true;
-                return true;
-            }
-
-            _hasExecuted = true;
-            return true;
-        }
-
-        private class GemRequirement
-        {
-            public DivineFontOptionType OptionType;
-            public string SpecificGemName; // For specific option
-            public LabSettings.GemColor ColorPreference; // For random option
-        }
-
-        private List<GemRequirement> DetermineGemRequirements(List<DivineFontOptionType> availableOptions)
-        {
-            var requirements = new List<GemRequirement>();
-            var userOptions = FollowBotSettings.Instance.Lab.DivineFontOptions
-                .Where(o => o.IsEnabled)
-                .OrderBy(o => o.Priority);
-
-            foreach (var option in userOptions)
-            {
-                // Only consider options actually offered by the Font
-                if (!availableOptions.Contains(option.Type)) continue;
-                if (_failedOptions.Contains(option.Type)) continue;
-
-                if (option.Type == DivineFontOptionType.TransformSpecificGem)
-                {
-                    requirements.Add(new GemRequirement
-                    {
-                        OptionType = option.Type,
-                        SpecificGemName = option.GemName
-                    });
-                }
-                else if (option.Type == DivineFontOptionType.TransformRandomSameColor)
-                {
-                    requirements.Add(new GemRequirement
-                    {
-                        OptionType = option.Type,
-                        ColorPreference = FollowBotSettings.Instance.Lab.Color
-                    });
-                }
-            }
-            return requirements;
-        }
-
-        private async Task<bool> PerformSmartStashRetrieval(List<GemRequirement> requirements)
-        {
-            // Find the stash
             var stash = LokiPoe.ObjectManager.Stash;
             if (stash == null)
             {
-                GlobalLog.Debug("[DivineFontTask] No stash found near Divine Font");
+                GlobalLog.Error("[DivineFontTask] No stash found near Divine Font");
                 return false;
             }
-            // Move to stash if too far away
+
             if (LokiPoe.Me.Position.Distance(stash.Position) > 20)
             {
                 GlobalLog.Info("[DivineFontTask] Moving closer to stash");
                 await Move.AtOnce(stash.Position, "Stash", 15);
             }
 
-            GlobalLog.Info("[DivineFontTask] Opening stash to search for gems");
-
-            // Interact with stash using PlayerAction
             var interactResult = await PlayerAction.Interact(stash);
             if (!interactResult)
             {
@@ -342,15 +569,12 @@ namespace FollowBot.Tasks
                 return false;
             }
 
-            await Wait.Sleep(800); // Wait for stash UI to populate
-
-            if (!LokiPoe.InGameState.StashUi.IsOpened)
+            if (!await Wait.For(() => LokiPoe.InGameState.StashUi.IsOpened, "Stash UI opening", 200, 2000))
             {
                 GlobalLog.Error("[DivineFontTask] Stash UI did not open");
                 return false;
             }
 
-            // Switch to configured tab
             if (!await SwitchToConfiguredStashTab())
             {
                 GlobalLog.Error("[DivineFontTask] Failed to switch to configured stash tab");
@@ -358,82 +582,24 @@ namespace FollowBot.Tasks
                 return false;
             }
 
-            foreach (var req in requirements)
-            {
-                bool success = false;
-
-                if (req.OptionType == DivineFontOptionType.TransformSpecificGem)
-                {
-                    // Withdraw specific gem by name (any level/quality, not corrupted)
-                    success = await StashHelper.WithdrawItem(i =>
-                        (i.Name == req.SpecificGemName || i.FullName == req.SpecificGemName) &&
-                        i.Class == "Active Skill Gem" &&
-                        !i.IsCorrupted
-                    );
-                    if (success)
-                    {
-                        GlobalLog.Info($"[DivineFont] Withdrew specific gem '{req.SpecificGemName}'.");
-                        break; // Done!
-                    }
-                    else
-                    {
-                        GlobalLog.Info($"[DivineFont] Specific gem '{req.SpecificGemName}' missing. Trying next option...");
-                        _failedOptions.Add(req.OptionType);
-                    }
-                }
-                else if (req.OptionType == DivineFontOptionType.TransformRandomSameColor)
-                {
-                    if (req.ColorPreference == LabSettings.GemColor.Smart)
-                    {
-                        var colorPriority = GetColorPriorityList();
-                        foreach (var color in colorPriority)
-                        {
-                            GlobalLog.Info($"[DivineFont] Smart Stash: Checking for {color} gems...");
-                            if (await TryWithdrawGemByColor(color))
-                            {
-                                success = true;
-                                GlobalLog.Info($"[DivineFont] Withdrew {color} gem (Smart Choice).");
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        GlobalLog.Info($"[DivineFont] Checking stash for {req.ColorPreference} gems...");
-                        if (await TryWithdrawGemByColor(req.ColorPreference))
-                        {
-                            success = true;
-                            GlobalLog.Info($"[DivineFont] Withdrew {req.ColorPreference} gem.");
-                        }
-                    }
-
-                    if (success) break; // Done!
-                    else _failedOptions.Add(req.OptionType);
-                }
-            }
-
-            await Coroutines.CloseBlockingWindows();
             return true;
         }
+
+        #endregion
 
         private List<DivineFontOptionType> ReadAvailableOptionsFromUi()
         {
             var available = new List<DivineFontOptionType>();
-            var optionsContainer = ClassExtensions.GetElementByPath(68, 0, 2, 2);
+            var craftOptions = DivineFontUi.CraftOptions;
 
-            if (optionsContainer == null || optionsContainer.Children == null)
+            if (craftOptions == null)
                 return available;
 
-            foreach (var option in optionsContainer.Children)
+            foreach (var option in craftOptions)
             {
-                if (option.Children != null && option.Children.Count > 1)
-                {
-                    var textElement = option.Children[1];
-                    string text = textElement.Text;
-                    var type = IdentifyOptionType(text);
-                    if (type.HasValue)
-                        available.Add(type.Value);
-                }
+                var type = IdentifyOptionType(option.CraftOptionText);
+                if (type.HasValue)
+                    available.Add(type.Value);
             }
             return available;
         }
@@ -447,6 +613,10 @@ namespace FollowBot.Tasks
             // "Transform a Skill Gem to be a random Transfigured Gem of the same colour"
             if (text.Contains("random") && text.Contains("Transfigured") && text.Contains("same colour"))
                 return DivineFontOptionType.TransformRandomSameColor;
+
+            // "Exchange a Support Gem for a random Exceptional Gem" (or Empower/Enlighten/Enhance variant)
+            if (text.IndexOf("support", StringComparison.OrdinalIgnoreCase) >= 0)
+                return DivineFontOptionType.ExchangeForExceptional;
 
             return null;
         }
@@ -490,9 +660,9 @@ namespace FollowBot.Tasks
             return await ClickGemChoice(bestGemIndex);
         }
 
-        private async Task UpdateGemPricesIfNeeded()
+        private static async Task UpdateGemPricesIfNeeded(bool requireSafeArea = true, bool useBotCoroutine = true)
         {
-            if (!World.CurrentArea.IsLabyrinthArea && !World.CurrentArea.IsHideoutArea && !World.CurrentArea.IsTown)
+            if (requireSafeArea && !World.CurrentArea.IsLabyrinthArea && !World.CurrentArea.IsHideoutArea && !World.CurrentArea.IsTown)
             {
                 //Log.Info($"[DivineFontTask] Not in a valid area to update prices. IsLabyrinth: {World.CurrentArea.IsLabyrinthArea}, IsHideout: {World.CurrentArea.IsHideoutArea}, IsTown: {World.CurrentArea.IsTown}");
                 return;
@@ -518,8 +688,11 @@ namespace FollowBot.Tasks
                 using (var client = new WebClient())
                 {
                     client.Encoding = System.Text.Encoding.UTF8;
-                    string url = "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Mirage&type=SkillGem";
-                    string json = await Coroutine.ExternalTask(client.DownloadStringTaskAsync(new Uri(url)));
+                    string url = "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Allflame&type=SkillGem";
+                    var downloadTask = client.DownloadStringTaskAsync(new Uri(url));
+                    string json = useBotCoroutine
+                        ? await Coroutine.ExternalTask(downloadTask)
+                        : await downloadTask;
                     var response = JsonConvert.DeserializeObject<PoeNinjaResponse>(json);
 
                     _gemPrices.Clear();
@@ -554,6 +727,12 @@ namespace FollowBot.Tasks
             }
         }
 
+        public static async Task<string> RefreshPricesAndCalculateSmartGemChoice()
+        {
+            await UpdateGemPricesIfNeeded(requireSafeArea: false, useBotCoroutine: false);
+            return CalculateSmartGemChoice();
+        }
+
         private NetworkObject FindDivineFont()
         {
             return LokiPoe.ObjectManager.Objects
@@ -580,29 +759,21 @@ namespace FollowBot.Tasks
 
         private async Task<bool> SelectTransformOption(DivineFontOptionType targetType)
         {
-            var optionsContainer = ClassExtensions.GetElementByPath(68, 0, 2, 2);
-            if (optionsContainer == null || optionsContainer.Children == null)
+            var craftOptions = DivineFontUi.CraftOptions;
+            if (craftOptions == null)
             {
-                GlobalLog.Error("[DivineFontTask] Options container not found");
+                GlobalLog.Error("[DivineFontTask] Craft options not found");
                 return false;
             }
 
-            foreach (var option in optionsContainer.Children)
+            foreach (var option in craftOptions)
             {
-                if (option.Children != null && option.Children.Count > 1)
+                var type = IdentifyOptionType(option.CraftOptionText);
+                if (type == targetType)
                 {
-                    var textElement = option.Children[1];
-                    string text = textElement.Text;
-                    var type = IdentifyOptionType(text);
-
-                    if (type == targetType)
-                    {
-                        // The clickable part is usually the first child (radio button/checkbox area)
-                        var clickable = option.Children[0];
-                        await ClickElement(clickable);
-                        await Coroutines.LatencyWait();
-                        return true;
-                    }
+                    option.Select();
+                    await Coroutines.LatencyWait();
+                    return true;
                 }
             }
 
@@ -628,16 +799,7 @@ namespace FollowBot.Tasks
 
         private async Task<bool> ClickCraftButton()
         {
-            // Path: root.Children[1].Children[68].Children[0].Children[3].Children[0]
-            var craftButton = ClassExtensions.GetElementByPath(68, 0, 3, 0);
-
-            if (craftButton == null || !craftButton.IsVisible)
-            {
-                GlobalLog.Error("[DivineFontTask] Craft button not found");
-                return false;
-            }
-
-            await ClickElement(craftButton);
+            DivineFontUi.Craft();
 
             // Wait for gem choices to appear
             await Wait.Sleep(500);
@@ -775,139 +937,46 @@ namespace FollowBot.Tasks
             return false;
         }
 
-        private Element GetGemInputSlot()
-        {
-            // Based on findgeminput.cs dump:
-            // Gem container is at [68][0][3][3]
-            // Within that container, child[1] has the tooltip (the gem)
-            var container = ClassExtensions.GetElementByPath(68, 0, 3, 3);
-
-            if (container == null)
-            {
-                GlobalLog.Warn("[DivineFontTask] GetGemInputSlot: Container not found");
-                return null;
-            }
-
-            if (container.Children == null || container.Children.Count < 2)
-            {
-                return null;
-            }
-
-            // The gem is at child[1] of the container
-            return container.Children[1];
-        }
-
         private bool IsGemInSlot()
         {
-            // If there's a gem in the slot, the container at [68][0][3][3] will have 2 children
-            // If empty, it only has 1 child ([0])
-            var container = ClassExtensions.GetElementByPath(68, 0, 3, 3);
-
-            if (container == null)
-            {
-                GlobalLog.Warn("[DivineFontTask] IsGemInSlot: Container not found");
-                return false;
-            }
-
-            int childCount = container.Children?.Count ?? 0;
-            bool hasGem = childCount >= 2;
-
-            GlobalLog.Info($"[DivineFontTask] IsGemInSlot: {hasGem} (container has {childCount} children)");
+            var items = DivineFontUi.InventoryControl?.Inventory?.Items;
+            bool hasGem = items != null && items.Any();
+            GlobalLog.Info($"[DivineFontTask] IsGemInSlot: {hasGem}");
             return hasGem;
         }
 
         private string GetGemNameFromInputSlot()
         {
-            try
+            var item = DivineFontUi.InventoryControl?.Inventory?.Items?.FirstOrDefault();
+            if (item == null)
             {
-                var gemSlot = GetGemInputSlot();
-                if (gemSlot == null || gemSlot.Tooltip == null)
-                {
-                    GlobalLog.Warn("[DivineFontTask] GetGemNameFromInputSlot: No gem in slot");
-                    return null;
-                }
-
-                // Navigate tooltip structure: Tooltip -> [0] -> [0] -> [0] -> Text
-                var tooltip = gemSlot.Tooltip;
-
-                if (tooltip.Children == null || tooltip.Children.Count == 0)
-                {
-                    GlobalLog.Error("[DivineFontTask] GetGemNameFromInputSlot: Tooltip has no children");
-                    return null;
-                }
-
-                var tooltipChild1 = tooltip.Children[0];
-                if (tooltipChild1 == null || tooltipChild1.Children == null || tooltipChild1.Children.Count == 0)
-                {
-                    GlobalLog.Error("[DivineFontTask] GetGemNameFromInputSlot: Tooltip[0] has no children");
-                    return null;
-                }
-
-                var tooltipChild2 = tooltipChild1.Children[0];
-                if (tooltipChild2 == null || tooltipChild2.Children == null || tooltipChild2.Children.Count == 0)
-                {
-                    GlobalLog.Error("[DivineFontTask] GetGemNameFromInputSlot: Tooltip[0][0] has no children");
-                    return null;
-                }
-
-                var textElement = tooltipChild2.Children[0];
-                string gemName = textElement?.Text;
-
-                //Log.Info($"[DivineFontTask] GetGemNameFromInputSlot: Found gem '{gemName}'");
-                return gemName;
-            }
-            catch (Exception ex)
-            {
-                GlobalLog.Error($"[DivineFontTask] Exception reading gem name from input slot: {ex.Message}");
+                GlobalLog.Warn("[DivineFontTask] GetGemNameFromInputSlot: No gem in slot");
                 return null;
             }
+            return item.Name;
         }
 
         private async Task<bool> RemoveGemFromSlot()
         {
-            try
+            var inv = DivineFontUi.InventoryControl;
+            var item = inv?.Inventory?.Items?.FirstOrDefault();
+
+            if (item == null)
             {
-
-                var gemSlot = GetGemInputSlot();
-                if (gemSlot == null)
-                {
-                    GlobalLog.Error("[DivineFontTask] Gem input slot not found");
-                    return false;
-                }
-
-                if (!IsGemInSlot())
-                {
-                    GlobalLog.Info("[DivineFontTask] No gem in slot to remove");
-                    return true;
-                }
-
-                GlobalLog.Info("[DivineFontTask] Hovering over gem slot to remove gem");
-
-                // Hover over the gem slot
-                var slotPos = gemSlot.CenterClickLocation();
-                MouseManager.SetMousePosition(slotPos, useRandomPos: false);
-                Thread.Sleep(LokiPoe.Random.Next(25, 55));
-
-                GlobalLog.Info("[DivineFontTask] Performing Ctrl + Left Click to remove gem");
-
-                // Ctrl + Left Click to remove the gem
-                LokiPoe.ProcessHookManager.SetKeyState(Keys.ControlKey, -32768);
-                Thread.Sleep(LokiPoe.Random.Next(25, 55));
-                MouseManager.ClickLMB();
-                Thread.Sleep(LokiPoe.Random.Next(90, 150));
-                LokiPoe.ProcessHookManager.SetKeyState(Keys.ControlKey, 0);
-
-
-                await Coroutines.LatencyWait();
-
-                GlobalLog.Info("[DivineFontTask] Gem removed from slot");
+                GlobalLog.Info("[DivineFontTask] No gem in slot to remove");
                 return true;
             }
-            catch (Exception ex)
+
+            var result = inv.FastMove(item.LocalId, true, false);
+            if (result != FastMoveResult.None)
             {
-                GlobalLog.Error($"[DivineFontTask] Exception removing gem from slot: {ex.Message}");
+                GlobalLog.Error($"[DivineFontTask] Failed to remove gem from slot: {result}");
                 return false;
             }
+
+            await Coroutines.LatencyWait();
+            GlobalLog.Info("[DivineFontTask] Gem removed from slot");
+            return true;
         }
 
         private Item FindGemToEnchant()
@@ -994,124 +1063,38 @@ namespace FollowBot.Tasks
                     if (!colorMatch) continue;
                 }
 
-                // Check if it's a standard gem (Superior quality)
+                // Standard gems (Superior quality) are always safe to use
                 if (item.SkillGemQualityType == DreamPoeBot.Loki.Game.GameData.GemQualityType.Superior)
                 {
-                    // This is a standard gem - safe to use
                     GlobalLog.Info($"[DivineFontTask] Found standard gem '{item.Name}' for transformation.");
                     return item;
                 }
-                else
+
+                // Transfigured gem - check price by exact name
+                if (_gemPrices.TryGetValue(item.Name, out double price))
                 {
-                    // This is a special quality gem (Anomalous, Divergent, Phantasmal)
-                    // Check if any of its potential transfigured versions are high value
-                    var potentialMatches = _gemPrices
-                        .Where(kvp => kvp.Key.Contains(item.Name))
-                        .ToList();
-
-                    if (potentialMatches.Any())
+                    if (price <= FollowBotSettings.Instance.Lab.GemValueSafetyThreshold)
                     {
-                        double maxPotentialValue = potentialMatches.Max(kvp => kvp.Value);
-
-                        if (maxPotentialValue <= FollowBotSettings.Instance.Lab.GemValueSafetyThreshold)
-                        {
-                            // All potential versions are low value - safe to reuse
-                            GlobalLog.Info($"[DivineFontTask] Found low-value special gem '{item.Name}' (max potential: {maxPotentialValue}c).");
-                            return item;
-                        }
-                        else
-                        {
-                            // Could be valuable - skip it
-                            GlobalLog.Info($"[DivineFontTask] Skipping '{item.Name}' - could be worth {maxPotentialValue}c.");
-                        }
+                        GlobalLog.Info($"[DivineFontTask] Found low-value transfigured gem '{item.Name}' ({price:F2}c).");
+                        return item;
                     }
                     else
                     {
-                        // Unknown special gem - be conservative and skip it
-                        GlobalLog.Debug($"[DivineFontTask] Skipping unknown special gem '{item.Name}'.");
+                        GlobalLog.Info($"[DivineFontTask] Skipping '{item.Name}' - worth {price:F2}c.");
                     }
+                }
+                else
+                {
+                    // Non-Superior but not in price list — name field may be broken or gem is new/unknown. Skip to be safe.
+                    GlobalLog.Warn($"[DivineFontTask] Skipping transfigured gem '{item.Name}' - not found in price list (name bug or new gem).");
                 }
             }
 
             return null;
         }
 
-        private async Task<bool> TryGetGemFromStash()
-        {
-            // Find the stash
-            var stash = LokiPoe.ObjectManager.Stash;
-            if (stash == null)
-            {
-                GlobalLog.Debug("[DivineFontTask] No stash found near Divine Font");
-                return false;
-            }
-            // Move to stash if too far away
-            if (LokiPoe.Me.Position.Distance(stash.Position) > 20)
-            {
-                GlobalLog.Info("[DivineFontTask] Moving closer to stash");
-                await Move.AtOnce(stash.Position, "Stash", 15);
-            }
 
-            GlobalLog.Info("[DivineFontTask] Opening stash to search for gems");
 
-            // Interact with stash using PlayerAction
-            var interactResult = await PlayerAction.Interact(stash);
-            if (!interactResult)
-            {
-                GlobalLog.Error("[DivineFontTask] Failed to interact with stash");
-                return false;
-            }
-
-            await Wait.Sleep(800); // Wait for stash UI to populate
-
-            if (!LokiPoe.InGameState.StashUi.IsOpened)
-            {
-                GlobalLog.Error("[DivineFontTask] Stash UI did not open");
-                return false;
-            }
-
-            bool gemWithdrawn = false;
-            var desiredColor = FollowBotSettings.Instance.Lab.Color;
-
-            // Switch to configured tab
-            if (!await SwitchToConfiguredStashTab())
-            {
-                GlobalLog.Error("[DivineFontTask] Failed to switch to configured stash tab");
-                await Coroutines.CloseBlockingWindows();
-                return false;
-            }
-
-            if (desiredColor == LabSettings.GemColor.Smart)
-            {
-                // Smart mode: try colors in priority order
-                var colorPriority = GetColorPriorityList();
-                foreach (var color in colorPriority)
-                {
-                    GlobalLog.Info($"[DivineFontTask] Checking stash for {color} gems");
-                    if (await TryWithdrawGemByColor(color))
-                    {
-                        gemWithdrawn = true;
-                        GlobalLog.Info($"[DivineFontTask] Successfully withdrew {color} gem from stash");
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                // Specific color or Any mode
-                if (await TryWithdrawGemByColor(desiredColor))
-                {
-                    gemWithdrawn = true;
-                    GlobalLog.Info($"[DivineFontTask] Successfully withdrew gem from stash");
-                }
-            }
-
-            // Close stash
-            await Coroutines.CloseBlockingWindows();
-            await Wait.Sleep(200);
-
-            return gemWithdrawn;
-        }
 
         private async Task<bool> TryWithdrawGemByColor(LabSettings.GemColor color)
         {
@@ -1119,6 +1102,7 @@ namespace FollowBot.Tasks
 
             // Use predicate-based StashHelper to find and withdraw gem
             return await StashHelper.WithdrawItem(i =>
+                i.Class == "Active Skill Gem" &&
                 i.SkillGemLevel == 1 &&
                 i.Quality == 0 &&
                 (socketColor == DreamPoeBot.Loki.Game.GameData.SocketColor.None || i.SocketColor == socketColor) &&
@@ -1165,25 +1149,50 @@ namespace FollowBot.Tasks
                     blueGems.Add(gemName);
             }
 
-            // Calculate average prices
+            // Calculate average and max prices per color
             var redAvg = redGems.Count > 0 ? redGems.Average(g => _gemPrices[g]) : 0;
             var greenAvg = greenGems.Count > 0 ? greenGems.Average(g => _gemPrices[g]) : 0;
             var blueAvg = blueGems.Count > 0 ? blueGems.Average(g => _gemPrices[g]) : 0;
 
-            // Create priority list sorted by average price (highest to lowest)
-            var colorValues = new List<(LabSettings.GemColor color, double avg)>
+            var redMax = redGems.Count > 0 ? redGems.Max(g => _gemPrices[g]) : 0;
+            var greenMax = greenGems.Count > 0 ? greenGems.Max(g => _gemPrices[g]) : 0;
+            var blueMax = blueGems.Count > 0 ? blueGems.Max(g => _gemPrices[g]) : 0;
+
+            // Sort by average price first
+            var colorValues = new List<(LabSettings.GemColor color, double avg, double max)>
             {
-                (LabSettings.GemColor.Red, redAvg),
-                (LabSettings.GemColor.Green, greenAvg),
-                (LabSettings.GemColor.Blue, blueAvg)
+                (LabSettings.GemColor.Red, redAvg, redMax),
+                (LabSettings.GemColor.Green, greenAvg, greenMax),
+                (LabSettings.GemColor.Blue, blueAvg, blueMax)
             };
 
-            var sortedColors = colorValues
-                .OrderByDescending(cv => cv.avg)
-                .Select(cv => cv.color)
-                .ToList();
+            var sorted = colorValues.OrderByDescending(cv => cv.avg).ToList();
 
-            GlobalLog.Info($"[DivineFontTask] Color priority (by avg price): {string.Join(", ", sortedColors.Select(c => $"{c}({colorValues.First(cv => cv.color == c).avg:F2}c)"))}");
+            // Jackpot tiebreaker: among all colors within 10c average of the top,
+            // prefer the one with the highest max gem IF that max is >= 100c
+            const double averageThreshold = 10.0;
+            const double jackpotFloor = 100.0;
+
+            var topAvg = sorted[0].avg;
+            var contenders = sorted.Where(cv => topAvg - cv.avg <= averageThreshold).ToList();
+
+            if (contenders.Count >= 2)
+            {
+                var bestJackpot = contenders.OrderByDescending(cv => cv.max).First();
+
+                if (bestJackpot.max >= jackpotFloor && bestJackpot.color != sorted[0].color)
+                {
+                    var oldFirst = sorted[0];
+                    int jackpotIdx = sorted.FindIndex(cv => cv.color == bestJackpot.color);
+                    GlobalLog.Info($"[DivineFontTask] Jackpot tiebreaker: {bestJackpot.color} (max {bestJackpot.max:F0}c) beats {oldFirst.color} (max {oldFirst.max:F0}c) — averages within {topAvg - bestJackpot.avg:F2}c");
+                    sorted.RemoveAt(jackpotIdx);
+                    sorted.Insert(0, bestJackpot);
+                }
+            }
+
+            var sortedColors = sorted.Select(cv => cv.color).ToList();
+
+            GlobalLog.Info($"[DivineFontTask] Color priority (by avg price): {string.Join(", ", sorted.Select(cv => $"{cv.color}(avg:{cv.avg:F2}c, max:{cv.max:F0}c)"))}");
 
             return sortedColors;
         }
@@ -1219,38 +1228,63 @@ namespace FollowBot.Tasks
                 GlobalLog.Warn("[DivineFontTask] The following gems were not categorized: " + string.Join(", ", uncategorizedGems));
             }
 
-            // Calculate average prices
+            // Calculate average and max prices per color
             var redAvg = redGems.Count > 0 ? redGems.Average(g => _gemPrices[g]) : 0;
             var greenAvg = greenGems.Count > 0 ? greenGems.Average(g => _gemPrices[g]) : 0;
             var blueAvg = blueGems.Count > 0 ? blueGems.Average(g => _gemPrices[g]) : 0;
 
+            var redMax = redGems.Count > 0 ? redGems.Max(g => _gemPrices[g]) : 0;
+            var greenMax = greenGems.Count > 0 ? greenGems.Max(g => _gemPrices[g]) : 0;
+            var blueMax = blueGems.Count > 0 ? blueGems.Max(g => _gemPrices[g]) : 0;
+
             var result = $"Smart Gem Choice Analysis:\n";
             result += $"================================\n";
-            result += $"Red Gems: {redGems.Count} gems, Average: {redAvg:F2}c\n";
-            result += $"Green Gems: {greenGems.Count} gems, Average: {greenAvg:F2}c\n";
-            result += $"Blue Gems: {blueGems.Count} gems, Average: {blueAvg:F2}c\n";
+            result += $"Red Gems: {redGems.Count} gems, Average: {redAvg:F2}c, Max: {redMax:F2}c\n";
+            result += $"Green Gems: {greenGems.Count} gems, Average: {greenAvg:F2}c, Max: {greenMax:F2}c\n";
+            result += $"Blue Gems: {blueGems.Count} gems, Average: {blueAvg:F2}c, Max: {blueMax:F2}c\n";
             result += $"================================\n";
 
-            // Determine best choice
-            string bestColor = "Red";
-            double bestAvg = redAvg;
-
-            if (greenAvg > bestAvg)
+            // Sort by average first
+            var colorValues = new[]
             {
-                bestColor = "Green";
-                bestAvg = greenAvg;
-            }
-            if (blueAvg > bestAvg)
+                (name: "Red", avg: redAvg, max: redMax, gems: redGems),
+                (name: "Green", avg: greenAvg, max: greenMax, gems: greenGems),
+                (name: "Blue", avg: blueAvg, max: blueMax, gems: blueGems)
+            };
+
+            var sorted = colorValues.OrderByDescending(cv => cv.avg).ToList();
+
+            // Jackpot tiebreaker: among all colors within 10c average of the top,
+            // prefer the one with the highest max gem IF that max is >= 100c
+            const double averageThreshold = 10.0;
+            const double jackpotFloor = 100.0;
+            var tiebreakApplied = false;
+
+            var topAvg = sorted[0].avg;
+            var contenders = sorted.Where(cv => topAvg - cv.avg <= averageThreshold).ToList();
+
+            if (contenders.Count >= 2)
             {
-                bestColor = "Blue";
-                bestAvg = blueAvg;
+                var bestJackpot = contenders.OrderByDescending(cv => cv.max).First();
+
+                if (bestJackpot.max >= jackpotFloor && bestJackpot.name != sorted[0].name)
+                {
+                    var oldFirst = sorted[0];
+                    int jackpotIdx = sorted.FindIndex(cv => cv.name == bestJackpot.name);
+                    sorted.RemoveAt(jackpotIdx);
+                    sorted.Insert(0, bestJackpot);
+                    tiebreakApplied = true;
+                }
             }
 
-            result += $"Best Choice: {bestColor} (Average: {bestAvg:F2}c)\n";
-            result += $"\nTop 5 {bestColor} gems by value:\n";
+            if (tiebreakApplied)
+                result += $"Best Choice: {sorted[0].name} (Jackpot tiebreaker: max {sorted[0].max:F0}c beats {sorted[1].name} max {sorted[1].max:F0}c — averages within {topAvg - sorted[0].avg:F2}c)\n";
+            else
+                result += $"Best Choice: {sorted[0].name} (Average: {sorted[0].avg:F2}c)\n";
 
-            var bestColorGems = bestColor == "Red" ? redGems : (bestColor == "Green" ? greenGems : blueGems);
-            var topGems = bestColorGems.OrderByDescending(g => _gemPrices[g]).Take(5).ToList();
+            result += $"\nTop 5 {sorted[0].name} gems by value:\n";
+
+            var topGems = sorted[0].gems.OrderByDescending(g => _gemPrices[g]).Take(5).ToList();
 
             foreach (var gem in topGems)
             {
@@ -1265,12 +1299,12 @@ namespace FollowBot.Tasks
             var redGems = new[] {
                 "Absolution of Inspiring", "Animate Guardian of Smiting", "Bladestorm of Uncertainty",
                 "Boneshatter of Carnage", "Boneshatter of Complex Trauma", "Cleave of Rage",
-                "Consecrated Path of Endurance", "Dominating Blow of Inspiring", "Earthquake of Amplification",
+                "Consecrated Path of Endurance", "Divine Blast of Radiance", "Dominating Blow of Inspiring", "Earthquake of Amplification",
                 "Earthshatter of Fragility", "Earthshatter of Prominence", "Exsanguinate of Transmission",
                 "Frozen Legion of Rallying", "Glacial Hammer of Shattering", "Ground Slam of Earthshaking",
-                "Holy Flame Totem of Ire", "Ice Crash of Cadence", "Infernal Blow of Immolation",
+                "Holy Flame Totem of Ire", "Holy Hammers of Spirals", "Holy Sweep of Hammerfalls", "Ice Crash of Cadence", "Infernal Blow of Immolation",
                 "Leap Slam of Groundbreaking", "Molten Strike of the Zenith", "Perforate of Bloodshed",
-                "Perforate of Duality", "Rage Vortex of Berserking", "Shield Crush of the Chieftain", "Shockwave Totem of Authority",
+                "Perforate of Duality", "Rage Vortex of Berserking", "Reap of Butchery", "Shield Crush of the Chieftain", "Shockwave Totem of Authority",
                 "Smite of Divine Judgement", "Static Strike of Gathering Lightning", "Summon Flame Golem of Hordes", "Summon Flame Golem of the Meteor",
                 "Summon Stone Golem of Hordes", "Summon Stone Golem of Safeguarding", "Sunder of Earthbreaking",
                 "Tectonic Slam of Cataclysm", "Volcanic Fissure of Snaking"
@@ -1345,51 +1379,6 @@ namespace FollowBot.Tasks
             return blueGems.Any(g => g.Equals(gemName, StringComparison.OrdinalIgnoreCase));
         }
 
-        private static LabSettings.GemColor DetermineSmartGemColor()
-        {
-            if (_gemPrices.Count == 0)
-            {
-                GlobalLog.Warn("[DivineFontTask] No gem price data available for smart choice. Defaulting to Red.");
-                return LabSettings.GemColor.Red;
-            }
-
-            // Categorize gems by color
-            var redGems = new List<string>();
-            var greenGems = new List<string>();
-            var blueGems = new List<string>();
-
-            foreach (var gemName in _gemPrices.Keys)
-            {
-                if (IsRedGem(gemName))
-                    redGems.Add(gemName);
-                else if (IsGreenGem(gemName))
-                    greenGems.Add(gemName);
-                else if (IsBlueGem(gemName))
-                    blueGems.Add(gemName);
-            }
-
-            // Calculate average prices
-            var redAvg = redGems.Count > 0 ? redGems.Average(g => _gemPrices[g]) : 0;
-            var greenAvg = greenGems.Count > 0 ? greenGems.Average(g => _gemPrices[g]) : 0;
-            var blueAvg = blueGems.Count > 0 ? blueGems.Average(g => _gemPrices[g]) : 0;
-
-            GlobalLog.Info($"[DivineFontTask] Smart choice averages - Red: {redAvg:F2}c, Green: {greenAvg:F2}c, Blue: {blueAvg:F2}c");
-
-            // Determine best choice
-            if (redAvg >= greenAvg && redAvg >= blueAvg)
-            {
-                return LabSettings.GemColor.Red;
-            }
-            else if (greenAvg >= redAvg && greenAvg >= blueAvg)
-            {
-                return LabSettings.GemColor.Green;
-            }
-            else
-            {
-                return LabSettings.GemColor.Blue;
-            }
-        }
-
         public Task<LogicResult> Logic(Logic logic)
         {
             return Task.FromResult(LogicResult.Unprovided);
@@ -1400,7 +1389,6 @@ namespace FollowBot.Tasks
             if (message.Id == Events.Messages.AreaChanged)
             {
                 _hasExecuted = false;
-                _failedOptions.Clear();
                 return MessageResult.Processed;
             }
             return MessageResult.Unprocessed;
@@ -1431,48 +1419,6 @@ namespace FollowBot.Tasks
 
             GlobalLog.Info($"[DivineFontTask] Crafts Remaining: {count}");
             return count;
-        }
-
-        private async Task ReadLabOptions()
-        {
-            GlobalLog.Info("[DivineFontTask] Reading Lab options...");
-
-            int remainingCrafts = GetRemainingCrafts();
-            if (remainingCrafts == 0)
-            {
-                GlobalLog.Info("[DivineFontTask] No crafts remaining.");
-                return;
-            }
-
-            var optionsContainer = ClassExtensions.GetElementByPath(68, 0, 2, 2);
-            if (optionsContainer == null)
-            {
-                GlobalLog.Error("[DivineFontTask] Could not find options container.");
-                return;
-            }
-
-            if (optionsContainer.Children == null || optionsContainer.Children.Count == 0)
-            {
-                GlobalLog.Error("[DivineFontTask] Options container has no children.");
-                return;
-            }
-
-            GlobalLog.Info($"[DivineFontTask] Found {optionsContainer.Children.Count} options.");
-
-            for (int i = 0; i < optionsContainer.Children.Count; i++)
-            {
-                var option = optionsContainer.Children[i];
-                if (option.Children != null && option.Children.Count > 1)
-                {
-                    var textElement = option.Children[1];
-                    string text = textElement.Text;
-                    GlobalLog.Info($"[DivineFontTask] Option {i + 1}: {text}");
-                }
-                else
-                {
-                    GlobalLog.Warn($"[DivineFontTask] Could not read text for option {i + 1}.");
-                }
-            }
         }
 
         private async Task<bool> SwitchToConfiguredStashTab()

@@ -1,7 +1,10 @@
 using DreamPoeBot.Loki.Common;
+using DreamPoeBot.Loki.Game;
 using FollowBot.Settings;
 using FollowBot.SimpleEXtensions;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -215,11 +218,12 @@ namespace FollowBot.Views.Tabs
             }
         }
 
-        private void TestSmartLogicButton_Click(object sender, RoutedEventArgs e)
+        private async void TestSmartLogicButton_Click(object sender, RoutedEventArgs e)
         {
+            TestSmartLogicButton.IsEnabled = false;
             try
             {
-                string result = Tasks.DivineFontTask.CalculateSmartGemChoice();
+                string result = await Tasks.DivineFontTask.RefreshPricesAndCalculateSmartGemChoice();
                 GlobalLog.Info($"[DivineFontTask] {result}");
                 MessageBox.Show(result, "Smart Gem Choice Analysis", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -227,6 +231,10 @@ namespace FollowBot.Views.Tabs
             {
                 GlobalLog.Error($"[DivineFontTask] Error calculating smart gem choice: {ex.Message}");
                 MessageBox.Show($"Error calculating smart gem choice:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                TestSmartLogicButton.IsEnabled = true;
             }
         }
 
@@ -276,6 +284,62 @@ namespace FollowBot.Views.Tabs
 
                 // Move in collection
                 options.Move(index, index + 1);
+            }
+        }
+
+        private void BrowseGemNames_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var gemNames = new HashSet<string>();
+
+                var inventoryItems = LokiPoe.InGameState.InventoryUi.InventoryControl_Main?.Inventory?.Items;
+                if (inventoryItems != null)
+                {
+                    foreach (var item in inventoryItems)
+                    {
+                        if (item != null && item.Class == "Active Skill Gem" && !item.IsCorrupted)
+                            gemNames.Add(item.Name);
+                    }
+                }
+
+                if (LokiPoe.InGameState.StashUi.IsOpened)
+                {
+                    var stashItems = LokiPoe.InGameState.StashUi.InventoryControl?.Inventory?.Items;
+                    if (stashItems != null)
+                    {
+                        foreach (var item in stashItems)
+                        {
+                            if (item != null && item.Class == "Active Skill Gem" && !item.IsCorrupted)
+                                gemNames.Add(item.Name);
+                        }
+                    }
+                }
+
+                if (gemNames.Count == 0)
+                {
+                    MessageBox.Show("No skill gems found in inventory or stash.", "Browse Gems", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var button = sender as Button;
+                var option = button?.DataContext as DivineFontOption;
+                if (option == null) return;
+
+                var menu = new ContextMenu();
+                foreach (var name in gemNames.OrderBy(n => n))
+                {
+                    var menuItem = new MenuItem { Header = name };
+                    menuItem.Click += (s, args) => { option.GemName = name; };
+                    menu.Items.Add(menuItem);
+                }
+                menu.PlacementTarget = button;
+                menu.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                GlobalLog.Error($"[BrowseGemNames] Error: {ex.Message}");
+                MessageBox.Show($"Error browsing gems:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

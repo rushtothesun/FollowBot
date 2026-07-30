@@ -319,5 +319,77 @@ namespace FollowBot.SimpleEXtensions
 
             return current;
         }
+
+        private const string MirageButtonTooltip = "Teleports you back to the entrance of this Mirage.";
+
+        public static Element FindElementByLabels(params string[] labels)
+        {
+            var allElements = LokiPoe.GetGuiElements();
+            var root = Enumerable.FirstOrDefault(allElements, e => e.IdLabel == "root");
+            if (root?.Children == null || root.Children.Count < 2)
+                return null;
+
+            Element current = root.Children[1];
+            foreach (var label in labels)
+            {
+                if (current?.Children == null)
+                    return null;
+                current = Enumerable.FirstOrDefault(current.Children, c => c?.IdLabel == label);
+                if (current == null)
+                    return null;
+            }
+            return current;
+        }
+
+        public static Element FindMirageReturnButton()
+        {
+            if (!LeagueFeatureFlags.MirageEnabled)
+                return null;
+
+            var container = FindElementByLabels("HUD", "HUDRight", "skip_button_layout");
+            if (container?.Children == null)
+                return null;
+
+            foreach (var child in container.Children)
+            {
+                if (child == null || !child.IsVisible)
+                    continue;
+
+                try
+                {
+                    var tooltip = child.Tooltip;
+                    if (tooltip?.Text?.Contains(MirageButtonTooltip) == true)
+                        return child;
+
+                    // Some tooltips have text in children
+                    if (tooltip?.Children != null && tooltip.Children.Count > 0)
+                    {
+                        var text = tooltip.Children[0]?.Text;
+                        if (text != null && text.Contains(MirageButtonTooltip))
+                            return child;
+                    }
+                }
+                catch
+                {
+                    // Tooltip access can throw on stale elements
+                }
+            }
+
+            return null;
+        }
+
+        public static bool IsUnderGracePeriod
+        {
+            get
+            {
+                if (!LokiPoe.Me.HasAura("Grace Period"))
+                    return false;
+
+                if (LeagueFeatureFlags.MirageEnabled && FindMirageReturnButton() != null)
+                    return false;
+
+                return true;
+            }
+        }
     }
 }

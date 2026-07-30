@@ -5,6 +5,7 @@ using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Helpers;
+using FollowBot.Settings;
 using FollowBot.SimpleEXtensions;
 using System;
 using System.Collections.Generic;
@@ -88,10 +89,7 @@ namespace FollowBot.Tasks
                     GlobalLog.Info("[StashTask] Entered hideout from map, depositing inventory to stash.");
                     _shouldDepositToStash = false;
 
-                    var stashType = GetConfiguredStashType();
-                    var tabName = FollowBotSettings.Instance.Stash.TargetStashTab;
-
-                    bool success = await DepositInventoryToTab(tabName, stashType);
+                    bool success = await DepositWithConfiguredTab();
                     if (success)
                     {
                         GlobalLog.Info("[StashTask] Auto-deposit completed successfully.");
@@ -119,10 +117,7 @@ namespace FollowBot.Tasks
                     GlobalLog.Info("[StashTask] Chat command received, depositing inventory to stash.");
                     ShouldDepositFromChat = false;
 
-                    var stashType = GetConfiguredStashType();
-                    var tabName = FollowBotSettings.Instance.Stash.TargetStashTab;
-
-                    bool success = await DepositInventoryToTab(tabName, stashType);
+                    bool success = await DepositWithConfiguredTab();
                     if (success)
                     {
                         GlobalLog.Info("[StashTask] Chat command deposit completed successfully.");
@@ -150,10 +145,7 @@ namespace FollowBot.Tasks
                     GlobalLog.Info("[StashTask] Remote command received, depositing currency and fragments to stash.");
                     ShouldDepositCurrencyOnly = false;
 
-                    var stashType = GetConfiguredStashType();
-                    var tabName = FollowBotSettings.Instance.Stash.TargetStashTab;
-
-                    bool success = await DepositInventoryToTab(tabName, stashType, ImportantItemsOnly);
+                    bool success = await DepositWithConfiguredTab(ImportantItemsOnly);
                     if (success)
                     {
                         GlobalLog.Info("[StashTask] Currency deposit completed successfully.");
@@ -241,6 +233,54 @@ namespace FollowBot.Tasks
             if (!tabSwitched)
             {
                 GlobalLog.Error($"[StashTask] Failed to switch to tab '{tabName}' after {MaxRetries} attempts");
+                return false;
+            }
+
+            // Small random delay after tab switch (anti-detection)
+            await Wait.SleepSafe(LokiPoe.Random.Next(100, 200));
+
+            // Step 3: Deposit items with filtering
+            await DepositInventoryItems(stashType, itemFilter);
+
+            GlobalLog.Info("[StashTask] Inventory deposit completed");
+            return true;
+        }
+
+        /// <summary>
+        /// Deposits all tradable items from inventory to the specified stash tab by index.
+        /// </summary>
+        /// <param name="tabIndex">Target stash tab index (0-based)</param>
+        /// <param name="stashType">Type of stash (Regular or Guild)</param>
+        /// <param name="itemFilter">Optional filter for which items to deposit</param>
+        /// <returns>True if operation completed successfully</returns>
+        public async Task<bool> DepositInventoryToTab(int tabIndex, StashHelper.StashType stashType = StashHelper.StashType.Regular, Func<Item, bool> itemFilter = null)
+        {
+            GlobalLog.Info($"[StashTask] Starting inventory deposit to {stashType} stash tab index: {tabIndex}");
+
+            // Step 1: Open stash
+            if (!await OpenStash(stashType))
+                return false;
+
+            // Step 2: Switch to target tab with retry
+            bool tabSwitched = false;
+            for (int attempt = 1; attempt <= MaxRetries; attempt++)
+            {
+                if (await StashHelper.SwitchToTab(tabIndex, stashType))
+                {
+                    tabSwitched = true;
+                    break;
+                }
+
+                if (attempt < MaxRetries)
+                {
+                    GlobalLog.Warn($"[StashTask] SwitchToTab attempt {attempt} failed, retrying in {RetryDelayMs}ms...");
+                    await Wait.SleepSafe(RetryDelayMs);
+                }
+            }
+
+            if (!tabSwitched)
+            {
+                GlobalLog.Error($"[StashTask] Failed to switch to tab index {tabIndex} after {MaxRetries} attempts");
                 return false;
             }
 
@@ -510,11 +550,31 @@ namespace FollowBot.Tasks
         /// <summary>
         /// Gets the configured stash type from settings.
         /// </summary>
-        private StashHelper.StashType GetConfiguredStashType()
+        private static StashHelper.StashType GetConfiguredStashType()
         {
             return FollowBotSettings.Instance.Stash.UseGuildStash
                 ? StashHelper.StashType.Guild
                 : StashHelper.StashType.Regular;
+        }
+
+        /// <summary>
+        /// Deposits inventory using the configured stash type and tab mode (index or name).
+        /// </summary>
+        private async Task<bool> DepositWithConfiguredTab(Func<Item, bool> itemFilter = null)
+        {
+            var stash = FollowBotSettings.Instance.Stash;
+            var stashType = GetConfiguredStashType();
+
+            if (stashType == StashHelper.StashType.Guild)
+            {
+                if (stash.GuildTabMode == LabSettings.StashTabMode.Index)
+                    return await DepositInventoryToTab(stash.GuildStashTabIndex, stashType, itemFilter);
+                return await DepositInventoryToTab(stash.GuildStashTab, stashType, itemFilter);
+            }
+
+            if (stash.RegularTabMode == LabSettings.StashTabMode.Index)
+                return await DepositInventoryToTab(stash.RegularStashTabIndex, stashType, itemFilter);
+            return await DepositInventoryToTab(stash.RegularStashTab, stashType, itemFilter);
         }
 
         #endregion
