@@ -30,7 +30,10 @@ namespace FollowBot.Tasks
         private const int MaxInteractionAttempts = 4;
         private const int InteractionDistance = 40;
         private const int MercenaryOptInAttempts = 2;
-        private const int MercenaryWaitingForDuelTimeoutMs = 2500;
+        private const int MercenaryInteractionDistance = 20;
+        private const int MercenaryWaitingForDuelTimeoutMs = 1500;
+        private const int MercenaryUiCloseTimeoutMs = 1000;
+        private const int MercenaryUiStabilizationMs = 150;
         private const string DeepwaterLanternMetadata = "Metadata/Terrain/Leagues/Deepwater/Objects/Lantern";
         private const int DeepwaterChestSafetyRadius = 105;
         private const int DeepwaterChestSafetyRadiusSqr = DeepwaterChestSafetyRadius * DeepwaterChestSafetyRadius;
@@ -558,19 +561,93 @@ namespace FollowBot.Tasks
                     return true;
                 }
 
-                if (!mercenary.CanOpt_In)
+                if (mercenary.Position.Distance(leader.Position) > settings.MercenaryLeaderDistance ||
+                    mercenary.Distance > settings.MercenaryFollowerDistance)
+                {
+                    GlobalLog.Debug($"[{Name}] Mercenary moved outside the configured opt-in ranges.");
                     return false;
+                }
 
-                mercenary.Opt_In();
+                if (!await CloseMercenaryEncounterUi())
+                {
+                    GlobalLog.Warn($"[{Name}] Unable to close the mercenary encounter window.");
+                    break;
+                }
 
-                if (await Wait.For(
-                        () => IsWaitingForDuelVisible(cachedMercenary.Object as Mercenary),
-                        "mercenary duel state",
-                        100,
-                        MercenaryWaitingForDuelTimeoutMs))
+                KeyManager.ClearAllKeyStates();
+
+                if (mercenary.Distance > MercenaryInteractionDistance)
+                {
+                    GlobalLog.Debug($"[{Name}] Moving closer to mercenary before opt-in. Distance: {(int)mercenary.Distance}.");
+                    await mercenary.WalkablePosition().ComeAtOnce(MercenaryInteractionDistance);
+                }
+
+                await StopMovementForMercenaryOptIn();
+                await Wait.SleepSafe(MercenaryUiStabilizationMs);
+
+                mercenary = cachedMercenary.Object as Mercenary;
+                if (mercenary == null || mercenary.IsFriendly)
                 {
                     cache.Mercenaries.Remove(cachedMercenary);
                     return true;
+                }
+
+                if (IsWaitingForDuelVisible(mercenary))
+                {
+                    cache.Mercenaries.Remove(cachedMercenary);
+                    return true;
+                }
+
+                if (mercenary.Position.Distance(leader.Position) > settings.MercenaryLeaderDistance ||
+                    mercenary.Distance > settings.MercenaryFollowerDistance)
+                {
+                    GlobalLog.Debug($"[{Name}] Mercenary moved outside the configured opt-in ranges before clicking.");
+                    return false;
+                }
+
+                if (!mercenary.CanOpt_In)
+                    return false;
+
+                if (!IsMercenaryOptInVisible(mercenary))
+                {
+                    GlobalLog.Debug($"[{Name}] Mercenary opt-in element is not visible.");
+                    return false;
+                }
+
+                GlobalLog.Debug($"[{Name}] Clicking mercenary opt-in. Attempt: {attempt}/{MercenaryOptInAttempts}.");
+                if (!await ClickMercenaryOptIn(mercenary))
+                {
+                    GlobalLog.Warn($"[{Name}] Mercenary opt-in cursor verification failed.");
+                    if (attempt < MercenaryOptInAttempts)
+                        await Wait.SleepSafe(150, 250);
+                    continue;
+                }
+
+                await Wait.For(
+                    () =>
+                    {
+                        var liveMercenary = cachedMercenary.Object as Mercenary;
+                        return liveMercenary == null ||
+                               liveMercenary.IsFriendly ||
+                               IsWaitingForDuelVisible(liveMercenary) ||
+                               LokiPoe.InGameState.MercenaryEncounterUi.IsOpened;
+                    },
+                    "mercenary opt-in result",
+                    100,
+                    MercenaryWaitingForDuelTimeoutMs);
+
+                mercenary = cachedMercenary.Object as Mercenary;
+                if (mercenary == null || mercenary.IsFriendly || IsWaitingForDuelVisible(mercenary))
+                {
+                    cache.Mercenaries.Remove(cachedMercenary);
+                    return true;
+                }
+
+                if (LokiPoe.InGameState.MercenaryEncounterUi.IsOpened)
+                {
+                    GlobalLog.Warn($"[{Name}] Mercenary encounter window opened instead of opting in. Closing it before retry.");
+                    if (!await CloseMercenaryEncounterUi())
+                        break;
                 }
 
                 if (attempt < MercenaryOptInAttempts)
@@ -580,6 +657,70 @@ namespace FollowBot.Tasks
             _failedMercenaryIds.Add(cachedMercenary.Id);
             GlobalLog.Warn($"[{Name}] Mercenary opt-in did not reach the Waiting for Duel state: {mercenary.MercenaryName}");
             return true;
+        }
+
+        private static async Task<bool> ClickMercenaryOptIn(Mercenary mercenary)
+        {
+            var element = mercenary?.Ui?.Opt_InElement;
+            if (element == null || !element.IsVisible || !element.IsEnable)
+                return false;
+
+            // The two-argument overload uses normalized positions within the
+            // element. 0.5, 0.5 is its deterministic geometric center.
+            var clickPosition = element.CenterClickLocation(0.5, 0.5);
+            MouseManager.SetMousePosition(clickPosition, false);
+            await Wait.SleepSafe(50);
+
+            // Refresh the element after moving the cursor in case the overhead UI shifted.
+            element = mercenary.Ui?.Opt_InElement;
+            if (element == null || !element.IsVisible || !element.IsEnable)
+                return false;
+
+            var rect = element.GetClientRect();
+            var mousePosition = MouseManager.GetMousePosition();
+            if (!ContainsScreenPosition(rect, clickPosition) || !ContainsScreenPosition(rect, mousePosition))
+            {
+                GlobalLog.Warn($"[FollowTask] Mercenary opt-in moved before click. Target: {clickPosition}, cursor: {mousePosition}, bounds: {rect}.");
+                return false;
+            }
+
+            GlobalLog.Debug($"[FollowTask] Mercenary opt-in cursor verified. Target: {clickPosition}, cursor: {mousePosition}, bounds: {rect}.");
+            MouseManager.ClickLMB(clickPosition.X, clickPosition.Y);
+            await StopMovementForMercenaryOptIn();
+            return true;
+        }
+
+        private static bool ContainsScreenPosition(SharpDX.RectangleF rect, Vector2i position)
+        {
+            return position.X >= rect.X &&
+                   position.X <= rect.X + rect.Width &&
+                   position.Y >= rect.Y &&
+                   position.Y <= rect.Y + rect.Height;
+        }
+
+        private static async Task StopMovementForMercenaryOptIn()
+        {
+            PlayerMoverManager.MoveTowards(LokiPoe.MyPosition);
+            await Coroutines.FinishCurrentAction(true);
+            KeyManager.ClearAllKeyStates();
+        }
+
+        private static async Task<bool> CloseMercenaryEncounterUi()
+        {
+            if (!LokiPoe.InGameState.MercenaryEncounterUi.IsOpened)
+                return true;
+
+            await Coroutines.CloseBlockingWindows();
+            return await Wait.For(
+                () => !LokiPoe.InGameState.MercenaryEncounterUi.IsOpened,
+                "mercenary encounter window closing",
+                50,
+                MercenaryUiCloseTimeoutMs);
+        }
+
+        private static bool IsMercenaryOptInVisible(Mercenary mercenary)
+        {
+            return mercenary?.Ui?.Opt_InElement?.IsVisible == true;
         }
 
         private static bool IsWaitingForDuelVisible(Mercenary mercenary)
@@ -850,6 +991,7 @@ namespace FollowBot.Tasks
                 _pathingRecoveryAwaitingValidation = false;
                 _consecutiveInvalidPaths = 0;
                 _failedObjectIds.Clear();
+                _failedMercenaryIds.Clear();
                 _touchedSpawnerIds.Clear();
                 _touchedGoldenLanternIds.Clear();
 
