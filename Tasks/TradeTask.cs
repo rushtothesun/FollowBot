@@ -39,7 +39,8 @@ namespace FollowBot.Tasks
             return area.IsHideoutArea ||
                    area.IsTown ||
                    area.Id == "HeistHub" ||
-                   area.Name == "Monastery of the Keepers";
+                   area.Name == "Monastery of the Keepers" ||
+                   StateHelper.IsDeepwaterEncounter();
         }
 
         public async Task<bool> Run()

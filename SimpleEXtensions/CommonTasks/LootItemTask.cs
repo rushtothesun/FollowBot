@@ -9,6 +9,7 @@ using FollowBot.SimpleEXtensions.CachedObjects;
 using FollowBot.SimpleEXtensions.Global;
 using FollowBot.SimpleEXtensions.Positions;
 using FollowBot.Class;
+using static FollowBot.Helpers.StateHelper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,6 +29,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
         public async Task<bool> Run()
         {
             if (!FollowBotSettings.Instance.Loot.ShouldLoot) return false;
+            if (IsDeepwaterDrowning()) return false;
 
             if (!World.CurrentArea.IsCombatArea)
             {

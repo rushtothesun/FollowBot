@@ -1,6 +1,7 @@
 using DreamPoeBot.BotFramework;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Common;
+using DreamPoeBot.Loki.Controllers;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.SimpleEXtensions;
@@ -10,6 +11,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static FollowBot.Helpers.StateHelper;
 
 namespace FollowBot.Tasks
 {
@@ -43,6 +45,12 @@ namespace FollowBot.Tasks
             {
                 return false;
             }
+
+            if (IsDeepwaterDrowning())
+            {
+                return false;
+            }
+
             // Don't try to do anything when the escape state is active.
             if (LokiPoe.StateManager.IsEscapeStateActive)
             {
@@ -141,11 +149,16 @@ namespace FollowBot.Tasks
                     await Coroutines.LatencyWait();
 
                     // RE-FETCH both lists - state may have changed during waits (combat finished, player leveled, gem gained XP, etc.)
-                    var pendingGemContainer = ClassExtensions.GetElementByPath(4, 1, 0, 1, 0);
-                    var pendingElements = pendingGemContainer?.Children;
+                    var gemHud = GameController.Instance.Game.IngameState.IngameUi.SkillGemHud;
+                    var gemContainer = gemHud.GetChildFromIndices(0, 1, 0);
+                    var pendingElements = gemContainer?.Children?
+                        .Where(e => e?.Children != null && e.Children.Count > 1 && e.Children[1].IsVisible)
+                        .ToList();
                     var pendingGems = LokiPoe.InGameState.SkillGemHud.ListOfPendingSkillGems;
 
-                    // Safety check for both lists
+                    // Only rows with a visible action button correspond to the API gem list.
+                    // Rows that are nearly ready show a progress bar instead and are not included
+                    // in ListOfPendingSkillGems.
                     if (pendingElements == null || pendingGems == null || pendingElements.Count == 0 ||
                         pendingGems.Count == 0 || pendingElements.Count != pendingGems.Count)
                     {
@@ -177,7 +190,7 @@ namespace FollowBot.Tasks
                                 var clickPos = buttonElement.CenterClickLocation();
 
                                 await Wait.SleepSafe(25, 100);
-                                MouseManager.ClickRMB(0, 0);
+                                MouseManager.ClickRMB(clickPos.X, clickPos.Y);
                                 await Wait.SleepSafe(25, 100);
 
                                 if (FollowBotSettings.Instance.Gems.GemDebugStatements)

@@ -2,6 +2,7 @@ using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
 using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
+using static FollowBot.Helpers.StateHelper;
 using System.Threading.Tasks;
 
 namespace FollowBot.Tasks
@@ -20,6 +21,7 @@ namespace FollowBot.Tasks
         public async Task<bool> Run()
         {
             if (!LokiPoe.IsInGame) return false;
+            if (IsDeepwaterDrowning()) return false;
             if (FollowBot.Leader == null) return false;
             if (LokiPoe.Me.IsDead) return false;
             if (LokiPoe.CurrentWorldArea.IsTown) return false;

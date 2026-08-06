@@ -18,6 +18,7 @@ namespace FollowBot.SimpleEXtensions.Global
         private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(15);
         private static readonly Interval ScanInterval = new Interval(200);
         private static readonly Interval ItemScanInterval = new Interval(500);
+        private const string DeepwaterGoldenLanternMetadata = "Metadata/Terrain/Leagues/Deepwater/Objects/DeepwaterGoldenLantern";
 
         private static readonly List<PickupEvalHolder> PickupEvaluators = new List<PickupEvalHolder>();
 
@@ -70,8 +71,10 @@ namespace FollowBot.SimpleEXtensions.Global
         public readonly List<CachedStrongbox> Strongboxes = new List<CachedStrongbox>();
         public readonly List<CachedObject> Shrines = new List<CachedObject>();
         public readonly List<CachedObject> MirageSpawners = new List<CachedObject>();
+        public readonly List<CachedObject> GoldenLanterns = new List<CachedObject>();
         public readonly List<CachedObject> Blockages = new List<CachedObject>();
         public readonly List<CachedObject> Monsters = new List<CachedObject>();
+        public readonly List<CachedObject> Mercenaries = new List<CachedObject>();
         public readonly List<CachedTransition> AreaTransitions = new List<CachedTransition>();
         public readonly ObjectDictionary Storage = new ObjectDictionary();
 
@@ -168,6 +171,21 @@ namespace FollowBot.SimpleEXtensions.Global
             {
                 foreach (var obj in LokiPoe.ObjectManager.Objects)
                 {
+                    var mercenary = obj as Mercenary;
+                    if (mercenary != null)
+                    {
+                        ProcessMercenary(mercenary);
+                        continue;
+                    }
+
+                    if (LeagueFeatureFlags.AllflameEnabled &&
+                        FollowBotSettings.Instance.Follow.ActivateGoldenLanterns &&
+                        obj.Metadata == DeepwaterGoldenLanternMetadata)
+                    {
+                        ProcessGoldenLantern(obj);
+                        continue;
+                    }
+
                     var chest = obj as Chest;
                     if (chest != null)
                     {
@@ -374,6 +392,21 @@ namespace FollowBot.SimpleEXtensions.Global
             _processedObjects.Add(id);
         }
 
+        private void ProcessMercenary(Mercenary mercenary)
+        {
+            if (mercenary.IsFriendly)
+                return;
+
+            var id = mercenary.Id;
+            if (_processedObjects.Contains(id))
+                return;
+
+            var pos = mercenary.WalkablePosition();
+            pos.Initialized = true;
+            Mercenaries.Add(new CachedObject(id, pos));
+            _processedObjects.Add(id);
+        }
+
         private void ProcessChest(Chest c)
         {
             if (c.IsOpened || c.IsLocked || c.OpensOnDamage || !c.IsTargetable)
@@ -458,6 +491,20 @@ namespace FollowBot.SimpleEXtensions.Global
 
             var pos = s.WalkablePosition();
             MirageSpawners.Add(new CachedObject(id, pos));
+            _processedObjects.Add(id);
+        }
+
+        private void ProcessGoldenLantern(NetworkObject lantern)
+        {
+            if (!lantern.IsValid || !lantern.IsTargetable)
+                return;
+
+            var id = lantern.Id;
+            if (_processedObjects.Contains(id))
+                return;
+
+            var pos = lantern.WalkablePosition();
+            GoldenLanterns.Add(new CachedObject(id, pos));
             _processedObjects.Add(id);
         }
 
@@ -758,6 +805,10 @@ namespace FollowBot.SimpleEXtensions.Global
             foreach (var spawner in cache.MirageSpawners)
             {
                 spawner.Unwalkable = false;
+            }
+            foreach (var lantern in cache.GoldenLanterns)
+            {
+                lantern.Unwalkable = false;
             }
             foreach (var blockage in cache.Blockages)
             {

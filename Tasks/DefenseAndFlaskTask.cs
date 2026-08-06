@@ -174,37 +174,7 @@ namespace FollowBot.Tasks
                 }
             }
    
-   /*var myMercenary = DreamPoeBot.Loki.Game.LokiPoe.ObjectManager.Objects
-       .OfType<Mercenary>()
-    .FirstOrDefault();	* /
-   var myMercenary = DreamPoeBot.Loki.Game.LokiPoe.ObjectManager.Objects.OfType<Mercenary>().Where(m => !m.IsFriendly).FirstOrDefault();
-   //myMercenary.Opt_In();
-   
-   //if (myMercenary.CanOpt_In)
-   //	{
-   //	  myMercenary.Opt_In();
-   //	}
-   
-   //if (myMercenary != null && LokiPoe.Me.Position.Distance(myMercenary.Position) < 25)
-   //{
-     //GlobalLog.Warn($"Trying to opt in");
-        //myMercenary.Opt_In();
-   //}
-   //if (myMercenary != null)
-   //{
-   //GlobalLog.Info($"Mercenary distance: {LokiPoe.Me.Position.Distance(myMercenary.Position)}");
-   //}
-   //if (myMercenary == null)
-   //{
-    //GlobalLog.Warn($"Merc Null");
-   //}
-   if (myMercenary != null && myMercenary.CanOpt_In && LokiPoe.Me.Position.Distance(myMercenary.Position) < 25)
-   {
-        GlobalLog.Warn($"Trying to opt in");
-     myMercenary.Opt_In();
-   }
-   */
-            #endregion
+             #endregion
             #region UltimatumTesting
             /*
 			if (ult != null){

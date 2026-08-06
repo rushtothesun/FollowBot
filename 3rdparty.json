@@ -89,6 +89,7 @@
     "Helpers\\NpcHelper.cs",
     "Helpers\\PartyHelper.cs",
     "Helpers\\StashHelper.cs",
+    "Helpers\\StateHelper.cs",
     "Helpers\\TravelHelper.cs",
     "SimpleEXtensions\\AreaInfo.cs",
     "SimpleEXtensions\\BotStructure.cs",

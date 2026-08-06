@@ -107,6 +107,8 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <Grid.ColumnDefinitions>
@@ -209,15 +211,59 @@
                     VerticalAlignment="Center"
                     ToolTip="Max distance to detour for a Mirage spawner."/>
 
-                    <CheckBox
+                <CheckBox
                     Grid.Row="6"
                     Grid.Column="0"
                     Margin="10,0,10,0"
-                    Content="Use Stalker Sentinel"
-                    IsChecked="{Binding Path=Combat.UseStalkerSentinel, Mode=TwoWay}"
+                    Content="Mercenary Opt-In"
+                    IsChecked="{Binding Path=Follow.MercenaryOptIn, Mode=TwoWay}"
                     VerticalAlignment="Center"
-                    ToolTip="Use the Stalker Sentinel if equipped and have charged."/>
-                <CheckBox Grid.Row="7"
+                    ToolTip="Clicks the opt-in button when in the specified ranges"/>
+                <Label Grid.Row="6"
+                       Grid.Column="1"
+                       Content="Leader Distance:"
+                       VerticalAlignment="Center"
+                       ToolTip="Leader must be within this distance for Opt-In"/>
+                <TextBox Grid.Row="6"
+                         Grid.Column="2"
+                         Text="{Binding Path=Follow.MercenaryLeaderDistance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         MinWidth="25"
+                         MaxWidth="50"
+                         VerticalAlignment="Center"
+                         ToolTip="Leader must be within this distance for Opt-In"/>
+                <Label Grid.Row="7"
+                       Grid.Column="1"
+                       Content="Follower Distance:"
+                       VerticalAlignment="Center"
+                       ToolTip="Follower must be within this distance for Opt-In"/>
+                <TextBox Grid.Row="7"
+                         Grid.Column="2"
+                         Text="{Binding Path=Follow.MercenaryFollowerDistance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         MinWidth="25"
+                         MaxWidth="50"
+                         VerticalAlignment="Center"
+                         ToolTip="Follower must be within this distance for Opt-In"/>
+                <CheckBox
+                    Grid.Row="8"
+                    Grid.Column="0"
+                    Margin="10,0,10,0"
+                    Content="Activate Golden Lanterns"
+                    IsChecked="{Binding Path=Follow.ActivateGoldenLanterns, Mode=TwoWay}"
+                    VerticalAlignment="Center"
+                    ToolTip="Walk to nearby golden lanterns for their rarity and quantity buff."/>
+                <Label Grid.Row="8"
+                       Grid.Column="1"
+                       Content="Lantern Distance:"
+                       VerticalAlignment="Center"
+                       ToolTip="Maximum distance for the follower to detour to a golden lantern."/>
+                <TextBox Grid.Row="8"
+                         Grid.Column="2"
+                         Text="{Binding Path=Follow.GoldenLanternDistance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         MinWidth="25"
+                         MaxWidth="50"
+                         VerticalAlignment="Center"
+                         ToolTip="Maximum distance for the follower to detour to a golden lantern."/>
+                <CheckBox Grid.Row="9"
                           Grid.Column="0"
                           Content="Don't Port Out of Map"
                           Margin="10,0,10,0"
@@ -225,28 +271,28 @@
                           VerticalAlignment="Center"
                           ToolTip="If Enabled, the follower will not try to exit a map if the Leader die or leave the area, you will need to use chat command to leave the area."
                         Grid.ColumnSpan="3"/>
-                <CheckBox Grid.Row="8"
+                <CheckBox Grid.Row="10"
                           Grid.Column="0"
                           Content="Follow in Town"
                           Margin="10,0,10,0"
                           IsChecked="{Binding Path=Follow.FollowInTown, Mode=TwoWay}"
                           VerticalAlignment="Center"
                           ToolTip="If Enabled, the follower will follow the leader in town."/>
-               <CheckBox Grid.Row="9"
+                <CheckBox Grid.Row="11"
                          Grid.Column="0"
                          Content="Follow in Hideout"
                          Margin="10,0,10,0"
                          IsChecked="{Binding Path=Follow.FollowInHideout, Mode=TwoWay}"
                          VerticalAlignment="Center"
                          ToolTip="If Enabled, the follower will follow the leader in hideout."/>
-               <CheckBox Grid.Row="10"
+                <CheckBox Grid.Row="12"
                           Grid.Column="0"
                           Content="Follow in Heist Hub"
                           Margin="10,0,10,0"
                           IsChecked="{Binding Path=Follow.FollowInHeistHub, Mode=TwoWay}"
                           VerticalAlignment="Center"
                           ToolTip="If Enabled, the follower will follow the leader in Heist Hub."/>
-                <CheckBox Grid.Row="11"
+                <CheckBox Grid.Row="13"
                           Grid.Column="0"
                           Grid.ColumnSpan="3"
                           Margin="10,5,10,5"

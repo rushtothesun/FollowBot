@@ -6,6 +6,7 @@ using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
+using DreamPoeBot.Loki;
 using FollowBot.Class;
 using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.Global;
@@ -14,6 +15,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using static DreamPoeBot.Loki.Game.LokiPoe;
+using static FollowBot.Helpers.StateHelper;
 
 
 namespace FollowBot.Tasks
@@ -27,15 +29,25 @@ namespace FollowBot.Tasks
         public string Version { get { return "0.0.0.1"; } }
         private const int MaxInteractionAttempts = 4;
         private const int InteractionDistance = 40;
-        private const string DeepwaterEncounterAreaId = "DeepwaterEncounter";
+        private const int MercenaryOptInAttempts = 2;
+        private const int MercenaryWaitingForDuelTimeoutMs = 2500;
         private const string DeepwaterLanternMetadata = "Metadata/Terrain/Leagues/Deepwater/Objects/Lantern";
         private const int DeepwaterChestSafetyRadius = 105;
         private const int DeepwaterChestSafetyRadiusSqr = DeepwaterChestSafetyRadius * DeepwaterChestSafetyRadius;
+        private const int DeepwaterGoldenLanternTouchRadius = 10;
+        private const int InvalidPathsBeforeRecovery = 3;
+        private const int PathingRecoveryCooldownMs = 30000;
         public const int NewInstanceWaitMs = 7000;
         private Vector2i _lastSeenMasterPosition;
         private Stopwatch _leaderzoningSw;
+        private Stopwatch _pathingRecoveryCooldown;
+        private bool _postAreaChangePathCheckPending;
+        private bool _pathingRecoveryAwaitingValidation;
+        private int _consecutiveInvalidPaths;
         private HashSet<int> _failedObjectIds = new HashSet<int>();
+        private HashSet<int> _failedMercenaryIds = new HashSet<int>();
         private HashSet<int> _touchedSpawnerIds = new HashSet<int>();
+        private HashSet<int> _touchedGoldenLanternIds = new HashSet<int>();
         public static bool ShouldCreateNewInstance = false;
         public static bool WaitingForNewInstance = false;
         public static Stopwatch NewInstanceWaitSw = new Stopwatch();
@@ -46,6 +58,14 @@ namespace FollowBot.Tasks
             FollowBot.Leader = null;
             _lastSeenMasterPosition = Vector2i.Zero;
             _leaderzoningSw = new Stopwatch();
+            _pathingRecoveryCooldown = new Stopwatch();
+            _postAreaChangePathCheckPending = true;
+            _pathingRecoveryAwaitingValidation = false;
+            _consecutiveInvalidPaths = 0;
+            _failedObjectIds.Clear();
+            _failedMercenaryIds.Clear();
+            _touchedSpawnerIds.Clear();
+            _touchedGoldenLanternIds.Clear();
             NewInstanceWaitSw = new Stopwatch();
         }
         public void Stop()
@@ -150,8 +170,16 @@ namespace FollowBot.Tasks
 
             var distance = leaderPos.Distance(mypos);
 
+            // Mercenaries are discovered by CombatAreaCache's existing object scan.
+            // Keep the interaction state live because CanOpt_In and the duel UI can change.
+            if (await TryOptInToNearbyMercenary(leader))
+                return true;
+
             if (ExilePather.PathExistsBetween(mypos, ExilePather.FastWalkablePositionFor(leaderPos)))
+            {
                 _lastSeenMasterPosition = leaderPos;
+                MarkPathingHealthy();
+            }
 
             // Handle specific area transitions when leader is far away
             if (await TryUseAreaSpecificTransition(distance))
@@ -169,13 +197,20 @@ namespace FollowBot.Tasks
             if (FollowBotSettings.Instance.Follow.OpenDoors && await TryOpenNearbyDoor())
                 return true;
 
-            // Try to click nearby shrines
-            if (FollowBotSettings.Instance.Follow.ClickShrines && await TryClickNearbyShrine())
-                return true;
+            if (!IsDeepwaterDrowning())
+            {
+                // Try to click nearby shrines
+                if (FollowBotSettings.Instance.Follow.ClickShrines && await TryClickNearbyShrine())
+                    return true;
 
-            // Try to open nearby chests (only if leader is close)
-            if (FollowBotSettings.Instance.Loot.ShouldOpenChests && distance <= 60 && await TryOpenNearbyChest())
-                return true;
+                // Try to open nearby chests (only if leader is close)
+                if (FollowBotSettings.Instance.Loot.ShouldOpenChests && distance <= 60 && await TryOpenNearbyChest())
+                    return true;
+
+                // Golden lanterns grant a Deepwater buff when walked over. Only detour when the follower is close to the leader.
+                if (IsDeepwaterEncounter() && await TryActivateNearbyGoldenLantern(distance))
+                    return true;
+            }
 
             // Try to activate Mirage spawners
             if (LeagueFeatureFlags.MirageEnabled && FollowBotSettings.Instance.Follow.ActivateMirageSpawners && await TryActivateNearbySpawner())
@@ -202,6 +237,22 @@ namespace FollowBot.Tasks
                         if (_leaderzoningSw.IsRunning && _leaderzoningSw.ElapsedMilliseconds < 10000)
                             return true;
                     }
+
+                    _consecutiveInvalidPaths++;
+                    if (_pathingRecoveryAwaitingValidation)
+                    {
+                        _pathingRecoveryAwaitingValidation = false;
+                        GlobalLog.Warn($"[{Name}] Follow path is still invalid after ExilePather reload " +
+                                       $"(me: {mypos}, leader: {leaderPos}, target: {pos}).");
+                    }
+                    else if (_consecutiveInvalidPaths == 1)
+                    {
+                        GlobalLog.Warn($"[{Name}] Invalid follow path detected " +
+                                       $"(me: {mypos}, leader: {leaderPos}, target: {pos}).");
+                    }
+
+                    if (TryRecoverPathing(mypos, leaderPos, pos))
+                        return true;
 
                     //Then check for Delve portals:
                     var delveportal = ObjectManager.GetObjectsByType<AreaTransition>().FirstOrDefault(x => x.Name == "Azurite Mine" && x.Metadata == "Metadata/MiscellaneousObject/PortalTransition");
@@ -301,6 +352,8 @@ namespace FollowBot.Tasks
                     return true;
                 }
 
+                MarkPathingHealthy();
+
                 // Cast Phase run if we have it.
                 CustomSkills.PhaseRun();
 
@@ -316,6 +369,43 @@ namespace FollowBot.Tasks
             ProcessHookManager.SetKeyState(FollowBot.LastBoundMoveSkillKey, 0);
             //KeyManager.ClearAllKeyStates();
             return false;
+        }
+
+        private bool TryRecoverPathing(Vector2i mypos, Vector2i leaderPos, Vector2i followPos)
+        {
+            if (!ExilePather.IsReady)
+                return false;
+
+            var isPostAreaChangeRecovery = _postAreaChangePathCheckPending;
+            var cooldownElapsed = !_pathingRecoveryCooldown.IsRunning ||
+                                  _pathingRecoveryCooldown.ElapsedMilliseconds >= PathingRecoveryCooldownMs;
+            var isInAreaRecovery = _consecutiveInvalidPaths >= InvalidPathsBeforeRecovery && cooldownElapsed;
+
+            if (!isPostAreaChangeRecovery && !isInAreaRecovery)
+                return false;
+
+            _postAreaChangePathCheckPending = false;
+            _pathingRecoveryAwaitingValidation = true;
+            _consecutiveInvalidPaths = 0;
+            _pathingRecoveryCooldown.Restart();
+
+            var recoveryKind = isPostAreaChangeRecovery ? "post-area-change" : "in-area watchdog";
+            GlobalLog.Info($"[{Name}] Invalid follow path (me: {mypos}, leader: {leaderPos}, target: {followPos}). " +
+                           $"Reloading ExilePather ({recoveryKind}).");
+            ExilePather.Reload(true);
+            return true;
+        }
+
+        private void MarkPathingHealthy()
+        {
+            if (_pathingRecoveryAwaitingValidation)
+            {
+                GlobalLog.Info($"[{Name}] Follow path restored after ExilePather reload.");
+                _pathingRecoveryAwaitingValidation = false;
+            }
+
+            _postAreaChangePathCheckPending = false;
+            _consecutiveInvalidPaths = 0;
         }
 
         private async Task<bool> TryOpenNearbyDoor()
@@ -354,7 +444,7 @@ namespace FollowBot.Tasks
                 cachedObjects = cachedObjects.Where(obj =>
                 {
                     var chest = obj.Object as Chest;
-                    return chest != null && IsInsideDeepwaterLanternSafetyRadius(chest);
+                    return chest != null && IsInsideDeepwaterLanternSafetyRadius(chest.Position);
                 });
             }
 
@@ -376,22 +466,15 @@ namespace FollowBot.Tasks
             );
         }
 
-        private static bool IsDeepwaterEncounter()
+        private static bool IsInsideDeepwaterLanternSafetyRadius(Vector2i position)
         {
-            return CurrentWorldArea != null && CurrentWorldArea.Id == DeepwaterEncounterAreaId;
-        }
-
-        private static bool IsInsideDeepwaterLanternSafetyRadius(Chest chest)
-        {
-            var chestPosition = chest.Position;
-
             return ObjectManager.Objects.Any(obj =>
             {
                 if (obj == null || !obj.IsValid || obj.Metadata != DeepwaterLanternMetadata)
                     return false;
 
-                var dx = chestPosition.X - obj.Position.X;
-                var dy = chestPosition.Y - obj.Position.Y;
+                var dx = position.X - obj.Position.X;
+                var dy = position.Y - obj.Position.Y;
                 return dx * dx + dy * dy <= DeepwaterChestSafetyRadiusSqr;
             });
         }
@@ -410,6 +493,113 @@ namespace FollowBot.Tasks
                 obj => cache.CraftingRecipe.Remove(obj),
                 obj => "Interacting with crafting recipe"
             );
+        }
+
+        private async Task<bool> TryOptInToNearbyMercenary(Player leader)
+        {
+            var settings = FollowBotSettings.Instance.Follow;
+            if (!settings.MercenaryOptIn)
+                return false;
+
+            if (World.CurrentArea == null || !World.CurrentArea.IsCombatArea)
+                return false;
+
+            var cache = CombatAreaCache.Current;
+            var mercenaryCandidate = cache.Mercenaries
+                .Where(m => !_failedMercenaryIds.Contains(m.Id))
+                .Select(m => new
+                {
+                    Cached = m,
+                    Mercenary = m.Object as Mercenary
+                })
+                .Where(m => m.Mercenary != null)
+                .OrderBy(m => m.Mercenary.Position.Distance(leader.Position))
+                .FirstOrDefault(m => m.Mercenary.Position.Distance(leader.Position) <= settings.MercenaryLeaderDistance);
+
+            if (mercenaryCandidate == null)
+                return false;
+
+            var cachedMercenary = mercenaryCandidate.Cached;
+            var mercenary = mercenaryCandidate.Mercenary;
+            if (mercenary == null || mercenary.IsFriendly)
+            {
+                cache.Mercenaries.Remove(cachedMercenary);
+                return false;
+            }
+
+            // The leader-distance gate prevents every follower from independently
+            // searching the area. The player-distance gate keeps Opt_In in range.
+            if (mercenary.Distance > settings.MercenaryFollowerDistance)
+                return false;
+
+            if (IsWaitingForDuelVisible(mercenary))
+            {
+                cache.Mercenaries.Remove(cachedMercenary);
+                return true;
+            }
+
+            if (!mercenary.CanOpt_In)
+                return false;
+
+            GlobalLog.Info($"[{Name}] Opting in to mercenary encounter: {mercenary.MercenaryName}");
+
+            for (var attempt = 1; attempt <= MercenaryOptInAttempts; attempt++)
+            {
+                mercenary = cachedMercenary.Object as Mercenary;
+                if (mercenary == null || mercenary.IsFriendly)
+                {
+                    cache.Mercenaries.Remove(cachedMercenary);
+                    return true;
+                }
+
+                if (IsWaitingForDuelVisible(mercenary))
+                {
+                    cache.Mercenaries.Remove(cachedMercenary);
+                    return true;
+                }
+
+                if (!mercenary.CanOpt_In)
+                    return false;
+
+                mercenary.Opt_In();
+
+                if (await Wait.For(
+                        () => IsWaitingForDuelVisible(cachedMercenary.Object as Mercenary),
+                        "mercenary duel state",
+                        100,
+                        MercenaryWaitingForDuelTimeoutMs))
+                {
+                    cache.Mercenaries.Remove(cachedMercenary);
+                    return true;
+                }
+
+                if (attempt < MercenaryOptInAttempts)
+                    await Wait.SleepSafe(150, 250);
+            }
+
+            _failedMercenaryIds.Add(cachedMercenary.Id);
+            GlobalLog.Warn($"[{Name}] Mercenary opt-in did not reach the Waiting for Duel state: {mercenary.MercenaryName}");
+            return true;
+        }
+
+        private static bool IsWaitingForDuelVisible(Mercenary mercenary)
+        {
+            return mercenary?.Ui?.Opt_InElement != null &&
+                   ContainsVisibleText(mercenary.Ui.Opt_InElement, "Waiting for Duel");
+        }
+
+        private static bool ContainsVisibleText(Element element, string text)
+        {
+            if (element == null || !element.IsVisible)
+                return false;
+
+            if (string.Equals(element.Text, text, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (element.Children == null)
+                return false;
+
+            return element.Children.Any(child => ContainsVisibleText(child, text));
         }
 
         private async Task<bool> TryClickNearbyShrine()
@@ -454,6 +644,42 @@ namespace FollowBot.Tasks
             // Move toward the spawner
             CustomSkills.PhaseRun();
             Move.Towards(spawner.Position, "activating Mirage spawner");
+            return true;
+        }
+
+        private async Task<bool> TryActivateNearbyGoldenLantern(double leaderDistance)
+        {
+            var settings = FollowBotSettings.Instance.Follow;
+            if (!settings.ActivateGoldenLanterns || leaderDistance > settings.GoldenLanternDistance)
+                return false;
+
+            var cache = CombatAreaCache.Current;
+            var lantern = cache.GoldenLanterns
+                .Where(o => !_touchedGoldenLanternIds.Contains(o.Id))
+                .Select(o => new
+                {
+                    Cached = o,
+                    Object = o.Object
+                })
+                .Where(o => o.Object != null && o.Object.IsValid && o.Object.IsTargetable)
+                .Where(o => o.Cached.Position.Distance <= settings.GoldenLanternDistance)
+                .Where(o => ExilePather.PathDistance(Me.Position, o.Cached.Position, true, true) <= settings.GoldenLanternDistance)
+                .Where(o => IsInsideDeepwaterLanternSafetyRadius(o.Object.Position))
+                .OrderBy(o => o.Cached.Position.Distance)
+                .FirstOrDefault();
+
+            if (lantern == null)
+                return false;
+
+            if (lantern.Cached.Position.Distance <= DeepwaterGoldenLanternTouchRadius)
+            {
+                _touchedGoldenLanternIds.Add(lantern.Cached.Id);
+                cache.GoldenLanterns.Remove(lantern.Cached);
+                GlobalLog.Debug($"[FollowTask] Activated Deepwater golden lantern #{lantern.Cached.Id} at distance {(int)lantern.Cached.Position.Distance}.");
+                return false;
+            }
+
+            Move.Towards(lantern.Cached.Position, "activating Deepwater golden lantern");
             return true;
         }
 
@@ -619,8 +845,13 @@ namespace FollowBot.Tasks
             if (message.Id == Events.Messages.AreaChanged)
             {
                 _leaderzoningSw.Reset();
+                _pathingRecoveryCooldown.Reset();
+                _postAreaChangePathCheckPending = true;
+                _pathingRecoveryAwaitingValidation = false;
+                _consecutiveInvalidPaths = 0;
                 _failedObjectIds.Clear();
                 _touchedSpawnerIds.Clear();
+                _touchedGoldenLanternIds.Clear();
 
                 // Convert WaitingForNewInstance flag into a running stopwatch.
                 // This fires AFTER loading completes, so the 5s wait starts in the new zone.

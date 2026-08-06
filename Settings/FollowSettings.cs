@@ -21,6 +21,11 @@ namespace FollowBot.Settings
         private bool _interactQuest = true;
         private bool _clickShrines = true;
         private bool _openDoors = true;
+        private bool _mercenaryOptIn = true;
+        private int _mercenaryLeaderDistance = 40;
+        private int _mercenaryFollowerDistance = 40;
+        private bool _activateGoldenLanterns = true;
+        private int _goldenLanternDistance = 45;
         private bool _activateMirageSpawners = false;
         private int _mirageSpawnerDistance = 40;
         private ObservableCollection<string> _partyAndTradeWhitelist;
@@ -151,6 +156,56 @@ namespace FollowBot.Settings
             set
             {
                 _openDoors = value; NotifyPropertyChanged(nameof(OpenDoors));
+            }
+        }
+
+        [DefaultValue(true)]
+        public bool MercenaryOptIn
+        {
+            get { return _mercenaryOptIn; }
+            set
+            {
+                _mercenaryOptIn = value; NotifyPropertyChanged(nameof(MercenaryOptIn));
+            }
+        }
+
+        [DefaultValue(40)]
+        public int MercenaryLeaderDistance
+        {
+            get { return _mercenaryLeaderDistance; }
+            set
+            {
+                _mercenaryLeaderDistance = value; NotifyPropertyChanged(nameof(MercenaryLeaderDistance));
+            }
+        }
+
+        [DefaultValue(40)]
+        public int MercenaryFollowerDistance
+        {
+            get { return _mercenaryFollowerDistance; }
+            set
+            {
+                _mercenaryFollowerDistance = value; NotifyPropertyChanged(nameof(MercenaryFollowerDistance));
+            }
+        }
+
+        [DefaultValue(true)]
+        public bool ActivateGoldenLanterns
+        {
+            get { return _activateGoldenLanterns; }
+            set
+            {
+                _activateGoldenLanterns = value; NotifyPropertyChanged(nameof(ActivateGoldenLanterns));
+            }
+        }
+
+        [DefaultValue(45)]
+        public int GoldenLanternDistance
+        {
+            get { return _goldenLanternDistance; }
+            set
+            {
+                _goldenLanternDistance = value; NotifyPropertyChanged(nameof(GoldenLanternDistance));
             }
         }
 

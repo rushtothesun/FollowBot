@@ -11,6 +11,7 @@ using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Helpers;
 using FollowBot.SimpleEXtensions;
 using Message = DreamPoeBot.Loki.Bot.Message;
+using static FollowBot.Helpers.StateHelper;
 
 namespace FollowBot.Tasks
 {
@@ -58,6 +59,11 @@ namespace FollowBot.Tasks
             }
 
             if (!LokiPoe.IsInGame)
+            {
+                return false;
+            }
+
+            if (IsDeepwaterDrowning())
             {
                 return false;
             }

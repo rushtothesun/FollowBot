@@ -1,4 +1,6 @@
+using DreamPoeBot.BotFramework;
 using DreamPoeBot.Loki.Bot;
+using DreamPoeBot.Loki.Common;
 using DreamPoeBot.Loki.Game;
 using FollowBot.SimpleEXtensions;
 using System;
@@ -101,6 +103,7 @@ namespace FollowBot.Helpers
             }
             if (LokiPoe.InGameState.GlobalWarningDialog.IsOpened)
                 LokiPoe.InGameState.GlobalWarningDialog.ConfirmDialog();
+
             return true;
         }
 

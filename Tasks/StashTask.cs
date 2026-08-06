@@ -112,7 +112,7 @@ namespace FollowBot.Tasks
             if (ShouldDepositFromChat)
             {
                 var area = LokiPoe.CurrentWorldArea;
-                if (area.IsHideoutArea || area.IsTown)
+                if (area.IsHideoutArea || area.IsTown || StateHelper.IsDeepwaterEncounter())
                 {
                     GlobalLog.Info("[StashTask] Chat command received, depositing inventory to stash.");
                     ShouldDepositFromChat = false;
@@ -140,7 +140,7 @@ namespace FollowBot.Tasks
             if (ShouldDepositCurrencyOnly)
             {
                 var area = LokiPoe.CurrentWorldArea;
-                if (area.IsHideoutArea || area.IsTown)
+                if (area.IsHideoutArea || area.IsTown || StateHelper.IsDeepwaterEncounter())
                 {
                     GlobalLog.Info("[StashTask] Remote command received, depositing currency and fragments to stash.");
                     ShouldDepositCurrencyOnly = false;
