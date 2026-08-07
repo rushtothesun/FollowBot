@@ -41,6 +41,8 @@ namespace FollowBot.Tasks
         private const int InvalidPathsBeforeRecovery = 3;
         private const int PathingRecoveryCooldownMs = 30000;
         public const int NewInstanceWaitMs = 7000;
+        private const int NewInstanceSearchDistance = 70;
+        private const int NewInstanceApproachDistance = 10;
         private Vector2i _lastSeenMasterPosition;
         private Stopwatch _leaderzoningSw;
         private Stopwatch _pathingRecoveryCooldown;
@@ -54,6 +56,31 @@ namespace FollowBot.Tasks
         public static bool ShouldCreateNewInstance = false;
         public static bool WaitingForNewInstance = false;
         public static Stopwatch NewInstanceWaitSw = new Stopwatch();
+        public static Stopwatch NewInstanceRequestSw = new Stopwatch();
+
+        public static bool IsWaitingForNewInstance
+        {
+            get
+            {
+                if (!WaitingForNewInstance)
+                    return false;
+
+                if (!LokiPoe.IsInGame || LokiPoe.StateManager.IsAreaLoadingStateActive)
+                {
+                    NewInstanceRequestSw.Restart();
+                    return true;
+                }
+
+                if (NewInstanceRequestSw.ElapsedMilliseconds >= NewInstanceWaitMs)
+                {
+                    GlobalLog.Warn("[FollowTask] New instance was requested but no area change followed. Clearing the wait.");
+                    WaitingForNewInstance = false;
+                    NewInstanceRequestSw.Reset();
+                    return false;
+                }
+                return true;
+            }
+        }
 
         public void Start()
         {
@@ -70,6 +97,7 @@ namespace FollowBot.Tasks
             _touchedSpawnerIds.Clear();
             _touchedGoldenLanternIds.Clear();
             NewInstanceWaitSw = new Stopwatch();
+            NewInstanceRequestSw = new Stopwatch();
         }
         public void Stop()
         {
@@ -86,20 +114,30 @@ namespace FollowBot.Tasks
             {
                 var transition = ObjectManager.GetObjectsByType<AreaTransition>()
                     .OrderBy(t => t.Distance)
-                    .FirstOrDefault(t => t.Distance <= 30);
+                    .FirstOrDefault(t => t.Distance <= NewInstanceSearchDistance);
 
-                if (transition != null)
+                if (transition == null)
+                {
+                    GlobalLog.Warn($"[{Name}] New instance was requested but no area transition is within {NewInstanceSearchDistance}.");
+                }
+                else
                 {
                     var pos = transition.WalkablePosition();
-                    if (pos.Distance > 10)
+                    if (pos.Distance > NewInstanceApproachDistance && !await pos.TryComeAtOnce())
                     {
-                        await pos.ComeAtOnce();
+                        GlobalLog.Warn($"[{Name}] Cannot reach the transition to create a new instance.");
+                        ShouldCreateNewInstance = false;
+                        return true;
                     }
 
-                    // Set flag BEFORE the await — it will survive the loading screen
-                    // and be converted to a running stopwatch in the AreaChanged handler.
                     WaitingForNewInstance = true;
-                    await PlayerAction.CreateNewInstance(transition);
+                    NewInstanceRequestSw.Restart();
+                    if (!await PlayerAction.CreateNewInstance(transition))
+                    {
+                        GlobalLog.Warn($"[{Name}] Failed to create a new instance.");
+                        WaitingForNewInstance = false;
+                        NewInstanceRequestSw.Reset();
+                    }
                 }
 
                 ShouldCreateNewInstance = false;
@@ -117,7 +155,6 @@ namespace FollowBot.Tasks
                     }
                     else
                     {
-                        GlobalLog.Debug($"[{Name}] Waiting for leader after creating new instance...");
                         return true;
                     }
                 }
@@ -579,7 +616,7 @@ namespace FollowBot.Tasks
                 if (mercenary.Distance > MercenaryInteractionDistance)
                 {
                     GlobalLog.Debug($"[{Name}] Moving closer to mercenary before opt-in. Distance: {(int)mercenary.Distance}.");
-                    await mercenary.WalkablePosition().ComeAtOnce(MercenaryInteractionDistance);
+                    await mercenary.WalkablePosition().TryComeAtOnce(MercenaryInteractionDistance);
                 }
 
                 await StopMovementForMercenaryOptIn();
@@ -887,7 +924,11 @@ namespace FollowBot.Tasks
                 return false;
 
             GlobalLog.Debug($"[FollowTask] Leader is far ({leaderDistance}), using trial return portal.");
-            await portal.WalkablePosition().ComeAtOnce();
+            if (!await portal.WalkablePosition().TryComeAtOnce())
+            {
+                GlobalLog.Warn("[FollowTask] Trial return portal is unreachable. Resuming follow.");
+                return false;
+            }
             await PlayerAction.Interact(portal);
             await Wait.SleepSafe(300, 500);
             return true;
@@ -920,7 +961,7 @@ namespace FollowBot.Tasks
             // Move close to the object if needed
             if (pos.Distance > 20)
             {
-                await pos.ComeAtOnce();
+                await pos.TryComeAtOnce();
             }
 
             GlobalLog.Debug($"[FollowTask] {logMessageFunc(cachedObject)}");
@@ -947,35 +988,6 @@ namespace FollowBot.Tasks
             return false;
         }
 
-        private AreaTransition GetRottingCoreTransition(Player leaderPlayerEntry)
-        {
-            var leaderPosition = leaderPlayerEntry.Position;
-            var areatransition = ObjectManager.GetObjectsByType<AreaTransition>()
-                .FirstOrDefault(x => x.Name == "The Black Core");
-            if (areatransition == null)
-                areatransition = ObjectManager.GetObjectsByType<AreaTransition>()
-                    .FirstOrDefault(x => x.Name == "The Black Heart" && x.Distance < 140);
-            if (areatransition == null && leaderPosition.X < 900)
-            {
-                areatransition =
-                    ObjectManager.GetObjectsByType<AreaTransition>()
-                        .FirstOrDefault(x => x.Name == "Shavronne's Sorrow" && x.Distance < 120);
-            }
-            else if (areatransition == null && leaderPosition.X < 1325)
-            {
-                areatransition =
-                    ObjectManager.GetObjectsByType<AreaTransition>()
-                        .FirstOrDefault(x => x.Name == "Maligaro's Misery" && x.Distance < 140);
-            }
-            else if (areatransition == null && leaderPosition.X < 2103)
-            {
-                areatransition =
-                    ObjectManager.GetObjectsByType<AreaTransition>()
-                        .FirstOrDefault(x => x.Name == "Doedre's Despair" && x.Distance < 140);
-            }
-            return areatransition;
-        }
-
         public Task<LogicResult> Logic(Logic logic)
         {
             return Task.FromResult(LogicResult.Unprovided);
@@ -995,12 +1007,12 @@ namespace FollowBot.Tasks
                 _touchedSpawnerIds.Clear();
                 _touchedGoldenLanternIds.Clear();
 
-                // Convert WaitingForNewInstance flag into a running stopwatch.
-                // This fires AFTER loading completes, so the 5s wait starts in the new zone.
                 if (WaitingForNewInstance)
                 {
                     WaitingForNewInstance = false;
+                    NewInstanceRequestSw.Reset();
                     NewInstanceWaitSw.Restart();
+                    GlobalLog.Info($"[{Name}] New instance entered, waiting up to {NewInstanceWaitMs / 1000}s for the leader.");
                 }
             }
             return MessageResult.Unprocessed;

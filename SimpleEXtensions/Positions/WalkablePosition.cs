@@ -27,30 +27,6 @@ namespace FollowBot.SimpleEXtensions.Positions
             Radius = radius;
         }
 
-        public void Come()
-        {
-            if (!Initialized)
-                HardInitialize();
-
-            Move.TowardsWalkable(Vector, Name);
-        }
-
-        public async Task ComeAtOnce(int distance = 20)
-        {
-            if (!Initialized)
-                HardInitialize();
-
-            await Move.AtOnce(Vector, Name, distance);
-        }
-
-        public bool TryCome()
-        {
-            if (!Initialized && !Initialize())
-                return false;
-
-            return Move.Towards(Vector, Name);
-        }
-
         public async Task<bool> TryComeAtOnce(int distance = 20)
         {
             if (!Initialized && !Initialize())
@@ -69,20 +45,6 @@ namespace FollowBot.SimpleEXtensions.Positions
             }
             Initialized = true;
             return true;
-        }
-
-        protected virtual void HardInitialize()
-        {
-            if (!FindWalkable())
-            {
-                GlobalLog.Error($"[WalkablePosition] Fail to find any walkable position for {this}");
-                var area = World.CurrentArea;
-                Travel.RequestNewInstance(area);
-                //await Travel.To(area);
-                //ErrorManager.ReportCriticalError();
-                return;
-            }
-            Initialized = true;
         }
 
         protected bool FindWalkable()

@@ -14,20 +14,6 @@ namespace FollowBot.Helpers
     public static class PartyHelper
     {
 
-        public static List<string> PartyPortal = new List<string>()
-        {
-            "portal pls",
-            "Portal ples",
-            "new portal pls",
-            "can i have a portal?",
-            "new gate pls",
-            "bro give me a port",
-            "door pls",
-            "port",
-            "Port pls",
-            "1 to teleport",
-        };
-
         public static async Task<bool> HandlePartyInvite()
         {
             var visibleNotifications = NotificationHud.NotificationList.Where(n => n.IsVisible).ToList();
@@ -69,22 +55,6 @@ namespace FollowBot.Helpers
             if (LokiPoe.InGameState.ChatPanel.IsOpened)
                 LokiPoe.InGameState.ChatPanel.ToggleChat();
 
-            return true;
-        }
-
-        public static async Task<bool> GoToPartyHideOut(string name)
-        {
-            await Coroutines.CloseBlockingWindows();
-            await Coroutines.LatencyWait();
-
-            LokiPoe.InGameState.PartyHud.OpenContextMenu(name);
-            var ret = LokiPoe.InGameState.ContextMenu.VisitHideout();
-            await Coroutines.LatencyWait();
-            await Coroutines.ReactionWait();
-            if (ret != LokiPoe.InGameState.ContextMenuResult.None)
-            {
-                return false;
-            }
             return true;
         }
 

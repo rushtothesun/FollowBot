@@ -16,45 +16,6 @@ namespace FollowBot.SimpleEXtensions
     {
         public static List<Item> InventoryItems => LokiPoe.InstanceInfo.GetPlayerInventoryItemsBySlot(InventorySlot.Main);
         public static int AvailableInventorySquares => LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.Main).AvailableInventorySquares;
-        public static async Task<bool> OpenStash()
-        {
-            if (StashUi.IsOpened)
-                return true;
-
-            WalkablePosition stashPos;
-            if (World.CurrentArea.IsTown)
-            {
-                stashPos = StaticPositions.GetStashPosByAct();
-                //var stashObj = LokiPoe.ObjectManager.Stash;
-                //if (stashObj == null)
-                //{
-                //    GlobalLog.Error("[OpenStash] Fail to find any Stash nearby.");
-                //    return false;
-                //}
-                //stashPos = stashObj.WalkablePosition();
-            }
-            else
-            {
-                var stashObj = LokiPoe.ObjectManager.Stash;
-                if (stashObj == null)
-                {
-                    GlobalLog.Error("[OpenStash] Fail to find any Stash nearby.");
-                    return false;
-                }
-                stashPos = stashObj.WalkablePosition();
-            }
-
-            await PlayerAction.EnableAlwaysHighlight();
-
-            await stashPos.ComeAtOnce(35);
-
-            if (!await PlayerAction.Interact(LokiPoe.ObjectManager.Stash, () => StashUi.IsOpened && StashUi.StashTabInfo != null, "stash opening"))
-                return false;
-
-            await Wait.SleepSafe(LokiPoe.Random.Next(200, 400));
-            await Wait.SleepSafe(100);
-            return true;
-        }
 
         public static async Task<bool> OpenInventory()
         {

@@ -215,7 +215,6 @@ namespace FollowBot.SimpleEXtensions
         static World()
         {
             var areaDict = Dat.WorldAreas.ToDictionary(a => a.Id, a => a.Name);
-            bool error = false;
 
             foreach (var act in typeof(World).GetNestedTypes())
             {
@@ -227,18 +226,15 @@ namespace FollowBot.SimpleEXtensions
                         if (name != area.Name)
                         {
                             area.Name = name;
-                            GlobalLog.Error($"[World] Invalid area info in \"{field.Name}\" field. Area name: \"{area.Name}\". Correct name: \"{name}\".");
-                            //error = true;
+                            GlobalLog.Warn($"[World] Invalid area info in \"{field.Name}\" field. Area name: \"{area.Name}\". Correct name: \"{name}\".");
                         }
                     }
                     else
                     {
-                        GlobalLog.Error($"[World] Invalid area info in \"{field.Name}\" field. DatWorldAreas does not contain an area with \"{area.Id}\" id.");
-                        error = true;
+                        GlobalLog.Warn($"[World] Invalid area info in \"{field.Name}\" field. DatWorldAreas does not contain an area with \"{area.Id}\" id.");
                     }
                 }
             }
-            if (error) BotManager.Stop();
         }
 
         public static DatWorldAreaWrapper CurrentArea => LokiPoe.LocalData.WorldArea;

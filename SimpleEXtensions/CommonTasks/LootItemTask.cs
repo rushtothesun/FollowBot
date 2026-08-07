@@ -282,18 +282,6 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
             }
             return true;
         }
-        private static async Task<bool> MoveAway(int min, int max)
-        {
-            WorldPosition pos = WorldPosition.FindPathablePositionAtDistance(min, max, 5);
-            if (pos == null)
-            {
-                GlobalLog.Debug("[LootItemTask] Fail to find any pathable position at distance.");
-                return false;
-            }
-            await Move.AtOnce(pos, "distant position", 10);
-            return true;
-        }
-
         private static bool CanFit(Vector2i size, int availableSquares)
         {
             return LokiPoe.InstanceInfo.GetPlayerInventoryBySlot(InventorySlot.Main).CanFitItem(size);

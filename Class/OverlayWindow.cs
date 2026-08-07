@@ -211,14 +211,6 @@ namespace FollowBot.Class
 
 
 
-		private SolidBrush GetRandomColor()
-		{
-			var brush = _brushes["random"];
-
-			brush.Color = new Color(_random.Next(0, 256), _random.Next(0, 256), _random.Next(0, 256));
-
-			return brush;
-		}
 		public void FitTo(IntPtr ptr)
 		{
 			_window.FitTo(ptr);

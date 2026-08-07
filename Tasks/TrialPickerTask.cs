@@ -47,7 +47,7 @@ namespace FollowBot.Tasks
             {
                 GlobalLog.Debug($"[{Name}] Find trial : [{trial.Name}]");
 
-                await trial.WalkablePosition().ComeAtOnce();
+                await trial.WalkablePosition().TryComeAtOnce();
                 if (await PlayerAction.Interact(trial))
                 {
                     await Coroutines.FinishCurrentAction(true);

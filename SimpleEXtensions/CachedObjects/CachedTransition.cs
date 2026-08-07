@@ -8,8 +8,6 @@ namespace FollowBot.SimpleEXtensions
     {
         public TransitionType Type { get; }
         public DatWorldAreaWrapper Destination { get; }
-        public bool Visited { get; set; }
-        public bool LeadsBack { get; set; }
         public string Name { get; }
 
         public CachedTransition(int id, WalkablePosition position, TransitionType type, DatWorldAreaWrapper destination)

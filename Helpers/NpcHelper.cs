@@ -125,7 +125,7 @@ namespace FollowBot.Helpers
                 return false;
             }
 
-            await bandit.WalkablePosition().ComeAtOnce();
+            await bandit.WalkablePosition().TryComeAtOnce();
 
             if (await OpenBanditPanel(bandit))
             {

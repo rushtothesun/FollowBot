@@ -1,12 +1,5 @@
 ﻿namespace FollowBot.SimpleEXtensions
 {
-    public enum TaskPosition
-    {
-        Before,
-        After,
-        Replace
-    }
-
     public enum TransitionType
     {
         Regular,
@@ -18,12 +11,5 @@
         Synthesis,
         Syndicate,
         Conqueror
-    }
-
-    public enum WithdrawResult
-    {
-        Success,
-        Error,
-        Unavailable,
     }
 }

@@ -25,13 +25,15 @@ namespace FollowBot
 {
     public class FollowBot : IBot
     {
+        // Cross-plugin contract: plugins ask the current bot for its TaskManager
+        // with this message id so they can insert their own tasks.
+        private const string GetTaskManagerMessage = "GetTaskManager";
 
         private FollowBotGui _gui;
         private Coroutine _coroutine;
 
         private readonly TaskManager _taskManager = new TaskManager();
         private readonly AutoLoginTask _autoLoginTask = new AutoLoginTask();
-        internal static bool IsOnRun;
         public static Stopwatch RequestPartySw = Stopwatch.StartNew();
         private OverlayWindow _overlay = new OverlayWindow(LokiPoe.ClientWindowHandle);
         private ChatParser _chatParser = new ChatParser();
@@ -121,10 +123,6 @@ namespace FollowBot
             UpdatePathfinderSettings();
 
             ItemEvaluator.Instance = DefaultItemEvaluator.Instance;
-            Explorer.CurrentDelegate = user => CombatAreaCache.Current.Explorer.BasicExplorer;
-
-            ComplexExplorer.ResetSettingsProviders();
-            ComplexExplorer.AddSettingsProvider("FollowBot", MapBotExploration, ProviderPriority.Low);
 
             // Since this bot will be performing client actions, we need to enable the process hook manager.
             LokiPoe.ProcessHookManager.Enable();
@@ -312,21 +310,9 @@ namespace FollowBot
             var handled = false;
             var id = message.Id;
 
-            if (id == BotStructure.GetTaskManagerMessage)
+            if (id == GetTaskManagerMessage)
             {
                 message.AddOutput(this, _taskManager);
-                handled = true;
-            }
-            else if (id == Messages.GetIsOnRun)
-            {
-                message.AddOutput(this, IsOnRun);
-                handled = true;
-            }
-            else if (id == Messages.SetIsOnRun)
-            {
-                var value = message.GetInput<bool>();
-                GlobalLog.Info($"[FollowBot] SetIsOnRun: {value}");
-                IsOnRun = value;
                 handled = true;
             }
             else if (message.Id == Events.Messages.AreaChanged)
@@ -353,11 +339,6 @@ namespace FollowBot
         public async Task<LogicResult> Logic(Logic logic)
         {
             return await _taskManager.ProvideLogic(TaskGroup.Enabled, RunBehavior.UntilHandled, logic);
-        }
-
-        public TaskManager GetTaskManager()
-        {
-            return _taskManager;
         }
 
         public void Initialize()
@@ -411,64 +392,6 @@ namespace FollowBot
             _taskManager.Add(new TravelToPartyZoneTask());
             _taskManager.Add(new FollowTask());
             _taskManager.Add(new FallbackTask());
-        }
-
-        private static ExplorationSettings MapBotExploration()
-        {
-            if (!World.CurrentArea.IsMap)
-                return new ExplorationSettings();
-
-            OnNewMapEnter();
-
-            return new ExplorationSettings(tileSeenRadius: TileSeenRadius);
-        }
-
-        private static void OnNewMapEnter()
-        {
-            var areaName = World.CurrentArea.Name;
-            GlobalLog.Info($"[FollowBot] New map has been entered: {areaName}.");
-            IsOnRun = true;
-            Utility.BroadcastMessage(null, Messages.NewMapEntered, areaName);
-        }
-
-        private static int TileSeenRadius
-        {
-            get
-            {
-                if (TileSeenDict.TryGetValue(World.CurrentArea.Name, out int radius))
-                    return radius;
-
-                return ExplorationSettings.DefaultTileSeenRadius;
-            }
-        }
-
-        private static readonly Dictionary<string, int> TileSeenDict = new Dictionary<string, int>
-        {
-            [MapNames.MaoKun] = 3,
-            [MapNames.Arena] = 3,
-            [MapNames.CastleRuins] = 3,
-            [MapNames.UndergroundRiver] = 3,
-            [MapNames.TropicalIsland] = 3,
-            [MapNames.Beach] = 5,
-            [MapNames.Strand] = 5,
-            [MapNames.Port] = 5,
-            [MapNames.Alleyways] = 5,
-            [MapNames.Phantasmagoria] = 5,
-            [MapNames.Wharf] = 5,
-            [MapNames.Cemetery] = 5,
-            [MapNames.MineralPools] = 5,
-            [MapNames.Temple] = 5,
-            [MapNames.Malformation] = 5,
-        };
-
-        public static class Messages
-        {
-            public const string NewMapEntered = "MB_new_map_entered_event";
-            public const string MapFinished = "MB_map_finished_event";
-            public const string MapTrialEntered = "MB_map_trial_entered_event";
-            public const string GetIsOnRun = "MB_get_is_on_run";
-            public const string SetIsOnRun = "MB_set_is_on_run";
-
         }
 
         public string Name => "FollowBot";

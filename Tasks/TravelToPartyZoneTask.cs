@@ -34,7 +34,6 @@ namespace FollowBot.Tasks
         private const int MirageReturnMaxDistance = 50;
 
         // State management
-        private Stopwatch _portalRequestStopwatch = Stopwatch.StartNew();
         private static int _zoneCheckRetry = 0;
         private static int _maligaroPortalRetry = 0;
         public static Stopwatch PortOutStopwatch = new Stopwatch();
@@ -75,13 +74,11 @@ namespace FollowBot.Tasks
                 return false;
             }
 
-            if (FollowTask.WaitingForNewInstance || FollowTask.NewInstanceWaitSw.IsRunning)
+            if (FollowTask.IsWaitingForNewInstance ||
+                (FollowTask.NewInstanceWaitSw.IsRunning &&
+                 FollowTask.NewInstanceWaitSw.ElapsedMilliseconds < FollowTask.NewInstanceWaitMs))
             {
-                if (FollowTask.NewInstanceWaitSw.ElapsedMilliseconds < FollowTask.NewInstanceWaitMs)
-                {
-                    GlobalLog.Debug($"[{Name}] Waiting for leader after creating new instance...");
-                    return false;
-                }
+                return false;
             }
 
             await Coroutines.CloseBlockingWindows();

@@ -83,7 +83,7 @@ namespace FollowBot.Tasks
                     return false;
                 }
                 GlobalLog.Debug($"[{Name}: Find interact object [{interactQuestObj.ObjectName}]");
-                await interactTarget.WalkablePosition().ComeAtOnce();
+                await interactTarget.WalkablePosition().TryComeAtOnce();
                 await PlayerAction.Interact(interactTarget);
 
                 // Special handling for Ascendancy Plaque - take transition after clicking

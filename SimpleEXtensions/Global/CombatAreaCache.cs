@@ -19,6 +19,9 @@ namespace FollowBot.SimpleEXtensions.Global
         private static readonly Interval ScanInterval = new Interval(200);
         private static readonly Interval ItemScanInterval = new Interval(500);
         private const string DeepwaterGoldenLanternMetadata = "Metadata/Terrain/Leagues/Deepwater/Objects/DeepwaterGoldenLantern";
+        private const string CalderaAreaId = "MapWorldsCaldera";
+        private const string VillaAreaId = "MapWorldsVilla";
+        private const string VillaTransitionName = "Villa";
 
         private static readonly List<PickupEvalHolder> PickupEvaluators = new List<PickupEvalHolder>();
 
@@ -60,7 +63,6 @@ namespace FollowBot.SimpleEXtensions.Global
 
         public uint Hash { get; }
         public DatWorldAreaWrapper WorldArea { get; }
-        public ComplexExplorer Explorer { get; }
         public int DeathCount { get; internal set; }
         public int StuckCount { get; internal set; }
 
@@ -88,7 +90,6 @@ namespace FollowBot.SimpleEXtensions.Global
         static CombatAreaCache()
         {
             ItemEvaluator.OnRefreshed += OnItemEvaluatorRefresh;
-            ComplexExplorer.LocalTransitionEntered += OnLocalTransitionEntered;
             BotManager.OnBotChanged += (sender, args) => Caches.Clear();
         }
 
@@ -107,7 +108,6 @@ namespace FollowBot.SimpleEXtensions.Global
             GlobalLog.Info($"[CombatAreaCache] Creating cache for \"{World.CurrentArea.Name}\" (hash: {hash})");
             Hash = hash;
             WorldArea = World.CurrentArea;
-            Explorer = new ComplexExplorer();
             _lastAccessTime = Stopwatch.StartNew();
         }
 
@@ -160,8 +160,6 @@ namespace FollowBot.SimpleEXtensions.Global
 
         private void OnTick()
         {
-            //Current.Explorer.Tick();
-
             if (FollowBotSettings.Instance.Loot.ShouldLoot && ItemScanInterval.Elapsed)
             {
                 WorldItemScan();
@@ -696,7 +694,7 @@ namespace FollowBot.SimpleEXtensions.Global
             }
             if ((int)t.TransitionType == (int)TransitionType.Local && !t.Metadata.Contains("IncursionPortal"))
             {
-                if (WorldArea.Name == MapNames.Caldera && name != "Caldera of The King")
+                if (WorldArea.Id == CalderaAreaId && name != "Caldera of The King")
                 {
                     GlobalLog.Debug($"[CombatAreaCache] Skipping \"{name}\" area transition because it leads to the same level.");
                     return true;
@@ -717,17 +715,10 @@ namespace FollowBot.SimpleEXtensions.Global
         private void TweakTransition(CachedTransition t)
         {
             var name = t.Position.Name;
-            var areaName = WorldArea.Name;
-            if (areaName == MapNames.Villa && (name == MapNames.Villa || name == "Arena"))
+            if (WorldArea.Id == VillaAreaId && (name == VillaTransitionName || name == "Arena"))
             {
                 GlobalLog.Debug("[CombatAreaCache] Marking this area transition as unwalkable (Villa tweak)");
                 t.Unwalkable = true;
-                return;
-            }
-            if (areaName == MapNames.Summit && name == MapNames.Summit)
-            {
-                GlobalLog.Debug("[CombatAreaCache] Marking this area transition as back transition (Summit tweak)");
-                t.LeadsBack = true;
             }
         }
 
@@ -761,65 +752,6 @@ namespace FollowBot.SimpleEXtensions.Global
             "Metadata/Chests/CopperChestEpic3",
             "Metadata/Chests/TutorialSupportGemChest"
         };
-        private static readonly HashSet<string> CraftingRecipeMetadada = new HashSet<string>
-        {
-            "Metadata/Terrain/Missions/CraftingUnlocks/RecipeUnlockVaal",
-            "Metadata/Terrain/Missions/CraftingUnlocks/",
-
-        };
-
-        private static void OnLocalTransitionEntered()
-        {
-            GlobalLog.Info("[CombatAreaCache] Resetting unwalkable flags on all cached objects.");
-
-            var cache = Current;
-
-            foreach (var item in cache.Items)
-            {
-                item.Unwalkable = false;
-            }
-            foreach (var monster in cache.Monsters)
-            {
-                monster.Unwalkable = false;
-            }
-            foreach (var chest in cache.Chests)
-            {
-                chest.Unwalkable = false;
-            }
-            foreach (var recipe in cache.CraftingRecipe)
-            {
-                recipe.Unwalkable = false;
-            }
-            foreach (var specialChest in cache.SpecialChests)
-            {
-                specialChest.Unwalkable = false;
-            }
-            foreach (var strongbox in cache.Strongboxes)
-            {
-                strongbox.Unwalkable = false;
-            }
-            foreach (var shrine in cache.Shrines)
-            {
-                shrine.Unwalkable = false;
-            }
-            foreach (var spawner in cache.MirageSpawners)
-            {
-                spawner.Unwalkable = false;
-            }
-            foreach (var lantern in cache.GoldenLanterns)
-            {
-                lantern.Unwalkable = false;
-            }
-            foreach (var blockage in cache.Blockages)
-            {
-                blockage.Unwalkable = false;
-            }
-            foreach (var transition in cache.AreaTransitions)
-            {
-                transition.Unwalkable = false;
-            }
-        }
-
         private static void OnItemEvaluatorRefresh(object sender, ItemEvaluatorRefreshedEventArgs args)
         {
             if (Caches.TryGetValue(LokiPoe.LocalData.AreaHash, out var cache))
