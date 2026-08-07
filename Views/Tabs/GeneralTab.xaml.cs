@@ -20,10 +20,8 @@ namespace FollowBot.Views.Tabs
             InitializeTradeSlotGrid();
             GemColorComboBox.ItemsSource = Enum.GetValues(typeof(LabSettings.GemColor));
 
-            // Check initial state to show/hide button
             UpdateSmartButtonVisibility();
 
-            // Initialize login password box placeholder
             if (FollowBotSettings.Instance.Login.HasPassword)
             {
                 LoginPasswordBox.Password = "********";
@@ -36,7 +34,6 @@ namespace FollowBot.Views.Tabs
             var passwordBox = sender as PasswordBox;
             if (passwordBox == null) return;
 
-            // Skip if this is the initial placeholder load
             if (passwordBox.Tag as string == "placeholder")
             {
                 passwordBox.Tag = null;
@@ -152,17 +149,125 @@ namespace FollowBot.Views.Tabs
             }
         }
 
+        #region Teleport Settings
+        private const string AreaUnavailable = "-";
+        private const string AreaNoLeader = "No leader";
+        private const string AreaLeaderOffline = "Leader offline";
+        private const string AreaError = "Error";
+
+        private static bool IsRealAreaId(string text)
+        {
+            return !string.IsNullOrWhiteSpace(text)
+                   && text != AreaUnavailable
+                   && text != AreaNoLeader
+                   && text != AreaLeaderOffline
+                   && text != AreaError;
+        }
+
+        private void RefreshAreaIdsButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!LokiPoe.IsInGame)
+                {
+                    CurrentAreaIdTextBlock.Text = AreaUnavailable;
+                    LeaderAreaIdTextBlock.Text = AreaUnavailable;
+                    return;
+                }
+
+                CurrentAreaIdTextBlock.Text = LokiPoe.CurrentWorldArea?.Id ?? AreaUnavailable;
+
+                var leader = LokiPoe.InstanceInfo.PartyMembers
+                    .FirstOrDefault(x => x.MemberStatus == DreamPoeBot.Loki.Game.GameData.PartyStatus.PartyLeader);
+
+                if (leader?.PlayerEntry == null)
+                    LeaderAreaIdTextBlock.Text = AreaNoLeader;
+                else if (!leader.PlayerEntry.IsOnline)
+                    LeaderAreaIdTextBlock.Text = AreaLeaderOffline;
+                else
+                    LeaderAreaIdTextBlock.Text = leader.PlayerEntry.Area?.Id ?? AreaUnavailable;
+            }
+            catch (Exception ex)
+            {
+                CurrentAreaIdTextBlock.Text = AreaError;
+                LeaderAreaIdTextBlock.Text = AreaError;
+                GlobalLog.Error($"[RefreshAreaIdsButton_OnClick] Failed to read area ids: {ex.Message}");
+            }
+        }
+
+        private void AddCurrentAreaButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            AddAreaToBlacklist(CurrentAreaIdTextBlock.Text, "AddCurrentAreaButton_OnClick");
+        }
+
+        private void AddLeaderAreaButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            AddAreaToBlacklist(LeaderAreaIdTextBlock.Text, "AddLeaderAreaButton_OnClick");
+        }
+
+        private void AddTeleportBlacklistButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            AddAreaToBlacklist(TeleportBlacklistTextBox.Text, "AddTeleportBlacklistButton_OnClick");
+            TeleportBlacklistTextBox.Text = "";
+        }
+
+        private void AddAreaToBlacklist(string areaId, string caller)
+        {
+            if (!IsRealAreaId(areaId))
+                return;
+
+            areaId = areaId.Trim();
+
+            if (!FollowBotSettings.Instance.Follow.TeleportAreaBlacklist.Contains(areaId))
+            {
+                FollowBotSettings.Instance.Follow.TeleportAreaBlacklist.Add(areaId);
+                FollowBotSettings.Instance.Follow.UpdateTeleportAreaBlacklist();
+            }
+            else
+            {
+                GlobalLog.Error($"[{caller}] The area id {areaId} is already in the TeleportAreaBlacklist.");
+            }
+        }
+
+        private void RemoveTeleportBlacklistButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            string text = TeleportBlacklistTextBox.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (FollowBotSettings.Instance.Follow.TeleportAreaBlacklist.Contains(text))
+            {
+                FollowBotSettings.Instance.Follow.TeleportAreaBlacklist.Remove(text);
+                FollowBotSettings.Instance.Follow.UpdateTeleportAreaBlacklist();
+                TeleportBlacklistTextBox.Text = "";
+            }
+            else
+            {
+                GlobalLog.Error($"[RemoveTeleportBlacklistButton_OnClick] The area id {text} is not in the TeleportAreaBlacklist.");
+            }
+        }
+
+        private void TeleportBlacklistListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e != null && e.AddedItems.Count > 0)
+            {
+                TeleportBlacklistTextBox.Text = e.AddedItems[0].ToString();
+            }
+        }
+
+        #endregion
+
         private void AddLootBlacklistButton_OnClick(object sender, RoutedEventArgs e)
         {
             string text = LootBlacklistTextBox.Text.Trim();
             if (string.IsNullOrEmpty(text)) return;
 
-            // Determine type based on radio button
             bool isMetadata = BlacklistByMetadata.IsChecked == true;
             string prefix = isMetadata ? "[M] " : "[N] ";
             string entry = prefix + text;
 
-            // Check for duplicates
             if (FollowBotSettings.Instance.Loot.LootBlacklist.Contains(entry))
             {
                 MessageBox.Show($"'{text}' is already blacklisted.", "Duplicate",

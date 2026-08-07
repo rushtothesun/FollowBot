@@ -29,6 +29,7 @@ namespace FollowBot.Settings
         private bool _activateMirageSpawners = false;
         private int _mirageSpawnerDistance = 40;
         private ObservableCollection<string> _partyAndTradeWhitelist;
+        private ObservableCollection<string> _teleportAreaBlacklist;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -252,6 +253,46 @@ namespace FollowBot.Settings
         public void UpdatePartyAndTradeWhitelist()
         {
             NotifyPropertyChanged(nameof(PartyAndTradeWhitelist));
+        }
+
+        /// <summary>
+        /// Case-insensitive Area ids the follower will not travel to when the leader is there.
+        /// </summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public ObservableCollection<string> TeleportAreaBlacklist
+        {
+            get => _teleportAreaBlacklist ?? (_teleportAreaBlacklist = new ObservableCollection<string>());
+            set
+            {
+                if (value.Equals(_teleportAreaBlacklist))
+                {
+                    return;
+                }
+                _teleportAreaBlacklist = value;
+                NotifyPropertyChanged(nameof(TeleportAreaBlacklist));
+            }
+        }
+
+        public void UpdateTeleportAreaBlacklist()
+        {
+            NotifyPropertyChanged(nameof(TeleportAreaBlacklist));
+        }
+
+        public bool IsAreaBlacklisted(string areaId)
+        {
+            if (string.IsNullOrEmpty(areaId))
+                return false;
+
+            foreach (var entry in TeleportAreaBlacklist)
+            {
+                if (string.IsNullOrWhiteSpace(entry))
+                    continue;
+
+                if (areaId.IndexOf(entry.Trim(), System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
         }
     }
 }

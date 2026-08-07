@@ -22,20 +22,16 @@ namespace FollowBot.Tasks
     {
         #region Fields and Constants
 
-        // Portal interaction distances - standardized to 20
         private const int PortalMoveDistance = 20;
         private const int PortalWalkableDistance = 20;
-
-        // Max search distances (prevents running across entire map)
         private const int StandardMaxDistance = 40;
         private const int LabTrialMaxDistance = 50;
         private const int MaligaroMaxDistance = 70;
         private const int NearbyTransitionMaxDistance = 100;
         private const int MirageReturnMaxDistance = 50;
-
-        // State management
         private static int _zoneCheckRetry = 0;
         private static int _maligaroPortalRetry = 0;
+        private static string _lastBlacklistedAreaId = null;
         public static Stopwatch PortOutStopwatch = new Stopwatch();
 
         #endregion
@@ -96,6 +92,19 @@ namespace FollowBot.Tasks
             var leadername = leaderPlayerEntry?.Name;
             var leaderArea = leaderPlayerEntry?.Area;
             if (string.IsNullOrEmpty(leadername) || leaderArea == null) return false;
+
+            if (FollowBotSettings.Instance.Follow.IsAreaBlacklisted(leaderArea.Id))
+            {
+                if (_lastBlacklistedAreaId != leaderArea.Id)
+                {
+                    _lastBlacklistedAreaId = leaderArea.Id;
+                    GlobalLog.Info($"[{Name}] Leader is in {leaderArea.Id} ({leaderArea.Name}), which is blacklisted. Staying here.");
+                }
+                _zoneCheckRetry = 0;
+                PortOutStopwatch.Reset();
+                return false;
+            }
+            _lastBlacklistedAreaId = null;
             if (LokiPoe.InGameState.PartyHud.IsInSameZone(leadername))
             {
                 _zoneCheckRetry = 0;
@@ -639,6 +648,7 @@ namespace FollowBot.Tasks
             if (message.Id == Events.Messages.AreaChanged)
             {
                 _zoneCheckRetry = 0;
+                _lastBlacklistedAreaId = null;
                 PortOutStopwatch.Reset();
                 return MessageResult.Processed;
             }
