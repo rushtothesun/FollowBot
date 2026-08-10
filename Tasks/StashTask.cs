@@ -410,64 +410,32 @@ namespace FollowBot.Tasks
         /// </summary>
         private async Task DepositInventoryItems(StashHelper.StashType stashType, Func<Item, bool> itemFilter = null)
         {
-            var mainInventoryItems = InventoryUi.InventoryControl_Main.Inventory.Items;
-            int depositedCount = 0;
-            int skippedCount = 0;
+            int totalCount = InventoryUi.InventoryControl_Main.Inventory.Items.Count;
 
             // Step 1: Filter out items we don't want to deposit (Quests & Excluded Slots)
-            var itemsToDeposit = mainInventoryItems.Where(item =>
-            {
-                // Filter: Skip quest items
-                if (item.Class == ItemClasses.QuestItem)
-                {
-                    GlobalLog.Info($"[StashTask] Skipping quest item: {item.Name}");
-                    skippedCount++;
-                    return false;
-                }
-
-                // Filter: Skip excluded slots (from UI settings)
-                if (FollowBotSettings.Instance.Trade.IsSlotExcluded(item.LocationTopLeft.X, item.LocationTopLeft.Y))
-                {
-                    GlobalLog.Info($"[StashTask] Skipping excluded slot ({item.LocationTopLeft.X}, {item.LocationTopLeft.Y}): {item.Name}");
-                    skippedCount++;
-                    return false;
-                }
-
-                // Filter: Optional caller-provided filter (e.g., currency only)
-                if (itemFilter != null && !itemFilter(item))
-                {
-                    skippedCount++;
-                    return false;
-                }
-
-                return true;
-            }).ToList();
+            var itemsToDeposit = GetDepositableItems(itemFilter, true);
+            int skippedCount = totalCount - itemsToDeposit.Count;
 
             // Step 2: Iterate and deposit the filtered items
-            foreach (var item in itemsToDeposit)
+            await DepositItems(itemsToDeposit, stashType);
+
+            // Step 3: Re-read the inventory and retry anything FastMove reported as moved but did not
+            await Wait.SleepSafe(300);
+
+            var leftover = GetDepositableItems(itemFilter, false);
+            if (leftover.Count > 0)
             {
-                // Human-like pause (10% chance, 100-200ms) - from TradeTask pattern
-                if (LokiPoe.Random.Next(1, 100) > 90)
-                {
-                    int pauseDuration = LokiPoe.Random.Next(100, 200);
-                    await Wait.SleepSafe(pauseDuration);
-                }
+                GlobalLog.Warn($"[StashTask] {leftover.Count} item(s) still in inventory after first pass: {DescribeItems(leftover)}");
 
-                // Deposit item (affinity will auto-route to correct tabs)
-                bool success = await StashHelper.DepositItem(item.LocalId, stashType);
+                await DepositItems(leftover, stashType);
+                await Wait.SleepSafe(300);
 
-                if (success)
-                {
-                    depositedCount++;
-                }
-                else
-                {
-                    GlobalLog.Warn($"[StashTask] Failed to deposit: {item.Name}");
-                }
-
-                // Small random delay between items (30-70ms) - from TradeTask pattern
-                await Wait.SleepSafe(LokiPoe.Random.Next(30, 70));
+                leftover = GetDepositableItems(itemFilter, false);
+                if (leftover.Count > 0)
+                    GlobalLog.Error($"[StashTask] {leftover.Count} item(s) still in inventory after retry: {DescribeItems(leftover)}");
             }
+
+            int depositedCount = itemsToDeposit.Count - leftover.Count;
 
             // =========================================================================================
             /* [LEGACY X/Y GRID LOOP] 
@@ -529,6 +497,66 @@ namespace FollowBot.Tasks
             // =========================================================================================
 
             GlobalLog.Info($"[StashTask] Deposit complete. Deposited: {depositedCount}, Skipped: {skippedCount}");
+        }
+
+        /// <summary>Returns the inventory items that pass the quest, excluded slot and caller filters.</summary>
+        private static List<Item> GetDepositableItems(Func<Item, bool> itemFilter, bool logSkips)
+        {
+            var result = new List<Item>();
+
+            foreach (var item in InventoryUi.InventoryControl_Main.Inventory.Items)
+            {
+                // Filter: Skip quest items
+                if (item.Class == ItemClasses.QuestItem)
+                {
+                    if (logSkips)
+                        GlobalLog.Info($"[StashTask] Skipping quest item: {item.Name}");
+                    continue;
+                }
+
+                // Filter: Skip excluded slots (from UI settings)
+                if (FollowBotSettings.Instance.Trade.IsSlotExcluded(item.LocationTopLeft.X, item.LocationTopLeft.Y))
+                {
+                    if (logSkips)
+                        GlobalLog.Info($"[StashTask] Skipping excluded slot ({item.LocationTopLeft.X}, {item.LocationTopLeft.Y}): {item.Name}");
+                    continue;
+                }
+
+                // Filter: Optional caller-provided filter (e.g., currency only)
+                if (itemFilter != null && !itemFilter(item))
+                    continue;
+
+                result.Add(item);
+            }
+
+            return result;
+        }
+
+        /// <summary>Deposits the given items, logging any that FastMove rejects outright.</summary>
+        private static async Task DepositItems(List<Item> items, StashHelper.StashType stashType)
+        {
+            foreach (var item in items)
+            {
+                // Human-like pause (10% chance, 100-200ms) - from TradeTask pattern
+                if (LokiPoe.Random.Next(1, 100) > 90)
+                {
+                    int pauseDuration = LokiPoe.Random.Next(100, 200);
+                    await Wait.SleepSafe(pauseDuration);
+                }
+
+                // Deposit item (affinity will auto-route to correct tabs)
+                if (!await StashHelper.DepositItem(item.LocalId, stashType))
+                    GlobalLog.Warn($"[StashTask] Failed to deposit: {item.Name} [{item.Class}]");
+
+                // Small random delay between items (30-70ms) - from TradeTask pattern
+                await Wait.SleepSafe(LokiPoe.Random.Next(30, 70));
+            }
+        }
+
+        /// <summary>Formats items as a comma separated name and class list for logging.</summary>
+        private static string DescribeItems(List<Item> items)
+        {
+            return string.Join(", ", items.Select(i => $"{i.Name} [{i.Class}]"));
         }
 
         #endregion

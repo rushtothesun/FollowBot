@@ -63,7 +63,16 @@ namespace FollowBot.Helpers
             await Coroutines.CloseBlockingWindows();
             await Coroutines.LatencyWait();
 
-            var ret = LokiPoe.InGameState.PartyHud.FastGoToZone(name);
+            LokiPoe.InGameState.FastGoToZoneResult ret;
+            try
+            {
+                ret = LokiPoe.InGameState.PartyHud.FastGoToZone(name);
+            }
+            catch (ArgumentOutOfRangeException ex) when (IsPartyHudTornRead(ex))
+            {
+                GlobalLog.Warn($"[FastGotoPartyZone] Party HUD rows were being rebuilt by the client while DPB scanned the party list for {name}. No teleport was issued, retrying next tick.");
+                return false;
+            }
             await Coroutines.LatencyWait();
             await Coroutines.ReactionWait();
             if (ret != LokiPoe.InGameState.FastGoToZoneResult.None)
@@ -75,6 +84,43 @@ namespace FollowBot.Helpers
                 LokiPoe.InGameState.GlobalWarningDialog.ConfirmDialog();
 
             return true;
+        }
+
+        /// <summary>Party zone check that survives the client rebuilding the party HUD mid-read.</summary>
+        public static bool IsInSameZone(string characterName)
+        {
+            try
+            {
+                return LokiPoe.InGameState.PartyHud.IsInSameZone(characterName);
+            }
+            catch (ArgumentOutOfRangeException ex) when (IsPartyHudTornRead(ex))
+            {
+                GlobalLog.Warn($"[IsInSameZone] Party HUD rows were being rebuilt by the client while DPB looked up {characterName}. Assuming same zone for this tick.");
+                return true;
+            }
+        }
+
+        /// <summary>True only for the known DPB race where a PartyInfo getter indexes a HUD row the client has momentarily emptied.</summary>
+        private static bool IsPartyHudTornRead(ArgumentOutOfRangeException ex)
+        {
+            if (ex.ParamName != "index")
+                return false;
+
+            var frames = new System.Diagnostics.StackTrace(ex, false).GetFrames();
+            if (frames == null)
+                return false;
+
+            foreach (var frame in frames)
+            {
+                var method = frame.GetMethod();
+                if (method?.DeclaringType?.FullName != "DreamPoeBot.Loki.Elements.PartyHudUIElement+PartyInfo")
+                    continue;
+
+                if (method.Name == "get_Name" || method.Name == "get_Zone" || method.Name == "get_IsInSameZone")
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>

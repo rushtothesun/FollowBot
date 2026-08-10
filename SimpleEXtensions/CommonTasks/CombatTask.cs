@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using DreamPoeBot.Loki.Bot;
 using DreamPoeBot.Loki.Game;
+using FollowBot.Helpers;
 using FollowBot.Tasks;
 
 namespace FollowBot.SimpleEXtensions.CommonTasks
@@ -23,7 +24,7 @@ namespace FollowBot.SimpleEXtensions.CommonTasks
 
             if (leader != null)
             {
-                if (!LokiPoe.InGameState.PartyHud.IsInSameZone(leader.Name) || FollowBot.Leader.HasBuff("Smite Aura"))
+                if (!PartyHelper.IsInSameZone(leader.Name) || FollowBot.Leader.HasBuff("Smite Aura"))
                 {
                     if (!TravelToPartyZoneTask.PortOutStopwatch.IsRunning || TravelToPartyZoneTask.PortOutStopwatch.ElapsedMilliseconds > (FollowBotSettings.Instance.Follow.PortOutThreshold * 1000))
                     {

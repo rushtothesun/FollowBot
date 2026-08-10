@@ -350,7 +350,7 @@ namespace FollowBot.Tasks
                     GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
                 }
                 var partyMembers = LokiPoe.InstanceInfo.PartyMembers;
-                party = partyMembers.Where(x => x != null && x.PlayerEntry != null && listSplit.Contains(x.PlayerEntry.Name) && x.PlayerEntry.Name != LokiPoe.Me.Name && LokiPoe.InGameState.PartyHud.IsInSameZone(x.PlayerEntry.Name)).ToList();
+                party = partyMembers.Where(x => x != null && x.PlayerEntry != null && listSplit.Contains(x.PlayerEntry.Name) && x.PlayerEntry.Name != LokiPoe.Me.Name && PartyHelper.IsInSameZone(x.PlayerEntry.Name)).ToList();
                 if (party.Count < 1)
                 {
                     GlobalLog.Error("--------------------------------------------------------------------------------------------------------------------------------");
@@ -363,7 +363,7 @@ namespace FollowBot.Tasks
                 {
                     var name = partyMember?.PlayerEntry?.Name;
                     if (string.IsNullOrEmpty(name)) continue;
-                    if (!LokiPoe.InGameState.PartyHud.IsInSameZone(name)) continue;
+                    if (!PartyHelper.IsInSameZone(name)) continue;
                     if (!LinkRotationDictionary.ContainsKey(name))
                     {
                         LinkRotationDictionary.Add(name, 0);

@@ -105,7 +105,7 @@ namespace FollowBot.Tasks
                 return false;
             }
             _lastBlacklistedAreaId = null;
-            if (LokiPoe.InGameState.PartyHud.IsInSameZone(leadername))
+            if (PartyHelper.IsInSameZone(leadername))
             {
                 _zoneCheckRetry = 0;
                 PortOutStopwatch.Reset();

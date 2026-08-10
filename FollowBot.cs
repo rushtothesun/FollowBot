@@ -7,6 +7,7 @@ using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.NativeWrappers;
 using DreamPoeBot.Loki.Game.Objects;
 using FollowBot.Class;
+using FollowBot.Helpers;
 using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.CommonTasks;
 using FollowBot.SimpleEXtensions.Global;
@@ -81,7 +82,7 @@ namespace FollowBot
                     return null;
                 }
 
-                if (!LokiPoe.InGameState.PartyHud.IsInSameZone(leaderName))
+                if (!PartyHelper.IsInSameZone(leaderName))
                 {
                     _leader = null;
                     return null;

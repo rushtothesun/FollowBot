@@ -55,6 +55,8 @@ namespace FollowBot.Tasks
 
     public class DivineFontTask : ITask
     {
+        private const int HoverAttempts = 3;
+
         private static Dictionary<string, double> _gemPrices = new Dictionary<string, double>();
         private static DateTime _lastPriceUpdateTime = DateTime.MinValue;
         private const string PriceCacheFileName = "divine_font_gem_prices.json";
@@ -96,12 +98,18 @@ namespace FollowBot.Tasks
             if (divineFont == null || divineFont.Distance > 55)
                 return false;
 
+            if (divineFont.Distance > 20)
+            {
+                GlobalLog.Info("[DivineFontTask] Moving closer to Divine Font");
+                await Move.AtOnce(divineFont.Position, "Divine Font", 15);
+            }
+
             GlobalLog.Info("[DivineFontTask] Interacting with Divine Font");
             var interactResult = await PlayerAction.Interact(divineFont);
             if (!interactResult)
                 return false;
 
-            return await Wait.For(() => LokiPoe.InGameState.DivineFontUi.IsOpened, "Divine Font UI opening", 200, 2000);
+            return await Wait.For(() => LokiPoe.InGameState.DivineFontUi.IsOpened, "Divine Font UI opening", 200, 5000);
         }
 
         private async Task<bool> ExecutePriorityLogic()
@@ -606,19 +614,24 @@ namespace FollowBot.Tasks
 
         private DivineFontOptionType? IdentifyOptionType(string text)
         {
-            // "Transform specific gem to Transfigured version"
-            if (text.Contains("Transfigured") && text.Contains("version"))
+            // "Transform a non-Transfigured Skill Gem to a Transfigured version"
+            if (ContainsToken(text, "Transfigured") && ContainsToken(text, "version"))
                 return DivineFontOptionType.TransformSpecificGem;
 
             // "Transform a Skill Gem to be a random Transfigured Gem of the same colour"
-            if (text.Contains("random") && text.Contains("Transfigured") && text.Contains("same colour"))
+            if (ContainsToken(text, "random") && ContainsToken(text, "Transfigured") && ContainsToken(text, "same colour"))
                 return DivineFontOptionType.TransformRandomSameColor;
 
-            // "Exchange a Support Gem for a random Exceptional Gem" (or Empower/Enlighten/Enhance variant)
-            if (text.IndexOf("support", StringComparison.OrdinalIgnoreCase) >= 0)
+            // "Exchange a Support Gem for a random Empower Support, Enlighten Support, or Enhance Support"
+            if (ContainsToken(text, "support"))
                 return DivineFontOptionType.ExchangeForExceptional;
 
             return null;
+        }
+
+        private static bool ContainsToken(string text, string token)
+        {
+            return text != null && text.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
         }
         private async Task<bool> ChooseMostValuableGem(string[] gemNames)
         {
@@ -741,21 +754,6 @@ namespace FollowBot.Tasks
 
 
 
-        private async Task<bool> ClickElement(Element element)
-        {
-            if (element == null)
-                return false;
-
-            var clickPos = element.CenterClickLocation();
-            MouseManager.SetMousePosition(clickPos, useRandomPos: false);
-            Thread.Sleep(LokiPoe.Random.Next(25, 55));
-            MouseManager.ClickLMB();
-            Thread.Sleep(LokiPoe.Random.Next(90, 150));
-
-            return true;
-        }
-
-
 
         private async Task<bool> SelectTransformOption(DivineFontOptionType targetType)
         {
@@ -812,15 +810,13 @@ namespace FollowBot.Tasks
         {
             try
             {
-                // Navigate to gems container parent: root[1][68][4][0][0]
-                var gemsParent = ClassExtensions.GetElementByPath(68, 4, 0, 0);
+                var gemsParent = ClassExtensions.GetElementByPath(76, 4, 0, 0);
                 if (gemsParent == null || gemsParent.Children == null || gemsParent.Children.Count == 0)
                 {
                     GlobalLog.Error($"[DivineFontTask] Gems parent not found or has no children");
                     return null;
                 }
 
-                // Get the actual container with 3 gem children
                 var gemsContainer = gemsParent.Children[0];
                 if (gemsContainer == null || gemsContainer.Children == null || gemsContainer.Children.Count <= gemIndex)
                 {
@@ -828,7 +824,6 @@ namespace FollowBot.Tasks
                     return null;
                 }
 
-                // Get the specific gem element
                 var gemElement = gemsContainer.Children[gemIndex];
                 if (gemElement == null)
                 {
@@ -836,35 +831,39 @@ namespace FollowBot.Tasks
                     return null;
                 }
 
-                // Hover over the gem to populate tooltip
+                var options = DivineFontUi.TransfigurePanel.CraftTsfigureOptions;
+                if (options == null || options.Count <= gemIndex)
+                {
+                    GlobalLog.Error($"[DivineFontTask] Transfigure option {gemIndex} not found. Available: {options?.Count ?? 0}");
+                    return null;
+                }
+
                 var gemPos = gemElement.CenterClickLocation();
-                MouseManager.SetMousePosition(gemPos, useRandomPos: false);
-                Thread.Sleep(250); // Wait for tooltip to populate
+                var awayPos = gemsParent.CenterClickLocation();
 
-                // Tooltip is directly on the gem element
-                var tooltip = gemElement.Tooltip;
-                if (tooltip == null)
+                for (int attempt = 1; attempt <= HoverAttempts; attempt++)
                 {
-                    GlobalLog.Error($"[DivineFontTask] Tooltip not found for gem {gemIndex} after hover");
-                    return null;
+                    if (attempt > 1)
+                    {
+                        GlobalLog.Warn($"[DivineFontTask] Gem {gemIndex} name empty, re-hovering (attempt {attempt}/{HoverAttempts})");
+                        MouseManager.SetMousePosition(awayPos, useRandomPos: false);
+                        Thread.Sleep(50);
+                    }
+
+                    MouseManager.SetMousePosition(gemPos, useRandomPos: false);
+                    Thread.Sleep(250);
+
+                    var current = DivineFontUi.TransfigurePanel.CraftTsfigureOptions;
+                    if (current == null || current.Count <= gemIndex)
+                        break;
+
+                    var name = current[gemIndex].Name;
+                    if (!string.IsNullOrEmpty(name))
+                        return name;
                 }
 
-                // Navigate tooltip structure: Tooltip.Children[0].Children[0].Text
-                if (tooltip.Children == null || tooltip.Children.Count == 0)
-                {
-                    GlobalLog.Error($"[DivineFontTask] Tooltip has no children for gem {gemIndex}");
-                    return null;
-                }
-
-                var tooltipChild = tooltip.Children[0];
-                if (tooltipChild == null || tooltipChild.Children == null || tooltipChild.Children.Count == 0)
-                {
-                    GlobalLog.Error($"[DivineFontTask] Tooltip child has no children for gem {gemIndex}");
-                    return null;
-                }
-
-                var textElement = tooltipChild.Children[0];
-                return textElement?.Text;
+                GlobalLog.Error($"[DivineFontTask] Gem {gemIndex} name still empty after {HoverAttempts} hover attempts");
+                return null;
             }
             catch (Exception ex)
             {
@@ -877,30 +876,17 @@ namespace FollowBot.Tasks
         {
             try
             {
-                // Navigate to gems container: root[1][68][4][0][0]
-                var gemsParent = ClassExtensions.GetElementByPath(68, 4, 0, 0);
-                if (gemsParent == null || gemsParent.Children == null || gemsParent.Children.Count == 0)
+                var options = DivineFontUi.TransfigurePanel.CraftTsfigureOptions;
+                if (options == null || options.Count <= gemIndex)
                 {
-                    GlobalLog.Error("[DivineFontTask] Gems parent not found for clicking");
-                    return false;
-                }
-
-                var gemsContainer = gemsParent.Children[0];
-                if (gemsContainer == null || gemsContainer.Children == null || gemsContainer.Children.Count <= gemIndex)
-                {
-                    GlobalLog.Error($"[DivineFontTask] Gem {gemIndex} not found for clicking");
-                    return false;
-                }
-
-                var gemElement = gemsContainer.Children[gemIndex];
-                if (gemElement == null)
-                {
-                    GlobalLog.Error($"[DivineFontTask] Gem element {gemIndex} is null");
+                    GlobalLog.Error($"[DivineFontTask] Transfigure option {gemIndex} not found for selection. Available: {options?.Count ?? 0}");
                     return false;
                 }
 
                 GlobalLog.Info($"[DivineFontTask] Clicking gem at index {gemIndex}");
-                await ClickElement(gemElement);
+                Thread.Sleep(LokiPoe.Random.Next(25, 55));
+                options[gemIndex].Select();
+                Thread.Sleep(LokiPoe.Random.Next(90, 150));
                 await Coroutines.LatencyWait();
 
                 return true;
@@ -914,27 +900,19 @@ namespace FollowBot.Tasks
 
         private async Task<bool> ClickConfirmButton()
         {
-            // Path: root.Children[1].Children[68].Children[4].Children[0].Children[1].Children[0]
-            var confirmButton = ClassExtensions.GetElementByPath(68, 4, 0, 1, 0);
-
-            if (confirmButton == null || !confirmButton.IsVisible)
+            if (!DivineFontUi.TransfigurePanel.IsOpened)
             {
-                GlobalLog.Error("[DivineFontTask] Confirm button not found");
+                GlobalLog.Error("[DivineFontTask] Transfigure panel is not open, cannot confirm");
                 return false;
             }
 
-            // Verify button text is "confirm"
-            if (confirmButton.Text == "confirm")
-            {
-                GlobalLog.Info("[DivineFontTask] Clicking confirm button");
-                await ClickElement(confirmButton);
+            GlobalLog.Info("[DivineFontTask] Clicking confirm button");
+            Thread.Sleep(LokiPoe.Random.Next(25, 55));
+            DivineFontUi.TransfigurePanel.Craft();
+            Thread.Sleep(LokiPoe.Random.Next(90, 150));
+            await Coroutines.LatencyWait();
 
-                await Coroutines.LatencyWait();
-                return true;
-            }
-
-            GlobalLog.Error($"[DivineFontTask] Unexpected confirm button text: '{confirmButton.Text}'");
-            return false;
+            return true;
         }
 
         private bool IsGemInSlot()
@@ -1396,7 +1374,7 @@ namespace FollowBot.Tasks
 
         private int GetRemainingCrafts()
         {
-            var craftsElement = ClassExtensions.GetElementByPath(68, 0, 3, 1, 0);
+            var craftsElement = ClassExtensions.GetElementByPath(76, 0, 3, 1, 0);
             if (craftsElement == null)
             {
                 GlobalLog.Error("[DivineFontTask] Could not find crafts remaining element.");

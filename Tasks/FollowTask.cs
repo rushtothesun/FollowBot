@@ -8,6 +8,7 @@ using DreamPoeBot.Loki.Game.GameData;
 using DreamPoeBot.Loki.Game.Objects;
 using DreamPoeBot.Loki;
 using FollowBot.Class;
+using FollowBot.Helpers;
 using FollowBot.SimpleEXtensions;
 using FollowBot.SimpleEXtensions.Global;
 using System.Collections.Generic;
@@ -148,7 +149,7 @@ namespace FollowBot.Tasks
             {
                 if (NewInstanceWaitSw.ElapsedMilliseconds < NewInstanceWaitMs)
                 {
-                    if (FollowBot.Leader != null && LokiPoe.InGameState.PartyHud.IsInSameZone(FollowBot.Leader.Name))
+                    if (FollowBot.Leader != null && PartyHelper.IsInSameZone(FollowBot.Leader.Name))
                     {
                         GlobalLog.Debug($"[{Name}] Leader is in the same zone, stopping wait.");
                         NewInstanceWaitSw.Reset();
