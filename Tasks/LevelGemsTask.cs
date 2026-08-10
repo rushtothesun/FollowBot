@@ -189,6 +189,7 @@ namespace FollowBot.Tasks
                                 var buttonElement = element.Children[1];
                                 var clickPos = buttonElement.CenterClickLocation();
 
+                                MouseManager.SetMousePosition(clickPos, useRandomPos: false);
                                 await Wait.SleepSafe(25, 100);
                                 MouseManager.ClickRMB(clickPos.X, clickPos.Y);
                                 await Wait.SleepSafe(25, 100);
